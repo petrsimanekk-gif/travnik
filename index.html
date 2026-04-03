@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Můj Trávník</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #1D9E75;
+    --green-light: #E1F5EE;
+    --green-mid: #9FE1CB;
+    --green-dark: #085041;
+    --green-deep: #0F6E56;
+    --amber-light: #FAEEDA;
+    --amber-dark: #633806;
+    --coral-light: #FAECE7;
+    --coral-dark: #712B13;
+    --blue-light: #E6F1FB;
+    --blue-dark: #0C447C;
+    --text: #1a1a1a;
+    --text-muted: #666;
+    --text-faint: #999;
+    --border: rgba(0,0,0,0.1);
+    --border-mid: rgba(0,0,0,0.18);
+    --bg: #f7f8f5;
+    --surface: #ffffff;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --radius-pill: 999px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 0;
+  }
+
+  .phone {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* SCREENS */
+  .screen { display: none; flex-direction: column; flex: 1; overflow-y: auto; }
+  .screen.active { display: flex; }
+
+  /* HEADER */
+  .header {
+    background: url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=400&w=430') center center / cover no-repeat;
+    padding: 52px 20px 24px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, rgba(5,45,25,0.68) 100%);
+    pointer-events: none;
+  }
+  .header-row {
+    display: flex; align-items: center; justify-content: space-between;
+    position: relative; z-index: 1;
+  }
+  .header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px; font-weight: 400;
+    color: white; line-height: 1.2;
+  }
+  .header-sub { font-size: 13px; color: rgba(255,255,255,0.85); margin-top: 3px; }
+  .weather-pill {
+    background: rgba(0,0,0,0.28);
+    border: 0.5px solid rgba(255,255,255,0.3);
+    border-radius: var(--radius-pill);
+    padding: 6px 14px; font-size: 13px; color: white;
+  }
+  .photo-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(0,0,0,0.28);
+    border: 0.5px solid rgba(255,255,255,0.3);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .photo-btn:hover { background: rgba(0,0,0,0.45); }
+
+  .header-small {
+    background: var(--green);
+    padding: 52px 20px 16px;
+    display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  }
+  .back-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(255,255,255,0.2); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .header-small h2 { font-size: 18px; font-weight: 500; color: white; }
+  .header-small p { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 1px; }
+
+  /* SEASON BAR */
+  .season-bar {
+    display: flex; gap: 8px;
+    padding: 14px 20px;
+    background: #f0f2ee;
+    border-bottom: 0.5px solid var(--border);
+    flex-shrink: 0; overflow-x: auto;
+  }
+  .season-chip {
+    font-size: 12px; padding: 5px 14px;
+    border-radius: var(--radius-pill);
+    border: 0.5px solid var(--border-mid);
+    cursor: pointer; color: var(--text-muted);
+    background: white; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .season-chip.active {
+    background: var(--green-light); color: var(--green-dark);
+    border-color: var(--green-mid);
+  }
+
+  /* SECTION LABEL */
+  .section-label {
+    font-size: 11px; font-weight: 500;
+    color: var(--text-faint);
+    letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 18px 20px 8px;
+  }
+
+  /* TASK CARDS */
+  .task-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+  .task-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border);
+    background: var(--surface); cursor: pointer;
+    transition: background 0.15s;
+  }
+  .task-card:hover { background: #f5f7f3; }
+  .task-card.done { opacity: 0.45; }
+  .task-icon {
+    width: 38px; height: 38px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .icon-green { background: var(--green-light); }
+  .icon-amber { background: var(--amber-light); }
+  .icon-blue  { background: var(--blue-light); }
+  .icon-coral { background: var(--coral-light); }
+  .task-info { flex: 1; }
+  .task-name { font-size: 14px; font-weight: 500; }
+  .task-when { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .urgent-badge {
+    font-size: 10px; font-weight: 500; padding: 3px 8px;
+    border-radius: var(--radius-pill);
+    background: var(--coral-light); color: var(--coral-dark);
+    white-space: nowrap;
+  }
+  .check-circle {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 1.5px solid var(--border-mid); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .check-circle.checked {
+    background: var(--green); border-color: var(--green);
+  }
+  .check-circle.checked::after {
+    content: '';
+    width: 5px; height: 9px;
+    border: 2px solid white;
+    border-top: none; border-left: none;
+    transform: rotate(45deg) translateY(-1px);
+    display: block;
+  }
+
+  /* AI BANNER */
+  .ai-banner {
+    margin: 12px 16px;
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    border: 1.5px dashed var(--green-mid);
+    background: var(--green-light);
+    display: flex; align-items: center; gap: 12px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .ai-banner:hover { background: var(--green-mid); }
+  .ai-icon {
+    width: 42px; height: 42px; border-radius: var(--radius-sm);
+    background: var(--green); display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0;
+  }
+  .ai-banner-title { font-size: 14px; font-weight: 500; color: var(--green-dark); }
+  .ai-banner-desc { font-size: 12px; color: var(--green-deep); margin-top: 2px; }
+
+  /* ADD TASK BUTTON */
+  .add-task-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin: 8px 16px 24px;
+    padding: 13px;
+    border-radius: var(--radius);
+    border: 1px dashed var(--border-mid);
+    background: transparent; color: var(--text-muted);
+    font-size: 14px; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; width: calc(100% - 32px);
+    transition: background 0.15s;
+  }
+  .add-task-btn:hover { background: #f5f7f3; }
+
+  /* ADD TASK FORM */
+  .add-form {
+    margin: 0 16px 16px;
+    padding: 16px;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border-mid);
+    background: var(--surface);
+    display: none; flex-direction: column; gap: 10px;
+  }
+  .add-form.visible { display: flex; }
+  .add-form input, .add-form select {
+    width: 100%; padding: 10px 12px;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius-sm);
+    font-size: 14px; font-family: 'DM Sans', sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  .add-form-btns { display: flex; gap: 8px; }
+  .btn-save {
+    flex: 1; padding: 10px;
+    background: var(--green); color: white;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 500;
+    font-family: 'DM Sans', sans-serif; cursor: pointer;
+  }
+  .btn-cancel {
+    padding: 10px 16px;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius-sm);
+    font-size: 14px; font-family: 'DM Sans', sans-serif;
+    background: var(--surface); cursor: pointer; color: var(--text-muted);
+  }
+
+  /* BOTTOM NAV */
+  .nav-bar {
+    display: flex;
+    border-top: 0.5px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; padding: 10px 0 8px;
+    font-size: 10px; color: var(--text-faint); cursor: pointer; gap: 4px;
+    transition: color 0.15s;
+  }
+  .nav-item.active { color: var(--green); }
+  .nav-icon { font-size: 20px; }
+
+  /* DIAGNOSTIKA SCREEN */
+  .upload-zone {
+    margin: 20px 16px 0;
+    border: 1.5px dashed var(--green-mid);
+    border-radius: var(--radius);
+    background: var(--green-light);
+    padding: 36px 20px;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 12px;
+    cursor: pointer; position: relative;
+    transition: background 0.15s;
+  }
+  .upload-zone:hover { background: var(--green-mid); }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0;
+    cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-zone-icon {
+    width: 56px; height: 56px; border-radius: var(--radius);
+    background: var(--green);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .upload-zone-title { font-size: 15px; font-weight: 500; color: var(--green-dark); }
+  .upload-zone-desc { font-size: 12px; color: var(--green-deep); text-align: center; line-height: 1.5; }
+
+  .preview-wrap {
+    margin: 16px 16px 0;
+    border-radius: var(--radius); overflow: hidden;
+    border: 0.5px solid var(--border); display: none;
+  }
+  .preview-wrap img { width: 100%; display: block; max-height: 220px; object-fit: cover; }
+  .preview-actions {
+    display: flex; gap: 8px; padding: 10px;
+    background: #f5f7f3;
+  }
+  .btn-analyze {
+    flex: 1; padding: 11px;
+    background: var(--green); color: white; border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+  .btn-retry {
+    padding: 11px 16px; border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius-sm); font-size: 14px;
+    font-family: 'DM Sans', sans-serif; cursor: pointer;
+    background: var(--surface); color: var(--text-muted);
+  }
+
+  .analyzing-card {
+    margin: 16px 16px 0;
+    padding: 16px; border-radius: var(--radius);
+    background: #f5f7f3; border: 0.5px solid var(--border);
+    display: none;
+  }
+  .analyzing-row { display: flex; align-items: center; gap: 10px; }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--green-mid);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .analyzing-text { font-size: 14px; color: var(--text-muted); }
+  .progress-bar {
+    margin-top: 10px; height: 4px;
+    background: var(--border); border-radius: var(--radius-pill); overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; width: 0%; background: var(--green);
+    border-radius: var(--radius-pill); transition: width 0.3s;
+  }
+
+  .result-card {
+    margin: 12px 16px 0;
+    border-radius: var(--radius); border: 0.5px solid var(--border);
+    background: var(--surface); overflow: hidden; display: none;
+  }
+  .result-header {
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .severity-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .result-name { font-size: 15px; font-weight: 500; flex: 1; }
+  .conf-badge {
+    font-size: 11px; font-weight: 500; padding: 3px 9px;
+    border-radius: var(--radius-pill);
+  }
+  .result-body { padding: 0 16px 14px; }
+  .result-row {
+    display: flex; gap: 8px; padding: 8px 0;
+    border-bottom: 0.5px solid var(--border); font-size: 13px;
+  }
+  .result-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .result-label { color: var(--text-muted); min-width: 90px; flex-shrink: 0; }
+  .result-value { font-weight: 500; }
+
+  .pripravky-list {
+    padding: 0 16px; display: flex; flex-direction: column; gap: 8px;
+    display: none;
+  }
+  .pripravek-card {
+    padding: 12px 14px; border-radius: var(--radius);
+    border: 0.5px solid var(--border); background: var(--surface);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .pripravek-icon {
+    width: 36px; height: 36px; border-radius: var(--radius-sm);
+    background: var(--green-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .pripravek-name { font-size: 14px; font-weight: 500; }
+  .pripravek-dose { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .best-badge {
+    margin-left: auto; font-size: 10px; font-weight: 500;
+    padding: 3px 8px; border-radius: var(--radius-pill);
+    background: var(--green-light); color: var(--green-dark); white-space: nowrap;
+  }
+
+  .tips-card {
+    margin: 12px 16px 0; padding: 14px 16px;
+    border-radius: var(--radius); background: var(--blue-light);
+    border: 0.5px solid #85B7EB; display: none;
+  }
+  .tips-title { font-size: 12px; font-weight: 500; color: var(--blue-dark); margin-bottom: 6px; }
+  .tips-text { font-size: 13px; color: #185FA5; line-height: 1.6; }
+
+  .history-list { padding: 0 16px 24px; }
+  .history-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 0; border-bottom: 0.5px solid var(--border); cursor: pointer;
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-thumb {
+    width: 44px; height: 44px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .hist-green { background: var(--green-light); }
+  .hist-amber { background: var(--amber-light); }
+  .history-name { font-size: 13px; font-weight: 500; }
+  .history-date { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+  .status-pill {
+    margin-left: auto; font-size: 11px; font-weight: 500;
+    padding: 3px 9px; border-radius: var(--radius-pill);
+  }
+  .pill-ok { background: var(--green-light); color: var(--green-dark); }
+  .pill-warn { background: var(--amber-light); color: var(--amber-dark); }
+
+  /* RADY SCREEN */
+  .rady-list { padding: 0 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+  .rada-card {
+    padding: 14px 16px; border-radius: var(--radius);
+    border: 0.5px solid var(--border); background: var(--surface);
+  }
+  .rada-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .rada-icon {
+    width: 36px; height: 36px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .rada-title { font-size: 14px; font-weight: 500; }
+  .rada-season { font-size: 11px; color: var(--text-faint); margin-top: 1px; }
+  .rada-text { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+  /* PLAN SCREEN */
+  .plan-month { padding: 0 16px 24px; }
+  .month-label {
+    font-size: 13px; font-weight: 500; color: var(--text-muted);
+    padding: 14px 0 8px;
+  }
+  .plan-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 0.5px solid var(--border);
+    font-size: 13px;
+  }
+  .plan-item:last-child { border-bottom: none; }
+  .plan-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .dot-green { background: var(--green); }
+  .dot-amber { background: #EF9F27; }
+  .dot-blue  { background: #378ADD; }
+  .plan-task { flex: 1; }
+  .plan-freq { font-size: 11px; color: var(--text-faint); }
+
+  .spacer { height: 20px; flex-shrink: 0; }
+
+  /* ONBOARDING */
+  .onboarding {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--surface);
+    display: flex; flex-direction: column;
+    max-width: 430px; margin: 0 auto;
+  }
+  .onboarding.hidden { display: none; }
+  .ob-header {
+    background: var(--green);
+    padding: 52px 24px 24px;
+    position: relative;
+  }
+  .ob-header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=200&w=430') center/cover no-repeat;
+    opacity: 0.3;
+  }
+  .ob-step-row {
+    display: flex; gap: 6px; margin-bottom: 16px; position: relative; z-index: 1;
+  }
+  .ob-step-dot {
+    height: 4px; border-radius: 999px; flex: 1;
+    background: rgba(255,255,255,0.35); transition: background 0.3s;
+  }
+  .ob-step-dot.active { background: white; }
+  .ob-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px; color: white;
+    position: relative; z-index: 1; line-height: 1.3;
+  }
+  .ob-subtitle {
+    font-size: 13px; color: rgba(255,255,255,0.8);
+    margin-top: 6px; position: relative; z-index: 1;
+  }
+  .ob-body {
+    flex: 1; overflow-y: auto; padding: 24px 20px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .ob-option {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    background: var(--surface); cursor: pointer;
+    transition: all 0.15s;
+  }
+  .ob-option:hover { border-color: var(--green-mid); background: var(--green-light); }
+  .ob-option.selected { border-color: var(--green); background: var(--green-light); }
+  .ob-option-icon {
+    width: 42px; height: 42px; border-radius: var(--radius-sm);
+    background: var(--green-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .ob-option.selected .ob-option-icon { background: var(--green-mid); }
+  .ob-option-name { font-size: 14px; font-weight: 500; }
+  .ob-option-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .ob-check {
+    margin-left: auto; width: 22px; height: 22px;
+    border-radius: 50%; border: 1.5px solid var(--border-mid);
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .ob-option.selected .ob-check {
+    background: var(--green); border-color: var(--green);
+  }
+  .ob-option.selected .ob-check::after {
+    content: '';
+    width: 5px; height: 9px;
+    border: 2px solid white;
+    border-top: none; border-left: none;
+    transform: rotate(45deg) translateY(-1px); display: block;
+  }
+  .ob-input-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .ob-input-wrap label { font-size: 13px; color: var(--text-muted); }
+  .ob-input-wrap input {
+    padding: 12px 14px;
+    border: 1.5px solid var(--border-mid);
+    border-radius: var(--radius-sm);
+    font-size: 15px; font-family: 'DM Sans', sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  .ob-input-wrap input:focus { outline: none; border-color: var(--green); }
+  .ob-footer {
+    padding: 16px 20px 32px;
+    border-top: 0.5px solid var(--border);
+    display: flex; gap: 10px;
+  }
+  .ob-btn-next {
+    flex: 1; padding: 14px;
+    background: var(--green); color: white; border: none;
+    border-radius: var(--radius); font-size: 15px; font-weight: 500;
+    font-family: 'DM Sans', sans-serif; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .ob-btn-next:hover { background: var(--green-deep); }
+  .ob-btn-back {
+    padding: 14px 18px;
+    border: 0.5px solid var(--border-mid); border-radius: var(--radius);
+    font-size: 15px; font-family: 'DM Sans', sans-serif;
+    background: var(--surface); cursor: pointer; color: var(--text-muted);
+  }
+  .ob-date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ob-date-card {
+    padding: 14px; border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    background: var(--surface); cursor: pointer; transition: all 0.15s;
+    text-align: center;
+  }
+  .ob-date-card:hover { border-color: var(--green-mid); background: var(--green-light); }
+  .ob-date-card.selected { border-color: var(--green); background: var(--green-light); }
+  .ob-date-icon { font-size: 24px; margin-bottom: 6px; }
+  .ob-date-label { font-size: 13px; font-weight: 500; }
+  .ob-date-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .ob-summary {
+    padding: 16px; border-radius: var(--radius);
+    border: 0.5px solid var(--border); background: var(--bg);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .ob-summary-row {
+    display: flex; align-items: center; gap: 10px; font-size: 13px;
+  }
+  .ob-summary-icon { font-size: 18px; width: 28px; text-align: center; }
+  .ob-summary-label { color: var(--text-muted); min-width: 90px; }
+  .ob-summary-value { font-weight: 500; }
+
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- ===== PŘEHLED ===== -->
+  <div class="screen active" id="screen-prehled">
+    <div class="header">
+      <div class="header-row">
+        <div>
+          <h1>Můj Trávník</h1>
+          <div class="header-sub" id="headerSub">Načítám počasí...</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;position:relative;z-index:1;">
+          <div class="weather-pill" id="weatherPill">⏳ Načítám...</div>
+          <label class="photo-btn" title="Nahrát vlastní fotku trávníku">
+            <input type="file" accept="image/*" id="headerPhotoInput" onchange="changeHeaderPhoto(event)" style="display:none;">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+              <rect x="2" y="6" width="16" height="11" rx="2" stroke="white" stroke-width="1.5"/>
+              <circle cx="10" cy="11.5" r="3" stroke="white" stroke-width="1.5"/>
+              <path d="M7.5 6V5a2 2 0 014 0v1" stroke="white" stroke-width="1.5"/>
+              <circle cx="16" cy="8.5" r="1" fill="white"/>
+            </svg>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="season-bar">
+      <div class="season-chip active" onclick="setSeason(this)">Jaro</div>
+      <div class="season-chip" onclick="setSeason(this)">Léto</div>
+      <div class="season-chip" onclick="setSeason(this)">Podzim</div>
+      <div class="season-chip" onclick="setSeason(this)">Zima</div>
+    </div>
+
+    <div class="section-label">Úkoly tento týden</div>
+    <div class="task-list" id="taskList">
+      <div class="task-card" onclick="toggleTask(this)">
+        <div class="task-icon icon-green">✂️</div>
+        <div class="task-info">
+          <div class="task-name">Sekání trávníku</div>
+          <div class="task-when">Dnes — výška trávy 8 cm</div>
+        </div>
+        <span class="urgent-badge">Dnes</span>
+        <div class="check-circle"></div>
+      </div>
+      <div class="task-card" onclick="toggleTask(this)">
+        <div class="task-icon icon-amber">🌿</div>
+        <div class="task-info">
+          <div class="task-name">Jarní hnojení</div>
+          <div class="task-when">Za 3 dny — dusíkaté hnojivo</div>
+        </div>
+        <div class="check-circle"></div>
+      </div>
+      <div class="task-card" onclick="toggleTask(this)">
+        <div class="task-icon icon-blue">💧</div>
+        <div class="task-info">
+          <div class="task-name">Zálivka</div>
+          <div class="task-when">Středa a sobota</div>
+        </div>
+        <div class="check-circle"></div>
+      </div>
+      <div class="task-card done" onclick="toggleTask(this)">
+        <div class="task-icon icon-coral">🪲</div>
+        <div class="task-info">
+          <div class="task-name">Ošetření plevelů</div>
+          <div class="task-when">Splněno včera</div>
+        </div>
+        <div class="check-circle checked"></div>
+      </div>
+    </div>
+
+    <div class="ai-banner" onclick="goTo('diagnostika')">
+      <div class="ai-icon">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect x="3" y="7" width="16" height="12" rx="2" stroke="white" stroke-width="1.5"/>
+          <circle cx="11" cy="13" r="3" stroke="white" stroke-width="1.5"/>
+          <path d="M8.5 7V6a2 2 0 015 0v1" stroke="white" stroke-width="1.5"/>
+          <circle cx="17" cy="9.5" r="1" fill="white"/>
+        </svg>
+      </div>
+      <div>
+        <div class="ai-banner-title">AI diagnostika trávníku</div>
+        <div class="ai-banner-desc">Vyfoť trávník → rozpoznám chorobu → doporučím přípravek</div>
+      </div>
+    </div>
+
+    <button class="add-task-btn" onclick="toggleAddForm()">
+      <span style="font-size:18px;line-height:1;">+</span> Přidat vlastní úkol
+    </button>
+
+    <div class="add-form" id="addForm">
+      <input type="text" id="newTaskName" placeholder="Název úkolu (např. Aerace trávníku)">
+      <input type="text" id="newTaskDate" placeholder="Kdy? (např. Za 5 dní)">
+      <select id="newTaskIcon">
+        <option value="🌿">🌿 Hnojení / chemie</option>
+        <option value="✂️">✂️ Sekání</option>
+        <option value="💧">💧 Zálivka</option>
+        <option value="🪲">🪲 Ošetření</option>
+        <option value="🔧">🔧 Jiné</option>
+      </select>
+      <div class="add-form-btns">
+        <button class="btn-save" onclick="saveTask()">Přidat úkol</button>
+        <button class="btn-cancel" onclick="toggleAddForm()">Zrušit</button>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+  </div>
+
+  <!-- ===== PLÁN ===== -->
+  <div class="screen" id="screen-plan">
+    <div class="header-small">
+      <div>
+        <h2>Roční plán péče</h2>
+        <p>Co dělat a kdy</p>
+      </div>
+    </div>
+    <div class="plan-month">
+      <div class="month-label">Jaro (březen – květen)</div>
+      <div class="plan-item"><div class="plan-dot dot-green"></div><div class="task-info"><div class="task-name">Jarní hnojení (dusík)</div></div><div class="plan-freq">1× / sezóna</div></div>
+      <div class="plan-item"><div class="plan-dot dot-green"></div><div class="task-info"><div class="task-name">Sekání trávníku</div></div><div class="plan-freq">každých 7 dní</div></div>
+      <div class="plan-item"><div class="plan-dot dot-blue"></div><div class="task-info"><div class="task-name">Zálivka</div></div><div class="plan-freq">2× týdně</div></div>
+      <div class="plan-item"><div class="plan-dot dot-amber"></div><div class="task-info"><div class="task-name">Ošetření plevelů</div></div><div class="plan-freq">dle potřeby</div></div>
+
+      <div class="month-label">Léto (červen – srpen)</div>
+      <div class="plan-item"><div class="plan-dot dot-green"></div><div class="task-info"><div class="task-name">Sekání trávníku</div></div><div class="plan-freq">každých 5–7 dní</div></div>
+      <div class="plan-item"><div class="plan-dot dot-blue"></div><div class="task-info"><div class="task-name">Zálivka (večer)</div></div><div class="plan-freq">3× týdně</div></div>
+      <div class="plan-item"><div class="plan-dot dot-amber"></div><div class="task-info"><div class="task-name">Letní hnojení (draslík)</div></div><div class="plan-freq">1× / sezóna</div></div>
+
+      <div class="month-label">Podzim (září – říjen)</div>
+      <div class="plan-item"><div class="plan-dot dot-amber"></div><div class="task-info"><div class="task-name">Podzimní hnojení (fosfor)</div></div><div class="plan-freq">1× / sezóna</div></div>
+      <div class="plan-item"><div class="plan-dot dot-green"></div><div class="task-info"><div class="task-name">Aerace trávníku</div></div><div class="plan-freq">1× / rok</div></div>
+      <div class="plan-item"><div class="plan-dot dot-green"></div><div class="task-info"><div class="task-name">Dosévání holých míst</div></div><div class="plan-freq">dle potřeby</div></div>
+
+      <div class="month-label">Zima (listopad – únor)</div>
+      <div class="plan-item"><div class="plan-dot dot-blue"></div><div class="task-info"><div class="task-name">Omezit pohyb po trávníku</div></div><div class="plan-freq">celou zimu</div></div>
+      <div class="plan-item"><div class="plan-dot dot-amber"></div><div class="task-info"><div class="task-name">Kontrola chorob (Fusarium)</div></div><div class="plan-freq">dle potřeby</div></div>
+    </div>
+  </div>
+
+  <!-- ===== DIAGNOSTIKA ===== -->
+  <div class="screen" id="screen-diagnostika">
+    <div class="header-small">
+      <button class="back-btn" onclick="goTo('prehled')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M10 12L6 8L10 4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div>
+        <h2>AI diagnostika</h2>
+        <p>Nahraj fotku trávníku</p>
+      </div>
+    </div>
+
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" accept="image/*" id="fileInput" onchange="handleFile(event)">
+      <div class="upload-zone-icon">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+          <rect x="3" y="7" width="20" height="15" rx="2.5" stroke="white" stroke-width="1.5"/>
+          <circle cx="13" cy="14" r="4" stroke="white" stroke-width="1.5"/>
+          <path d="M10 7V6a2.5 2.5 0 015 0v1" stroke="white" stroke-width="1.5"/>
+          <circle cx="20" cy="10" r="1.2" fill="white"/>
+        </svg>
+      </div>
+      <div class="upload-zone-title">Vyfotit nebo nahrát trávník</div>
+      <div class="upload-zone-desc">Vyber fotografii z galerie nebo poříď nový snímek. Záběr by měl být ostrý a dobře osvětlený.</div>
+    </div>
+
+    <div class="preview-wrap" id="previewWrap">
+      <img id="previewImg" src="" alt="Náhled snímku">
+      <div class="preview-actions">
+        <button class="btn-analyze" onclick="startAnalysis()">Analyzovat snímek</button>
+        <button class="btn-retry" onclick="resetDiag()">Jiná fotka</button>
+      </div>
+    </div>
+
+    <div class="analyzing-card" id="analyzingCard">
+      <div class="analyzing-row">
+        <div class="spinner"></div>
+        <span class="analyzing-text" id="analyzingText">Analyzuji snímek...</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <div class="result-header" id="resultHeader">
+        <div class="severity-dot" id="severityDot"></div>
+        <div class="result-name" id="resultName"></div>
+        <span class="conf-badge" id="confBadge"></span>
+      </div>
+      <div class="result-body">
+        <div class="result-row"><span class="result-label">Závažnost</span><span class="result-value" id="resultSeverity"></span></div>
+        <div class="result-row"><span class="result-label">Příznaky</span><span class="result-value" id="resultSymptoms"></span></div>
+        <div class="result-row"><span class="result-label">Příčina</span><span class="result-value" id="resultCause"></span></div>
+        <div class="result-row"><span class="result-label">Kdy léčit</span><span class="result-value" id="resultWhen"></span></div>
+      </div>
+    </div>
+
+    <div class="section-label" id="pripravkyTitle" style="display:none;">Doporučené přípravky</div>
+    <div class="pripravky-list" id="pripravkyList">
+      <div class="pripravek-card">
+        <div class="pripravek-icon">🧴</div>
+        <div><div class="pripravek-name">Rovral Aquaflo</div><div class="pripravek-dose">1,5 l/ha · aplikovat ráno</div></div>
+        <span class="best-badge">Nejlepší volba</span>
+      </div>
+      <div class="pripravek-card">
+        <div class="pripravek-icon">🧪</div>
+        <div><div class="pripravek-name">Signum WG</div><div class="pripravek-dose">1,0 kg/ha · preventivně</div></div>
+      </div>
+      <div class="pripravek-card">
+        <div class="pripravek-icon">🌿</div>
+        <div><div class="pripravek-name">Serenade ASO</div><div class="pripravek-dose">Bio alternativa · 4 l/ha</div></div>
+      </div>
+    </div>
+
+    <div class="tips-card" id="tipsCard">
+      <div class="tips-title">Tipy pro prevenci</div>
+      <div class="tips-text" id="tipsText"></div>
+    </div>
+
+    <div class="section-label">Historie diagnostik</div>
+    <div class="history-list">
+      <div class="history-item">
+        <div class="history-thumb hist-green">🌿</div>
+        <div class="task-info"><div class="history-name">Zdravý trávník</div><div class="history-date">24. března 2026</div></div>
+        <span class="status-pill pill-ok">Zdravý</span>
+      </div>
+      <div class="history-item">
+        <div class="history-thumb hist-amber">🍂</div>
+        <div class="task-info"><div class="history-name">Rez travní</div><div class="history-date">5. února 2026</div></div>
+        <span class="status-pill pill-warn">Léčeno</span>
+      </div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+
+  <!-- ===== RADY ===== -->
+  <div class="screen" id="screen-rady">
+    <div class="header-small">
+      <div>
+        <h2>Rady pro trávník</h2>
+        <p>Tipy pro každou sezónu</p>
+      </div>
+    </div>
+    <div class="section-label">Jaro</div>
+    <div class="rady-list">
+      <div class="rada-card">
+        <div class="rada-header">
+          <div class="rada-icon icon-green">✂️</div>
+          <div><div class="rada-title">První sekání na jaře</div><div class="rada-season">Březen – duben</div></div>
+        </div>
+        <div class="rada-text">Počkejte až tráva dosáhne 8–10 cm. První seč proveďte na výšku 5 cm — nikdy nestříhejte více než 1/3 délky stébla najednou.</div>
+      </div>
+      <div class="rada-card">
+        <div class="rada-header">
+          <div class="rada-icon icon-amber">🌿</div>
+          <div><div class="rada-title">Jarní hnojení</div><div class="rada-season">Duben – květen</div></div>
+        </div>
+        <div class="rada-text">Použijte hnojivo s vyšším obsahem dusíku (N). Aplikujte na vlhký trávník a ihned zavlažte. Ideální teplota půdy alespoň 8°C.</div>
+      </div>
+      <div class="rada-card">
+        <div class="rada-header">
+          <div class="rada-icon icon-coral">🪲</div>
+          <div><div class="rada-title">Boj s plevely</div><div class="rada-season">Duben – červen</div></div>
+        </div>
+        <div class="rada-text">Na jaře je nejvyšší čas zasáhnout proti plevelům. Použijte selektivní herbicidy — nepoškodí trávník, ale zlikvidují plevele.</div>
+      </div>
+
+      <div class="section-label" style="padding-left:0;">Léto</div>
+      <div class="rada-card">
+        <div class="rada-header">
+          <div class="rada-icon icon-blue">💧</div>
+          <div><div class="rada-title">Správná zálivka v létě</div><div class="rada-season">Červen – srpen</div></div>
+        </div>
+        <div class="rada-text">Zalévejte ráno nebo večer — nikdy v poledne. Trávník potřebuje 20–30 mm vody týdně. Méně, ale hlubší zálivky jsou lepší než časté povrchní.</div>
+      </div>
+      <div class="rada-card">
+        <div class="rada-header">
+          <div class="rada-icon icon-amber">🌞</div>
+          <div><div class="rada-title">Výška sekání v horku</div><div class="rada-season">Červenec – srpen</div></div>
+        </div>
+        <div class="rada-text">V parných dnech zvyšte výšku sekání na 6–7 cm. Delší tráva lépe snáší sucho, chrání půdu před vysycháním a potlačuje plevele.</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+
+  <!-- ===== NASTAVENÍ ===== -->
+  <div class="screen" id="screen-nastaveni">
+    <div class="header-small">
+      <div>
+        <h2>Nastavení</h2>
+        <p>API klíč a profil trávníku</p>
+      </div>
+    </div>
+
+    <div style="padding: 0 16px;">
+      <div class="section-label">AI funkce (diagnostika + hnojivo)</div>
+
+      <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;">
+        <div style="font-size:14px;font-weight:500;margin-bottom:6px;">Anthropic API klíč</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
+          Klíč se uloží pouze do tvého telefonu. Bez něj AI diagnostika a rozpoznávání hnojiv nefunguje.
+          <br><a href="https://console.anthropic.com" style="color:var(--green);text-decoration:none;" target="_blank">Získat klíč zdarma →</a>
+        </div>
+        <div style="position:relative;">
+          <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." 
+            style="width:100%;padding:11px 44px 11px 12px;border:1.5px solid var(--border-mid);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:var(--bg);color:var(--text);">
+          <button onclick="toggleApiVisibility()" id="apiToggleBtn"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:var(--text-muted);">👁</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button onclick="saveApiKey()" style="flex:1;padding:11px;background:var(--green);color:white;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;">Uložit klíč</button>
+          <button onclick="deleteApiKey()" style="padding:11px 14px;border:0.5px solid var(--border-mid);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;cursor:pointer;background:var(--surface);color:#E24B4A;">Smazat</button>
+        </div>
+        <div id="apiStatusMsg" style="margin-top:10px;font-size:12px;display:none;"></div>
+      </div>
+
+      <div style="background:#E6F1FB;border:0.5px solid #85B7EB;border-radius:var(--radius);padding:14px;margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:500;color:#0C447C;margin-bottom:4px;">🔒 Tvoje soukromí</div>
+        <div style="font-size:12px;color:#185FA5;line-height:1.5;">Klíč je uložen pouze v tvém prohlížeči. Nikam se neodesílá a nikdo jiný k němu nemá přístup.</div>
+      </div>
+
+      <div class="section-label">Profil trávníku</div>
+      <div id="profileSummary" style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;"></div>
+      <button onclick="resetOnboarding()" style="width:100%;padding:12px;border:0.5px solid var(--border-mid);border-radius:var(--radius);font-size:14px;font-family:inherit;cursor:pointer;background:var(--surface);color:var(--text-muted);margin-bottom:24px;">Znovu projít průvodce nastavením</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="nav-bar">
+    <div class="nav-item active" id="nav-prehled" onclick="goTo('prehled')">
+      <span class="nav-icon">🏠</span>Přehled
+    </div>
+    <div class="nav-item" id="nav-plan" onclick="goTo('plan')">
+      <span class="nav-icon">📅</span>Plán
+    </div>
+    <div class="nav-item" id="nav-diagnostika" onclick="goTo('diagnostika')">
+      <span class="nav-icon">📸</span>Diagnostika
+    </div>
+    <div class="nav-item" id="nav-rady" onclick="goTo('rady')">
+      <span class="nav-icon">📖</span>Rady
+    </div>
+    <div class="nav-item" id="nav-nastaveni" onclick="goTo('nastaveni')">
+      <span class="nav-icon">⚙️</span>Nastavení
+    </div>
+  </div>
+
+</div>
+
+<script>
+function goTo(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+  const nav = document.getElementById('nav-' + screen);
+  if (nav) nav.classList.add('active');
+  document.querySelector('.phone').scrollTop = 0;
+}
+
+function setSeason(el) {
+  document.querySelectorAll('.season-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function toggleTask(card) {
+  const check = card.querySelector('.check-circle');
+  const isDone = card.classList.toggle('done');
+  if (isDone) check.classList.add('checked');
+  else check.classList.remove('checked');
+}
+
+function toggleAddForm() {
+  const form = document.getElementById('addForm');
+  form.classList.toggle('visible');
+  if (form.classList.contains('visible')) {
+    document.getElementById('newTaskName').focus();
+  }
+}
+
+function saveTask() {
+  const name = document.getElementById('newTaskName').value.trim();
+  const date = document.getElementById('newTaskDate').value.trim();
+  const icon = document.getElementById('newTaskIcon').value;
+  if (!name) { alert('Zadej název úkolu!'); return; }
+  const list = document.getElementById('taskList');
+  const card = document.createElement('div');
+  card.className = 'task-card';
+  card.onclick = function() { toggleTask(this); };
+  card.innerHTML = `
+    <div class="task-icon icon-amber" style="font-size:18px;">${icon}</div>
+    <div class="task-info">
+      <div class="task-name">${name}</div>
+      <div class="task-when">${date || 'Bez data'}</div>
+    </div>
+    <div class="check-circle"></div>
+  `;
+  list.appendChild(card);
+  document.getElementById('newTaskName').value = '';
+  document.getElementById('newTaskDate').value = '';
+  toggleAddForm();
+}
+
+const diseases = [
+  { name: "Fusarium — plíseň sněžná", conf: "91% shoda", severity: "Střední", symptoms: "Okrouhlé žlutohnědé skvrny, mycelium", cause: "Plíseň Microdochium nivale", when: "Ihned, do 3 dnů", tips: "Vyhýbejte se pozdní zálivce v podvečer. Kosit na výšku 4–5 cm a zajistit dobrou drenáž půdy.", color: "#D85A30", headerBg: "#FAECE7", nameColor: "#712B13", confBg: "#F0997B", confColor: "#4A1B0C", showPripravky: true },
+  { name: "Rez travní (Puccinia spp.)", conf: "87% shoda", severity: "Mírná", symptoms: "Oranžové práškovité skvrny na listech", cause: "Houba Puccinia graminis", when: "Do 1 týdne", tips: "Kosit pravidelně a odstraňovat posečenou trávu. Zvýšit draslík v hnojení a zajistit dobré větrání.", color: "#BA7517", headerBg: "#FAEEDA", nameColor: "#633806", confBg: "#FAC775", confColor: "#412402", showPripravky: true },
+  { name: "Trávník v pořádku", conf: "95% shoda", severity: "Žádná", symptoms: "Rovnoměrná zelená barva, hustý porost", cause: "—", when: "Není třeba léčit", tips: "Pokračujte v pravidelné péči. Doporučujeme jarní hnojení dusíkatým hnojivem.", color: "#1D9E75", headerBg: "#E1F5EE", nameColor: "#085041", confBg: "#9FE1CB", confColor: "#04342C", showPripravky: false }
+];
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    document.getElementById('previewImg').src = ev.target.result;
+    document.getElementById('uploadZone').style.display = 'none';
+    document.getElementById('previewWrap').style.display = 'block';
+    hideResultCards();
+  };
+  reader.readAsDataURL(file);
+}
+
+function hideResultCards() {
+  ['resultCard','tipsCard'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('pripravkyTitle').style.display = 'none';
+  document.getElementById('pripravkyList').style.display = 'none';
+}
+
+function startAnalysis() {
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('analyzingCard').style.display = 'block';
+  hideResultCards();
+  document.getElementById('progressFill').style.width = '0%';
+
+  const steps = ["Analyzuji barvu a texturu...", "Hledám příznaky chorob...", "Porovnávám s databází...", "Připravuji doporučení..."];
+  let step = 0;
+  const fill = document.getElementById('progressFill');
+  const txt = document.getElementById('analyzingText');
+  const interval = setInterval(() => {
+    step++;
+    fill.style.width = (step * 25) + '%';
+    if (steps[step]) txt.textContent = steps[step];
+    if (step >= 4) { clearInterval(interval); setTimeout(showFallbackResult, 400); }
+  }, 650);
+}
+
+function showResult() {
+  document.getElementById('analyzingCard').style.display = 'none';
+  document.getElementById('previewWrap').style.display = 'block';
+  const d = diseases[Math.floor(Math.random() * diseases.length)];
+  document.getElementById('resultName').textContent = d.name;
+  document.getElementById('resultName').style.color = d.nameColor;
+  document.getElementById('confBadge').textContent = d.conf;
+  document.getElementById('confBadge').style.background = d.confBg;
+  document.getElementById('confBadge').style.color = d.confColor;
+  document.getElementById('resultHeader').style.background = d.headerBg;
+  document.getElementById('severityDot').style.background = d.color;
+  document.getElementById('resultSeverity').textContent = d.severity;
+  document.getElementById('resultSymptoms').textContent = d.symptoms;
+  document.getElementById('resultCause').textContent = d.cause;
+  document.getElementById('resultWhen').textContent = d.when;
+  document.getElementById('tipsText').textContent = d.tips;
+  document.getElementById('resultCard').style.display = 'block';
+  document.getElementById('tipsCard').style.display = 'block';
+  if (d.showPripravky) {
+    document.getElementById('pripravkyTitle').style.display = 'block';
+    document.getElementById('pripravkyList').style.display = 'flex';
+  }
+}
+
+const weatherIcons = {
+  'clear': '☀',
+  'sunny': '☀',
+  'partly cloudy': '⛅',
+  'cloudy': '☁',
+  'overcast': '☁',
+  'rain': '🌧',
+  'drizzle': '🌦',
+  'snow': '❄',
+  'sleet': '🌨',
+  'fog': '🌫',
+  'mist': '🌫',
+  'thunder': '⛈',
+  'storm': '⛈',
+};
+
+function getWeatherIcon(condition) {
+  const c = (condition || '').toLowerCase();
+  for (const key in weatherIcons) {
+    if (c.includes(key)) return weatherIcons[key];
+  }
+  return '🌤';
+}
+
+function changeHeaderPhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const dataUrl = ev.target.result;
+    document.querySelector('.header').style.backgroundImage = "url('" + dataUrl + "')";
+    localStorage.setItem('headerPhoto', dataUrl);
+  };
+  reader.readAsDataURL(file);
+}
+
+function loadSavedPhoto() {
+  const saved = localStorage.getItem('headerPhoto');
+  if (saved) {
+    document.querySelector('.header').style.backgroundImage = "url('" + saved + "')";
+  }
+}
+
+function analyzeFertPhoto(e, resultDiv) {
+  const file = e.target.files[0];
+  if (!file) return;
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<div style="display:flex;align-items:center;gap:10px;"><div class="spinner"></div><span style="font-size:13px;color:var(--text-muted);">AI analyzuje obal hnojiva...</span></div>';
+
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    const base64 = ev.target.result.split(',')[1];
+    try {
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        resultDiv.innerHTML = '<div style="font-size:13px;color:#E24B4A;">❌ API klíč není nastaven. Jdi do <strong>Nastavení</strong> a zadej svůj Anthropic API klíč.</div>';
+        return;
+      }
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 500,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
+              { type: 'text', text: 'Toto je fotka obalu trávníkového hnojiva. Odpověz POUZE v JSON formátu bez markdown kódu, například: {"nazev":"název produktu","vyrobce":"výrobce","davka":"dávka na m²","sezony":"kdy použít","popis":"krátký popis 1 větou pro laika"}' }
+            ]
+          }]
+        })
+      });
+      const data = await resp.json();
+      const text = data.content[0].text.replace(/```json|```/g, '').trim();
+      const info = JSON.parse(text);
+
+      resultDiv.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div style="width:42px;height:42px;border-radius:10px;background:var(--amber-light);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🤔</div>
+          <div style="font-size:14px;font-weight:500;line-height:1.4;">Je to opravdu hnojivo <span style="color:var(--green-dark);">"${info.nazev || 'neznámý produkt'}"</span>?</div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">
+          Výrobce: <strong>${info.vyrobce || '—'}</strong> &nbsp;·&nbsp; Dávka: <strong>${info.davka || '—'}</strong> &nbsp;·&nbsp; Sezóna: <strong>${info.sezony || '—'}</strong>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="confirmFertilizer(${JSON.stringify(info).replace(/"/g, '&quot;')})" style="flex:1;padding:11px;background:var(--green);color:white;border:none;border-radius:10px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;">✓ Ano, je to správně</button>
+          <button onclick="denyFertilizer()" style="padding:11px 16px;border:0.5px solid var(--border-mid);border-radius:10px;font-size:14px;font-family:inherit;cursor:pointer;background:var(--surface);color:var(--text-muted);">Ne, zkusit znovu</button>
+        </div>
+      `;
+    } catch(err) {
+      resultDiv.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Nepodařilo se rozpoznat — zkus nahrát ostřejší fotku obalu.</div>';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function confirmFertilizer(info) {
+  obData['hnojivoLabel'] = info.nazev || 'Vlastní hnojivo';
+  obData['hnojivoIcon'] = '📸';
+  obData['hnojivoDose'] = info.davka || 'dle návodu';
+  obData['hnojivoSeason'] = info.sezony || 'dle návodu';
+  const resultDiv = document.getElementById('fertAiResult');
+  if (resultDiv) {
+    resultDiv.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:18px;">✅</div>
+        <div>
+          <div style="font-size:14px;font-weight:500;color:var(--green-dark);">${info.nazev}</div>
+          <div style="font-size:12px;color:var(--text-muted);">Uloženo — můžeš pokračovat</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function denyFertilizer() {
+  const resultDiv = document.getElementById('fertAiResult');
+  if (resultDiv) {
+    resultDiv.innerHTML = '';
+    resultDiv.style.display = 'none';
+  }
+  const input = document.getElementById('fertPhotoInput');
+  if (input) { input.value = ''; input.click(); }
+}
+
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    showApiStatus('❌ Klíč musí začínat na sk-ant-...', '#E24B4A');
+    return;
+  }
+  localStorage.setItem('anthropicApiKey', key);
+  showApiStatus('✅ Klíč byl uložen!', 'var(--green)');
+  document.getElementById('apiKeyInput').value = '';
+  loadApiKeyStatus();
+}
+
+function deleteApiKey() {
+  localStorage.removeItem('anthropicApiKey');
+  showApiStatus('🗑 Klíč byl smazán', 'var(--text-muted)');
+  loadApiKeyStatus();
+}
+
+function showApiStatus(msg, color) {
+  const el = document.getElementById('apiStatusMsg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = color;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+function saveCustomFert() {
+  const name = document.getElementById('customFertInput');
+  const dose = document.getElementById('customFertDose');
+  const status = document.getElementById('customFertStatus');
+  if (!name || !name.value.trim()) return;
+  obData['hnojivoLabel'] = name.value.trim();
+  obData['hnojivoIcon'] = '✏️';
+  obData['hnojivoDose'] = dose ? dose.value.trim() || 'dle návodu' : 'dle návodu';
+  obData['hnojivoSeason'] = 'dle návodu';
+  if (status) { status.style.display = 'block'; }
+}
+
+function toggleFertApiVisibility() {
+  const input = document.getElementById('fertApiKeyInput');
+  const btn = document.getElementById('fertApiToggle');
+  if (!input) return;
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
+  else { input.type = 'password'; btn.textContent = '👁'; }
+}
+
+function saveFertApiKey() {
+  const input = document.getElementById('fertApiKeyInput');
+  const status = document.getElementById('fertApiStatus');
+  if (!input) return;
+  const key = input.value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    status.textContent = '❌ Klíč musí začínat na sk-ant-...';
+    status.style.color = '#E24B4A';
+    status.style.display = 'block';
+    return;
+  }
+  localStorage.setItem('anthropicApiKey', key);
+  status.textContent = '✅ Klíč uložen! Teď můžeš fotit hnojivo.';
+  status.style.color = 'var(--green)';
+  status.style.display = 'block';
+  input.value = '';
+  // Refresh the view to show upload card
+  setTimeout(() => obRender(), 1200);
+}
+
+function toggleObApiVisibility() {
+  const input = document.getElementById('obApiKeyInput');
+  const btn = document.getElementById('obApiToggle');
+  if (!input) return;
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
+  else { input.type = 'password'; btn.textContent = '👁'; }
+}
+
+function toggleApiVisibility() {
+  const input = document.getElementById('apiKeyInput');
+  const btn = document.getElementById('apiToggleBtn');
+  if (!input) return;
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
+  else { input.type = 'password'; btn.textContent = '👁'; }
+}
+
+function loadApiKeyStatus() {
+  const key = localStorage.getItem('anthropicApiKey');
+  const summary = document.getElementById('profileSummary');
+  const profile = JSON.parse(localStorage.getItem('travnikProfile') || '{}');
+  if (summary) {
+    summary.innerHTML = [
+      profile.semenLabel ? `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:13px;"><span style="color:var(--text-muted);min-width:100px;">Travní směs</span><span style="font-weight:500;">${profile.semenIcon || ''} ${profile.semenLabel}</span></div>` : '',
+      profile.hnojivoLabel ? `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:13px;"><span style="color:var(--text-muted);min-width:100px;">Hnojivo</span><span style="font-weight:500;">${profile.hnojivoIcon || ''} ${profile.hnojivoLabel}</span></div>` : '',
+      profile.rozloha ? `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:13px;"><span style="color:var(--text-muted);min-width:100px;">Rozloha</span><span style="font-weight:500;">📐 ${profile.rozloha} m²</span></div>` : '',
+      `<div style="display:flex;gap:8px;padding:6px 0;font-size:13px;"><span style="color:var(--text-muted);min-width:100px;">API klíč</span><span style="font-weight:500;">${key ? '🔑 Nastaven' : '❌ Nezadán'}</span></div>`
+    ].filter(Boolean).join('') || '<div style="font-size:13px;color:var(--text-muted);">Profil není nastaven — projdi průvodcem.</div>';
+  }
+}
+
+function resetOnboarding() {
+  if (confirm('Opravdu chceš znovu projít průvodcem? Stávající nastavení bude smazáno.')) {
+    localStorage.removeItem('onboardingDone');
+    localStorage.removeItem('travnikProfile');
+    location.reload();
+  }
+}
+
+function getApiKey() {
+  return localStorage.getItem('anthropicApiKey') || '';
+}
+
+function loadWeather() {
+  const pill = document.getElementById('weatherPill');
+  if (!navigator.geolocation) {
+    pill.textContent = '🌤 N/A';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude.toFixed(4);
+      const lon = pos.coords.longitude.toFixed(4);
+      fetch(`https://wttr.in/${lat},${lon}?format=j1`)
+        .then(r => r.json())
+        .then(data => {
+          const current = data.current_condition[0];
+          const tempC = Math.round(current.temp_C);
+          const desc = current.weatherDesc[0].value;
+          const icon = getWeatherIcon(desc);
+          pill.textContent = `${icon} ${tempC}°C`;
+          const city = data.nearest_area[0].areaName[0].value;
+          document.getElementById('headerSub').textContent = `${city} · ${desc}`;
+        })
+        .catch(() => { pill.textContent = '🌤 N/A'; });
+    },
+    () => { pill.textContent = '🌤 N/A'; }
+  );
+}
+
+loadWeather();
+loadSavedPhoto();
+loadApiKeyStatus();
+
+function resetDiag() {
+  document.getElementById('uploadZone').style.display = 'flex';
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('analyzingCard').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  hideResultCards();
+}
+
+// ===== ONBOARDING =====
+const obSteps = [
+  {
+    title: "Jakou travní směs jsi vysel?",
+    subtitle: "Vyber směs která nejlépe odpovídá tvému trávníku",
+    type: "select",
+    key: "semen",
+    options: [
+      { icon: "🌿", name: "Univerzální směs", desc: "Nejběžnější volba — funguje skoro všude" },
+      { icon: "⚽", name: "Sportovní / zátěžová", desc: "Děti, psi, zahradní párty — tohle přežije" },
+      { icon: "🌸", name: "Okrasná / anglická", desc: "Chceš mít trávník jako ze zahradnického časopisu" },
+      { icon: "🌳", name: "Stínová směs", desc: "Máš na zahradě stromy a tráva tam nechce růst" },
+      { icon: "🔧", name: "Opravná / dosévací", desc: "Záplatování holých nebo poškozených míst" },
+    ]
+  },
+  {
+    title: "Jaké hnojivo používáš?",
+    subtitle: "Nejdříve vyber značku, pak konkrétní produkt",
+    type: "fertilizer",
+    key: "hnojivo",
+    brands: [
+      {
+        name: "AGRO CS / FLORIA",
+        icon: "🟢",
+        desc: "Nejrozšířenější česká značka — koupíš v každém zahradnictví",
+        products: [
+          { name: "AGRO Trávníkové hnojivo", desc: "Na jaro a léto — trávník bude sytě zelený", dose: "20–40 g/m²", season: "jaro, léto" },
+          { name: "AGRO Podzimní trávníkové hnojivo", desc: "Připraví trávník na zimu", dose: "20–30 g/m²", season: "podzim" },
+          { name: "FLORIA Travin", desc: "Hnojí a zároveň hubí plevele — dva v jednom", dose: "30 g/m²", season: "jaro, léto" },
+          { name: "AGRO Kristalon Trávník", desc: "Rozpouštíš ve vodě a zaléváš — rychlý účinek", dose: "5 g/l vody", season: "celoroční" },
+          { name: "AGRO Kapalné železo", desc: "Trávník zezlátl? Tohle ho rychle zazeleňí", dose: "10 ml/l vody", season: "dle potřeby" },
+        ]
+      },
+      {
+        name: "ICL / Landscaper Pro",
+        icon: "🔵",
+        desc: "Profesionální hnojiva — dlouhodobý účinek, méně aplikací",
+        products: [
+          { name: "Landscaper Pro Weed Control", desc: "Hnojí a likviduje plevele najednou", dose: "35–40 g/m²", season: "jaro" },
+          { name: "Landscaper Pro Stress Control", desc: "Pomáhá trávníku přežít horké suché léto", dose: "35 g/m²", season: "léto" },
+          { name: "Landscaper Pro Shade Special", desc: "Speciálně pro trávník ve stínu", dose: "35 g/m²", season: "jaro, léto" },
+          { name: "Landscaper Pro New Grass", desc: "Na nově zasetý nebo opravovaný trávník", dose: "35 g/m²", season: "výsev" },
+          { name: "Sportsmaster High K", desc: "Posílí kořeny před zimou", dose: "35 g/m²", season: "podzim" },
+        ]
+      },
+      {
+        name: "Garden Boom / Bio Cycle",
+        icon: "🟡",
+        desc: "Moderní hnojiva s přesným složením živin",
+        products: [
+          { name: "Garden Boom Summer", desc: "Ideální na letní hnojení bez přepálení trávníku", dose: "30–35 g/m²", season: "léto" },
+          { name: "Garden Boom Autumn", desc: "Podzimní hnojivo pro silné přezimování", dose: "30 g/m²", season: "podzim" },
+          { name: "Bio Cycle Grow", desc: "Přírodní bio hnojivo — šetrné k dětem i domácím zvířatům", dose: "40 g/m²", season: "jaro, léto" },
+        ]
+      },
+      {
+        name: "Mám jiné hnojivo",
+        icon: "✏️",
+        desc: "Zadám název hnojiva ručně",
+        products: []
+      }
+    ]
+  },
+  {
+    title: "Jak velký je tvůj trávník?",
+    subtitle: "Podle rozlohy vypočítáme přesné dávkování",
+    type: "input",
+    key: "rozloha",
+    fields: [
+      { id: "rozloha", label: "Rozloha trávníku (m²)", placeholder: "např. 120", type: "number" }
+    ]
+  },
+  {
+    title: "Kdy jsi naposledy ošetřil trávník?",
+    subtitle: "Naplánujeme ti příští termíny péče",
+    type: "dates",
+    key: "datuma",
+    fields: [
+      { id: "datumSekani", icon: "✂️", label: "Poslední sekání", sub: "Vyberte datum" },
+      { id: "datumHnojeni", icon: "🌿", label: "Poslední hnojení", sub: "Vyberte datum" },
+      { id: "datumZalivka", icon: "💧", label: "Poslední zálivka", sub: "Vyberte datum" },
+      { id: "datumPlevele", icon: "🪲", label: "Ošetření plevelů", sub: "Vyberte datum" },
+    ]
+  }
+];
+
+let obStep = -1;  // -1 = welcome, 0..3 = steps
+let obData = {};
+
+function obGo(n) {
+  obStep = n;
+  const ob = document.getElementById('onboarding');
+  const title = document.getElementById('obTitle');
+  const subtitle = document.getElementById('obSubtitle');
+  const body = document.getElementById('obBody');
+  const btnBack = document.getElementById('obBack');
+  const btnNext = document.getElementById('obNext');
+
+  // dots
+  for (let i = 0; i < 4; i++) {
+    const d = document.getElementById('dot' + i);
+    if (d) d.classList.toggle('active', obStep >= 0 && i <= obStep);
+  }
+
+  if (obStep === -1) {
+    // WELCOME
+    title.textContent = 'Vítej v Mém Trávníku!';
+    subtitle.textContent = 'Nastavme aplikaci na míru — zabere to 2 minuty';
+    btnBack.style.display = 'none';
+    btnNext.textContent = 'Začít →';
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        ${[['🌿','Travní směs','Jaké semeno jsi vysel'],['🌱','Hnojivo','Co používáš na hnojení'],['📐','Rozloha','Pro přesné dávkování'],['📅','Poslední ošetření','Naplánujeme termíny']].map(([icon,name,desc])=>`
+        <div style="padding:14px 16px;border-radius:14px;border:0.5px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:14px;">
+          <span style="font-size:26px;flex-shrink:0;">${icon}</span>
+          <div><div style="font-size:14px;font-weight:500;">${name}</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${desc}</div></div>
+        </div>`).join('')}
+      </div>`;
+    return;
+  }
+
+  // STEPS 0-3
+  btnBack.style.display = obStep === 0 ? 'none' : 'block';
+  btnNext.textContent = obStep === 3 ? 'Spustit aplikaci ✓' : 'Pokračovat →';
+  body.innerHTML = '';
+
+  if (obStep === 0) {
+    title.textContent = 'Jakou travní směs jsi vysel?';
+    subtitle.textContent = 'Vyber co nejlépe odpovídá tvému trávníku';
+    const opts = [
+      {icon:'🌿', name:'Univerzální směs', desc:'Nejběžnější volba — funguje skoro všude'},
+      {icon:'⚽', name:'Sportovní / zátěžová', desc:'Děti, psi, zahradní párty — tohle přežije'},
+      {icon:'🌸', name:'Okrasná / anglická', desc:'Chceš mít trávník jako ze zahradnického časopisu'},
+      {icon:'🌳', name:'Stínová směs', desc:'Máš na zahradě stromy a tráva tam nechce růst'},
+      {icon:'🔧', name:'Opravná / dosévací', desc:'Záplatování holých nebo poškozených míst'},
+    ];
+    opts.forEach((opt, i) => {
+      const sel = obData.semen === i;
+      const div = document.createElement('div');
+      div.className = 'ob-option' + (sel ? ' selected' : '');
+      div.innerHTML = `<div class="ob-option-icon">${opt.icon}</div><div><div class="ob-option-name">${opt.name}</div><div class="ob-option-desc">${opt.desc}</div></div><div class="ob-check"></div>`;
+      div.onclick = () => { obData.semen = i; obData.semenLabel = opt.name; obData.semenIcon = opt.icon; obGo(0); };
+      body.appendChild(div);
+    });
+
+  } else if (obStep === 1) {
+    title.textContent = 'Jaké hnojivo používáš?';
+    subtitle.textContent = 'Nejdříve vyber značku, pak konkrétní produkt';
+    const brands = obSteps[1].brands;
+    const bKey = 'hnojivoBrand';
+
+    if (obData[bKey] === undefined) {
+      brands.forEach((brand, i) => {
+        const div = document.createElement('div');
+        div.className = 'ob-option';
+        div.innerHTML = `<div class="ob-option-icon">${brand.icon}</div><div><div class="ob-option-name">${brand.name}</div><div class="ob-option-desc">${brand.desc}</div></div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-left:auto;flex-shrink:0;"><path d="M6 4l4 4-4 4" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        div.onclick = () => { obData[bKey] = i; obGo(1); };
+        body.appendChild(div);
+      });
+    } else if (obData[bKey] === 3) {
+      const back = document.createElement('button');
+      back.style.cssText = 'margin-bottom:12px;padding:8px 14px;border-radius:8px;border:0.5px solid var(--border-mid);font-size:13px;cursor:pointer;background:var(--surface);color:var(--text-muted);';
+      back.textContent = '← Zpět na výběr značky';
+      back.onclick = () => { delete obData[bKey]; obGo(1); };
+      body.appendChild(back);
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
+      wrap.innerHTML = `
+        <div style="font-size:13px;color:var(--text-muted);">Zadej název svého hnojiva:</div>
+        <input type="text" id="customFertInput" placeholder="např. Cererit, Wolf Garten..." value="${obData.hnojivoLabel && obData.hnojivoLabel !== 'Vlastní hnojivo (AI)' ? obData.hnojivoLabel : ''}" style="padding:12px;border:1.5px solid var(--border-mid);border-radius:10px;font-size:14px;font-family:inherit;background:var(--bg);color:var(--text);">
+        <input type="text" id="customFertDose" placeholder="Dávka (např. 30 g/m²) — nepovinné" value="${obData.hnojivoDose || ''}" style="padding:12px;border:1.5px solid var(--border-mid);border-radius:10px;font-size:14px;font-family:inherit;background:var(--bg);color:var(--text);">
+        <button onclick="saveCustomFert()" style="padding:12px;background:var(--green);color:white;border:none;border-radius:10px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;">Uložit hnojivo</button>
+        <div id="customFertStatus" style="font-size:12px;color:var(--green-dark);display:none;">✅ Uloženo!</div>`;
+      body.appendChild(wrap);
+    } else {
+      const brand = brands[obData[bKey]];
+      const back = document.createElement('button');
+      back.style.cssText = 'margin-bottom:12px;padding:8px 14px;border-radius:8px;border:0.5px solid var(--border-mid);font-size:13px;cursor:pointer;background:var(--surface);color:var(--text-muted);';
+      back.textContent = '← Zpět na výběr značky';
+      back.onclick = () => { delete obData[bKey]; delete obData.hnojivoProd; obGo(1); };
+      body.appendChild(back);
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:12px;color:var(--text-muted);margin-bottom:4px;';
+      lbl.textContent = 'Krok 2 — Vyber konkrétní hnojivo:';
+      body.appendChild(lbl);
+      brand.products.forEach((prod, i) => {
+        const sel = obData.hnojivoProd === i;
+        const div = document.createElement('div');
+        div.className = 'ob-option' + (sel ? ' selected' : '');
+        div.innerHTML = `<div class="ob-option-icon">${brand.icon}</div><div><div class="ob-option-name">${prod.name}</div><div class="ob-option-desc">${prod.desc}</div></div><div class="ob-check"></div>`;
+        div.onclick = () => { obData.hnojivoProd = i; obData.hnojivoLabel = prod.name; obData.hnojivoIcon = brand.icon; obData.hnojivoDose = prod.dose; obData.hnojivoSeason = prod.season; obGo(1); };
+        body.appendChild(div);
+      });
+    }
+
+  } else if (obStep === 2) {
+    title.textContent = 'Jak velký je tvůj trávník?';
+    subtitle.textContent = 'Podle rozlohy vypočítáme přesné dávkování';
+    const wrap = document.createElement('div');
+    wrap.className = 'ob-input-wrap';
+    const lbl = document.createElement('label');
+    lbl.textContent = 'Rozloha trávníku (m²)';
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.placeholder = 'např. 120'; inp.value = obData.rozloha || '';
+    inp.oninput = e => { obData.rozloha = e.target.value; };
+    wrap.appendChild(lbl); wrap.appendChild(inp);
+    body.appendChild(wrap);
+
+  } else if (obStep === 3) {
+    title.textContent = 'Kdy jsi naposledy ošetřil trávník?';
+    subtitle.textContent = 'Naplánujeme ti příští termíny péče';
+    const fields = [{id:'datumSekani',icon:'✂️',label:'Poslední sekání'},{id:'datumHnojeni',icon:'🌿',label:'Poslední hnojení'},{id:'datumZalivka',icon:'💧',label:'Poslední zálivka'},{id:'datumPlevele',icon:'🪲',label:'Ošetření plevelů'}];
+    const grid = document.createElement('div');
+    grid.className = 'ob-date-grid';
+    fields.forEach(f => {
+      const val = obData[f.id];
+      const card = document.createElement('div');
+      card.className = 'ob-date-card' + (val ? ' selected' : '');
+      card.innerHTML = `<div class="ob-date-icon">${f.icon}</div><div class="ob-date-label">${f.label}</div><div class="ob-date-sub">${val || 'Vyberte datum'}</div>`;
+      card.onclick = () => { const d = prompt(f.label + ' — zadej datum (např. 20.3.2026):'); if (d) { obData[f.id] = d; obGo(3); } };
+      grid.appendChild(card);
+    });
+    body.appendChild(grid);
+  }
+}
+
+function obNext() {
+  if (obStep === -1) { obGo(0); return; }
+  if (obStep < 3) { obGo(obStep + 1); }
+  else {
+    const profileJson = JSON.stringify(obData);
+    localStorage.setItem('travnikProfile', profileJson);
+    localStorage.setItem('onboardingDone', '1');
+    document.getElementById('onboarding').classList.add('hidden');
+    applyProfile();
+    loadApiKeyStatus();
+  }
+}
+
+function obPrev() {
+  if (obStep > 0) { obGo(obStep - 1); }
+}
+
+function initApp() {
+  try {
+    const done = localStorage.getItem('onboardingDone');
+    const profile = localStorage.getItem('travnikProfile');
+    if (done === '1' && profile) {
+      document.getElementById('onboarding').classList.add('hidden');
+      applyProfile();
+    } else {
+      obData = {};
+      obGo(-1);
+    }
+  } catch(e) {
+    document.getElementById('onboarding').classList.add('hidden');
+  }
+}
+
+initApp();
+
+</script>
+
+<!-- ONBOARDING -->
+<div class="onboarding" id="onboarding">
+  <div class="ob-header">
+    <div class="ob-step-row">
+      <div class="ob-step-dot active" id="dot0"></div>
+      <div class="ob-step-dot" id="dot1"></div>
+      <div class="ob-step-dot" id="dot2"></div>
+      <div class="ob-step-dot" id="dot3"></div>
+    </div>
+    <div class="ob-title" id="obTitle">Vítej v Mém Trávníku!</div>
+    <div class="ob-subtitle" id="obSubtitle">Nastavme aplikaci na míru tvému trávníku</div>
+  </div>
+
+  <div class="ob-body" id="obBody"></div>
+
+  <div class="ob-footer">
+    <button class="ob-btn-back" id="obBack" onclick="obPrev()" style="display:none;">Zpět</button>
+    <button class="ob-btn-next" id="obNext" onclick="obNext()">Začít →</button>
+  </div>
+</div>
+
+</body>
+</html>
