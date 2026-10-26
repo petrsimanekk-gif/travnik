@@ -2008,17 +2008,45 @@ function readCfg(){
 }
 
 // ---------- events ----------
-// On claude.ai a stored file opened in a new tab sits outside the app and is not reachable there ("not found"),
-// so file links download through the app instead. On the own server the plain link works.
+// Stored files: a PDF opens in an in-app preview (rendered with pdf.js) with a download button, other files download.
+// On claude.ai a /_blob link opened in a new tab sits outside the app and answers "not found".
+const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+async function saveFile(name, blob){
+  const dl = window.claude && window.claude.use ? await window.claude.use("downloads").catch(()=>null) : null;
+  if (dl) return dl.save({filename:name, data:blob});
+  const u = URL.createObjectURL(blob), x = document.createElement("a"); x.href = u; x.download = name; x.click(); setTimeout(()=>URL.revokeObjectURL(u), 60000);
+}
+async function pdfPreview(href, name){
+  document.getElementById("pdfview")?.remove();
+  const ov = document.createElement("div"); ov.id = "pdfview"; ov.className = "modal"; ov.setAttribute("role","dialog"); ov.setAttribute("aria-label", name);
+  ov.innerHTML = `<div class="box" style="width:min(980px,100%);height:calc(100vh - 32px);display:flex;flex-direction:column"><div class="mh"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</b><span class="row" style="flex-wrap:nowrap"><button class="btn blue sm" data-pv="dl" disabled>Stáhnout</button><button class="btn sm" data-pv="close">Zavřít</button></span></div><div class="pv-pages" style="flex:1;overflow:auto;background:var(--surface-2);padding:12px;display:grid;gap:12px;justify-items:center"><div class="muted">Načítám PDF…</div></div></div>`;
+  document.body.appendChild(ov);
+  let blob = null, alive = true;
+  const close = () => { alive = false; ov.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = ev => { if (ev.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey);
+  ov.addEventListener("click", ev => { if (ev.target === ov || ev.target.closest('[data-pv="close"]')) close(); else if (ev.target.closest('[data-pv="dl"]') && blob) saveFile(name, blob).then(()=>toast("PDF se stahuje")); });
+  const box = ov.querySelector(".pv-pages");
+  try {
+    const r = await fetch(href); if (!r.ok) throw new Error("HTTP " + r.status); blob = await r.blob(); ov.querySelector('[data-pv="dl"]').disabled = false;
+    await loadScript(PDFJS + "pdf.min.js"); const lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.js";
+    const doc = await lib.getDocument({data: new Uint8Array(await blob.arrayBuffer())}).promise;
+    box.innerHTML = "";
+    const w = Math.min(box.clientWidth - 24, 940), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    for (let n = 1; n <= doc.numPages && alive; n++){
+      const page = await doc.getPage(n), vp0 = page.getViewport({scale:1}), vp = page.getViewport({scale: w / vp0.width * dpr});
+      const c = document.createElement("canvas"); c.width = vp.width; c.height = vp.height; c.style.width = "100%"; c.style.maxWidth = w + "px"; c.style.background = "#fff"; c.style.boxShadow = "0 1px 4px rgba(0,0,0,.2)";
+      box.appendChild(c); await page.render({canvasContext: c.getContext("2d"), viewport: vp}).promise;
+    }
+  } catch(err){ console.error(err); if (alive) box.innerHTML = `<div class="empty"><strong>Náhled se nepodařilo zobrazit</strong>${blob ? "PDF si můžete stáhnout tlačítkem nahoře." : "Soubor se nenačetl."}</div>`; }
+}
 document.addEventListener("click", async e => {
-  const a = !SV && e.target.closest && e.target.closest('a[href^="/_blob/"]'); if (!a) return;
+  const a = e.target.closest && e.target.closest('a[href^="/_blob/"]'); if (!a) return;
   e.preventDefault(); e.stopPropagation();
   const name = (a.dataset.name || a.textContent || "").replace(/^[\s📄]+/u, "").trim() || "soubor";
-  try { const r = await fetch(a.getAttribute("href")); if (!r.ok) throw new Error(r.status); const blob = await r.blob();
-    const dl = window.claude && window.claude.use ? await window.claude.use("downloads").catch(()=>null) : null;
-    if (dl) await dl.save({filename:name, data:blob}); else { const u = URL.createObjectURL(blob); const x = document.createElement("a"); x.href = u; x.download = name; x.click(); setTimeout(()=>URL.revokeObjectURL(u), 60000); }
-    toast("Soubor se stahuje");
-  } catch(err){ console.error(err); toast("Soubor se nepodařilo otevřít."); }
+  if (/\.pdf$/i.test(name)) return pdfPreview(a.getAttribute("href"), name);
+  try { const r = await fetch(a.getAttribute("href")); if (!r.ok) throw new Error(r.status); await saveFile(name, await r.blob()); toast("Soubor se stahuje"); }
+  catch(err){ console.error(err); toast("Soubor se nepodařilo otevřít."); }
 }, true);
 document.addEventListener("click", async e => {
   if (e.target.closest(".side .logo")){ document.body.classList.toggle("navopen"); return; }
