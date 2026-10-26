@@ -2008,6 +2008,18 @@ function readCfg(){
 }
 
 // ---------- events ----------
+// On claude.ai a stored file opened in a new tab sits outside the app and is not reachable there ("not found"),
+// so file links download through the app instead. On the own server the plain link works.
+document.addEventListener("click", async e => {
+  const a = !SV && e.target.closest && e.target.closest('a[href^="/_blob/"]'); if (!a) return;
+  e.preventDefault(); e.stopPropagation();
+  const name = (a.dataset.name || a.textContent || "").replace(/^[\s📄]+/u, "").trim() || "soubor";
+  try { const r = await fetch(a.getAttribute("href")); if (!r.ok) throw new Error(r.status); const blob = await r.blob();
+    const dl = window.claude && window.claude.use ? await window.claude.use("downloads").catch(()=>null) : null;
+    if (dl) await dl.save({filename:name, data:blob}); else { const u = URL.createObjectURL(blob); const x = document.createElement("a"); x.href = u; x.download = name; x.click(); setTimeout(()=>URL.revokeObjectURL(u), 60000); }
+    toast("Soubor se stahuje");
+  } catch(err){ console.error(err); toast("Soubor se nepodařilo otevřít."); }
+}, true);
 document.addEventListener("click", async e => {
   if (e.target.closest(".side .logo")){ document.body.classList.toggle("navopen"); return; }
   if (document.body.classList.contains("navopen") && (!e.target.closest(".side") || e.target.closest(".side .it"))) document.body.classList.remove("navopen");
