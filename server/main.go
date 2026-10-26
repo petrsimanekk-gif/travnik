@@ -19,6 +19,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -639,6 +640,13 @@ func serveBlob(e *core.RequestEvent, key string) error {
 	name := rec.GetString("name")
 	if name == "" {
 		name = rec.GetString("file")
+	}
+	// The default "sandbox" CSP makes Chrome refuse to show PDFs in its viewer;
+	// a PDF only gets a framing limit. Other files keep the strict default.
+	if t := rec.GetString("type"); t == "application/pdf" || strings.HasSuffix(strings.ToLower(name), ".pdf") {
+		e.Response.Header().Set("Content-Type", "application/pdf")
+		e.Response.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
+		e.Response.Header().Set("Content-Disposition", "inline; filename*=UTF-8''"+url.PathEscape(name))
 	}
 	return fsys.Serve(e.Response, e.Request, rec.BaseFilesPath()+"/"+rec.GetString("file"), name)
 }
