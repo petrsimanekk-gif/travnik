@@ -14,6 +14,8 @@ say(){ printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 
 [ "$(id -u)" = 0 ] || { echo "Spusťte jako root (nebo přes sudo)."; exit 1; }
 export DEBIAN_FRONTEND=noninteractive
+# čerstvý VPS často zrovna instaluje aktualizace – počkat na zámek apt místo chyby
+echo 'DPkg::Lock::Timeout "900";' > /etc/apt/apt.conf.d/90stinko-lock
 
 say "Systémové balíčky"
 apt-get update -qq
