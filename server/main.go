@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
@@ -97,6 +98,15 @@ func main() {
 		})
 		r.POST("/api/stinko/set", handleSet)
 		r.POST("/api/stinko/del", handleDel)
+		r.GET("/api/stinko/leadform", handleLeadForm)
+		r.POST("/api/stinko/lead", handleWebLead)
+		r.GET("/poptavka", func(e *core.RequestEvent) error {
+			// the form is embedded in the company website (Profistránka)
+			e.Response.Header().Del("X-Frame-Options")
+			e.Response.Header().Set("Content-Security-Policy", "frame-ancestors 'self' https://*.profistranka.cz https://primashade.cz https://*.primashade.cz")
+			e.Response.Header().Set("Cache-Control", "no-cache")
+			return e.FileFS(os.DirFS(publicDir()), "poptavka.html")
+		})
 		r.POST("/api/stinko/import", handleImport).Bind(apis.BodyLimit(maxUpload))
 		r.POST("/api/stinko/upload", handleUpload).Bind(apis.BodyLimit(maxUpload))
 		r.GET("/_blob/{key}", func(e *core.RequestEvent) error { return serveBlob(e, e.Request.PathValue("key")) })
@@ -185,17 +195,33 @@ func ensureSchema(app core.App) error {
 		}
 	}
 	s := app.Settings()
-	if !s.RateLimits.Enabled {
-		s.RateLimits.Enabled = true
-		s.RateLimits.Rules = append(s.RateLimits.Rules,
-			core.RateLimitRule{Label: "/api/stinko/login", MaxRequests: 10, Duration: 60},
-			core.RateLimitRule{Label: "/api/stinko/setup", MaxRequests: 5, Duration: 60},
-		)
-		if s.Meta.AppName == "Acme" || s.Meta.AppName == "" {
-			s.Meta.AppName = "Stínko CRM"
+	changed := !s.RateLimits.Enabled
+	s.RateLimits.Enabled = true
+	// added one by one so a later server version can add rules to an existing install
+	for _, want := range []core.RateLimitRule{
+		{Label: "/api/stinko/login", MaxRequests: 10, Duration: 60},
+		{Label: "/api/stinko/setup", MaxRequests: 5, Duration: 60},
+		{Label: "/api/stinko/lead", MaxRequests: 5, Duration: 300},
+	} {
+		found := false
+		for _, r := range s.RateLimits.Rules {
+			found = found || r.Label == want.Label
 		}
+		if !found {
+			s.RateLimits.Rules = append(s.RateLimits.Rules, want)
+			changed = true
+		}
+	}
+	if s.Meta.AppName == "Acme" || s.Meta.AppName == "" {
+		s.Meta.AppName = "Stínko CRM"
+		changed = true
+	}
+	if len(s.TrustedProxy.Headers) == 0 {
 		// Caddy in front sets X-Forwarded-For; the rightmost entry is the client
 		s.TrustedProxy.Headers = []string{"X-Forwarded-For"}
+		changed = true
+	}
+	if changed {
 		if err := app.Save(s); err != nil {
 			return err
 		}

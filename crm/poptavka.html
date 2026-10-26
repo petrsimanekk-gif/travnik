@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nezávazná poptávka – Prima Shade</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--fg:#1f2a30;--muted:#66737c;--line:#d9e0e4;--bg:#ffffff;--field:#f6f8f9;--accent:#f0a23b;--accent-ink:#2b1a04;--bad:#c9372c;--good:#2f8a50;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-size:15px;line-height:1.45}
+.wrap{max-width:640px;margin:0 auto;padding:20px 16px}
+h1{font-size:24px;margin:0 0 4px} p.lead{margin:0 0 18px;color:var(--muted)}
+form{display:grid;gap:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media (max-width:520px){.two{grid-template-columns:1fr}}
+label{display:grid;gap:4px;font-size:13px;font-weight:600}
+label small{font-weight:400;color:var(--muted)}
+input,select,textarea{font:inherit;font-weight:400;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%}
+textarea{min-height:110px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
+.consent{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:13px;color:var(--muted)} .consent input{width:20px;height:20px;flex:none;margin-top:1px}
+button{font-family:inherit;font-weight:600;font-size:16px;background:var(--accent);color:var(--accent-ink);border:0;border-radius:24px;padding:13px 22px;cursor:pointer;justify-self:start}
+button[disabled]{opacity:.6;cursor:wait}
+.hp{position:absolute;left:-5000px;width:1px;height:1px;overflow:hidden}
+.msg{padding:10px 14px;border-radius:8px;font-size:14px} .msg.err{background:#fbe5e3;color:var(--bad)}
+.done{text-align:center;padding:40px 10px} .done b{display:block;font-size:22px;margin-bottom:6px;color:var(--good)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="formbox">
+    <h1>Nezávazná poptávka</h1>
+    <p class="lead">Napište nám, co plánujete. Ozveme se vám zpravidla do jednoho pracovního dne.</p>
+    <form id="f" novalidate>
+      <label>Jméno a příjmení *<input name="name" autocomplete="name" required maxlength="120"></label>
+      <div class="two">
+        <label>Telefon * <small>(stačí telefon, nebo e-mail)</small><input name="phone" type="tel" autocomplete="tel" maxlength="40"></label>
+        <label>E-mail<input name="email" type="email" autocomplete="email" maxlength="160"></label>
+      </div>
+      <div class="two">
+        <label>Obec / místo realizace<input name="city" autocomplete="address-level2" maxlength="120"></label>
+        <label>PSČ<input name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="12"></label>
+      </div>
+      <label>Co vás zajímá<select name="subject" id="subject"><option value="">Vyberte…</option></select></label>
+      <label>Zpráva <small>rozměry, termín, cokoli dalšího</small><textarea name="message" maxlength="4000"></textarea></label>
+      <div class="hp" aria-hidden="true"><label>Web<input name="web" tabindex="-1" autocomplete="off"></label></div>
+      <label class="consent"><input type="checkbox" name="consent" required><span>Souhlasím se zpracováním osobních údajů za účelem vyřízení poptávky.</span></label>
+      <div id="err" class="msg err" hidden></div>
+      <button type="submit" id="send">Odeslat poptávku</button>
+    </form>
+  </div>
+  <div id="thanks" class="done" hidden><b>Děkujeme, poptávka je odeslaná.</b>Brzy se vám ozveme.</div>
+</div>
+<script>
+(() => {
+  const started = Date.now(), f = document.getElementById("f"), err = document.getElementById("err"), btn = document.getElementById("send");
+  fetch("/api/stinko/leadform").then(r => r.json()).then(j => {
+    const sel = document.getElementById("subject");
+    (j.types || []).forEach(t => { const o = document.createElement("option"); o.textContent = t; sel.appendChild(o); });
+  }).catch(() => {});
+  const show = t => { err.textContent = t; err.hidden = !t; };
+  f.addEventListener("input", () => show(""));
+  f.addEventListener("submit", async e => {
+    e.preventDefault(); show("");
+    const d = Object.fromEntries(new FormData(f)); d.consent = f.consent.checked; d.started = started;
+    if (!d.name.trim()) return show("Vyplňte prosím jméno.");
+    if (!d.phone.trim() && !d.email.trim()) return show("Vyplňte prosím telefon nebo e-mail, ať se vám můžeme ozvat.");
+    if (!d.consent) return show("Potvrďte prosím souhlas se zpracováním údajů.");
+    btn.disabled = true;
+    try {
+      const r = await fetch("/api/stinko/lead", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(d)});
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(r.status === 429 ? "Odesláno příliš mnoho poptávek, zkuste to prosím za pár minut." : j.message || "Odeslání se nepovedlo.");
+      document.getElementById("formbox").hidden = true; document.getElementById("thanks").hidden = false;
+    } catch (x) { show(x.message + " Případně nám zavolejte."); btn.disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>

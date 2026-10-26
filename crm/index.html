@@ -1083,6 +1083,16 @@ async function stockOutDeal(deal, why){
   if (done.length) toast(`Odepsáno ze skladu: ${done.length} ${done.length===1?"položka":"položky"}`);
   return d;
 }
+// Leads from the web form (own server) arrive with autoPending; the first signed-in page that may edit leads
+// clears the flag and runs the "new lead" automations once.
+let webLeadBusy = false;
+async function processWebLeads(){
+  if (webLeadBusy || !SV || !acc() || !canEdit("leads")) return;
+  const todo = S.leads.filter(l => l.autoPending); if (!todo.length) return;
+  webLeadBusy = true;
+  try { for (const l0 of todo){ const l = JSON.parse(JSON.stringify(l0)); delete l.autoPending; if (await save("leads", l)) await runAuto("lead_created", {lead:l}); } }
+  catch(e){ console.error(e); } finally { webLeadBusy = false; }
+}
 async function runAuto(trigger, x, depth=0, only=null){
   if (depth > 3) return;
   try { await runAutoInner(trigger, x, depth, only); } finally { if (depth===0 && (S.mailQueue||[]).length && S.modal?.kind!=="mail"){ setTimeout(() => { if ((S.mailQueue||[]).length){ S.modal = {kind:"mail"}; S._forceModal = true; renderOverlay(); } }, 50); }
@@ -2418,6 +2428,7 @@ async function boot(){
     if (col==="installs" && S.view==="install" && S.loaded.installs && stableStr(docs.find(d=>d.id===S.param)) === stableStr(S.installs.find(d=>d.id===S.param))){ S.installs = docs; return; }
     if (col==="config"){ const m = docs.find(d=>d.id==="main"); S.config = {...DEFAULT_CONFIG, ...(m||{})}; } else S[col] = docs;
     S.loaded[col] = true;
+    if (col==="leads" || col==="accounts") setTimeout(processWebLeads, 500);
     const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest("#instform,#loginform,#setupform,#customform,#prodform,#commentform,#pdfform,.inl-note,.inl-state");
     if (!EDITING.includes(S.view) && !typing) render();
     if (Object.values(S.loaded).every(Boolean) && !staleTimer){ staleTimer = setInterval(checkStale, 15*60*1000); setTimeout(checkStale, 4000); }

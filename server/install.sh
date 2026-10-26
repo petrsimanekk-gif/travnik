@@ -91,10 +91,12 @@ $DOMAIN {
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff
-		X-Frame-Options DENY
 		Referrer-Policy same-origin
 		-Server
 	}
+	# poptávkový formulář se vkládá do webu, vše ostatní vložit nejde
+	@noembed not path /poptavka
+	header @noembed X-Frame-Options DENY
 }
 EOF
 BUSY="$(ss -ltnpH '( sport = :80 or sport = :443 )' | grep -v caddy || true)"
