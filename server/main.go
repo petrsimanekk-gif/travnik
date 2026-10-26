@@ -99,7 +99,13 @@ func main() {
 		r.POST("/api/stinko/import", handleImport).Bind(apis.BodyLimit(maxUpload))
 		r.POST("/api/stinko/upload", handleUpload).Bind(apis.BodyLimit(maxUpload))
 		r.GET("/_blob/{key}", func(e *core.RequestEvent) error { return serveBlob(e, e.Request.PathValue("key")) })
-		r.GET("/offer/{name}", func(e *core.RequestEvent) error { return serveBlob(e, "offer/"+e.Request.PathValue("name")) })
+		r.GET("/offer/{name}", func(e *core.RequestEvent) error {
+			// offer templates ship with the page; an imported copy is used only if present
+			if _, err := os.Stat(publicDir() + "/offer/" + e.Request.PathValue("name")); err == nil {
+				return e.FileFS(os.DirFS(publicDir()), "offer/"+e.Request.PathValue("name"))
+			}
+			return serveBlob(e, "offer/"+e.Request.PathValue("name"))
+		})
 		r.GET("/{path...}", apis.Static(os.DirFS(publicDir()), true)).Bind(noCacheHTML())
 		return se.Next()
 	})
@@ -187,6 +193,8 @@ func ensureSchema(app core.App) error {
 		if s.Meta.AppName == "Acme" || s.Meta.AppName == "" {
 			s.Meta.AppName = "Stínko CRM"
 		}
+		// Caddy in front sets X-Forwarded-For; the rightmost entry is the client
+		s.TrustedProxy.Headers = []string{"X-Forwarded-For"}
 		if err := app.Save(s); err != nil {
 			return err
 		}
