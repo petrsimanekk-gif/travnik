@@ -66,6 +66,16 @@ func main() {
 	// Other accounts' password hashes are hidden from non-admins everywhere
 	// (list responses and realtime messages both pass through enrich).
 	app.OnRecordEnrich("docs").BindFunc(func(e *core.RecordEnrichEvent) error {
+		// who is online is shown to admins only
+		if e.Record.GetString("col") == "presence" {
+			var authAcc string
+			if e.RequestInfo != nil && e.RequestInfo.Auth != nil {
+				authAcc = e.RequestInfo.Auth.GetString("acc")
+			}
+			if a, _ := loadAccount(e.App, authAcc); a == nil || a["role"] != "admin" {
+				e.Record.Set("data", map[string]any{})
+			}
+		}
 		if e.Record.GetString("col") == "accounts" {
 			var authAcc string
 			if e.RequestInfo != nil && e.RequestInfo.Auth != nil {
@@ -457,6 +467,9 @@ func canWrite(a map[string]any, col, key string, data map[string]any, app core.A
 	}
 	if col == "notifs" {
 		return true
+	}
+	if col == "presence" {
+		return key == a["id"]
 	}
 	if col == "accounts" {
 		// own password change only: everything but salt/hash must stay as is

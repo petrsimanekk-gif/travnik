@@ -127,6 +127,10 @@ table.g td.star,table.g th.star{width:30px;padding-right:0;cursor:pointer} .star
 .sumrow{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:10px}
 .sumrow .sumbox{text-align:right;flex:1 1 auto;padding:8px 12px} .sumrow .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:15px;font-weight:500;white-space:nowrap} .sumrow .tot .v{font-size:18px;font-weight:700}
 .sumbox.disc .v{color:var(--bad)}
+.onl{display:flex;flex-wrap:wrap;gap:8px}
+.onl-u{display:flex;gap:10px;align-items:center;padding:8px 14px 8px 8px;border:1px solid var(--line);border-radius:8px;min-width:200px}
+.onl-u .av{position:relative;width:40px;height:40px;font-size:14px} .onl-u .av i{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;background:var(--good);border:2px solid var(--surface)}
+.onl-u small{display:block;color:var(--muted);font-size:12.5px}
 .phasebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 12px}
 .phasebtn{position:relative}
 .phasebtn select{appearance:none;-webkit-appearance:none;border-radius:4px;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.03em;padding:8px 32px 8px 12px;color:#fff;border:0;cursor:pointer;width:auto;min-width:220px}
@@ -372,9 +376,9 @@ const STATE_COLOR = {"Potenciální":"var(--warn)","Aktuální":"var(--good)","O
 
 // ---------- data ----------
 const S = { view:"dashboard", param:null, sub:null, q:"", filter:"all", group:"open", confirm:null, offline:false, calDate:today(), calView:ls.get("stinko-calview","month"), sort:{}, page:0, pageSize:50, newmenu:false, modal:null, light:null,
-  config:{...DEFAULT_CONFIG}, clients:[], leads:[], deals:[], activities:[], products:[], offers:[], accounts:[], installs:[], notifs:[], comms:[], loaded:{comms:false,notifs:false,installs:false,accounts:false,config:false,clients:false,leads:false,deals:false,activities:false,products:false,offers:false} };
+  config:{...DEFAULT_CONFIG}, clients:[], leads:[], deals:[], activities:[], products:[], offers:[], accounts:[], installs:[], notifs:[], comms:[], presence:[], loaded:{presence:false,comms:false,notifs:false,installs:false,accounts:false,config:false,clients:false,leads:false,deals:false,activities:false,products:false,offers:false} };
 let db = null, assets = null;
-const COLS = ["config","clients","leads","deals","activities","products","offers","accounts","installs","notifs","comms"];
+const COLS = ["config","clients","leads","deals","activities","products","offers","accounts","installs","notifs","comms","presence"];
 const mem = {}, memSubs = {}; COLS.forEach(c => { mem[c] = new Map(); memSubs[c] = []; });
 const emit = c => memSubs[c].forEach(cb => cb([...mem[c]].map(([id,d]) => ({id,...d}))));
 const store = {
@@ -430,6 +434,17 @@ function loginView(){
   </div></form></div>`;
 }
 // ---------- move to own server: export here, import there ----------
+// ---------- who is online: every open CRM page reports itself once a minute ----------
+const ONLINE_MS = 3*60*1000;
+async function heartbeat(){
+  if (document.hidden || !db) return; const A = acc(); const k = SV ? A?.id : me(); if (!A || !k) return;
+  try { await store.set("presence", {id:k, name:me(), role:SV ? (ROLE_PRESETS[A.role]||ROLE_PRESETS.custom)[0] : "", at:Date.now()}); } catch(e){ console.warn(e); }
+}
+function onlineInner(){
+  const now = Date.now(), on = S.presence.filter(p => now-(p.at||0) < ONLINE_MS && (!SV || S.accounts.some(a => a.id===p.id && a.active!==false))).sort((a,b)=>(a.name||"").localeCompare(b.name||"","cs"));
+  return on.length ? `<div class="onl">${on.map(p=>`<div class="onl-u"><span class="av">${esc(initials(p.name))}<i></i></span><div><b>${esc(p.name)}</b>${p.role?`<small>${esc(p.role)}</small>`:""}</div></div>`).join("")}</div>` : `<p class="muted" style="margin:0">Nikdo další teď není online.</p>`;
+}
+function paintOnline(){ const el = document.getElementById("online-cb"); if (el) el.innerHTML = onlineInner(); }
 function migrCard(){
   return SV ? `<div class="card"><div class="ch"><h2>Import dat z claude.ai</h2></div><div class="cb" style="display:grid;gap:10px"><p class="muted" style="margin:0">Nahrajte soubor <b>stinko-export-….json</b> stažený v původním CRM (Nastavení → Export pro vlastní server). Záznamy se stejným ID se přepíšou, uživatelské účty se nepřenáší.</p><div class="row"><input type="file" id="imp-file" accept=".json,application/json" style="width:auto"><button class="btn blue" data-act="imp-run">Importovat</button></div><div id="imp-log" class="muted"></div></div></div>`
     : `<div class="card"><div class="ch"><h2>Export pro vlastní server</h2></div><div class="cb" style="display:grid;gap:10px"><p class="muted" style="margin:0">Stáhne jeden soubor se všemi záznamy, fotkami a PDF. Ten pak nahrajete na vlastním serveru v Nastavení → Import.</p><div class="row"><button class="btn blue" data-act="exp-run">Stáhnout export</button><span id="exp-log" class="muted"></span></div></div></div>`;
@@ -443,7 +458,7 @@ function fileRefs(docs){
 async function exportAll(){
   const lg = t => { const el = $("#exp-log"); if (el) el.textContent = t; };
   const docs = [];
-  for (const col of COLS){ if (col==="accounts") continue; for (const r of (col==="config" ? [{id:"main", ...C()}] : S[col]||[])){ const {id, ...data} = JSON.parse(JSON.stringify(r)); docs.push({col, id, data}); } }
+  for (const col of COLS){ if (col==="accounts" || col==="presence") continue; for (const r of (col==="config" ? [{id:"main", ...C()}] : S[col]||[])){ const {id, ...data} = JSON.parse(JSON.stringify(r)); docs.push({col, id, data}); } }
   const blobs = [], ids = fileRefs(docs); let miss = 0;
   for (let i = 0; i < ids.length; i++){ lg(`Soubory ${i+1}/${ids.length}…`); try { const r = await fetch(blobUrl(ids[i])); if (!r.ok) { miss++; continue; } const b = await r.blob(); blobs.push({key:ids[i], type:b.type, b64:await blobToB64(b)}); } catch { miss++; } }
   const out = new Blob([JSON.stringify({format:"stinko-export", version:1, at:Date.now(), docs, blobs})], {type:"application/json"});
@@ -1510,6 +1525,7 @@ function vDash(){
   const box = (key, inner) => { const L = lay[key] || {}; const span = L.span || DASH_DEFAULT[key]; return `<div class="card dcard" data-card="${key}" style="grid-column:span ${span};${L.h?`height:${L.h}px`:""}">${inner}<span class="rsz" data-rsz="${key}" title="Táhněte pro změnu velikosti · dvojklik vrátí výchozí" aria-hidden="true"></span></div>`; };
   return `<div class="lhead"><h1>Nástěnka</h1><span class="muted">${esc(mine)}</span><span class="sp"></span>${Object.keys(lay).length?`<button class="btn sm" data-act="dash-reset">Výchozí rozložení</button>`:""}<button class="plus" data-act="newmenu" aria-label="Nový záznam">+</button></div>
   <div class="dash dashx">
+    ${isAdmin() ? box("online", `<div class="ch"><h2>Online uživatelé</h2></div><div class="cb" id="online-cb">${onlineInner()}</div>`) : ""}
     ${box("acts", `<div class="ch"><h2>Přehled aktivit</h2><button class="btn sm" data-go="calendar">Otevřít kalendář</button></div><div class="cb">${overdue.length?`<div class="lbl" style="color:var(--bad);margin-bottom:4px">Po termínu (${overdue.length})</div>${overdue.slice(0,5).map(actRow).join("")}`:""}<div class="lbl" style="margin:8px 0 4px">Naplánované</div>${next.map(actRow).join("") || `<p class="muted" style="margin:0">Nic naplánovaného.</p>`}</div>`)}
     ${box("sales", `<div class="ch"><h2>Vývoj prodeje</h2><span class="muted" style="font-size:12px">vyhrané obchody</span></div><div class="cb">${barChart(months, mv)}</div>`)}
     ${box("funnel", `<div class="ch"><h2>Prodejní trychtýř</h2><span class="muted" style="font-size:12px">${open.length} otevřených · ${money(open.reduce((s,d)=>s+(d.value||0),0))}</span></div><div class="cb funnel">${open.length?funnel:`<div class="empty"><strong>Žádný otevřený obchod</strong>Založte obchodní případ tlačítkem +.</div>`}</div>`)}
@@ -1517,7 +1533,7 @@ function vDash(){
     ${box("note", `<div class="ch"><h2>Poznámka</h2></div><div class="cb"><textarea id="quicknote" placeholder="Napsat poznámku (vidíte jen vy v tomto prohlížeči)">${esc(ls.get("stinko-note",""))}</textarea></div>`)}
   </div>`;
 }
-const DASH_DEFAULT = {acts:6, sales:6, funnel:12, year:6, note:6};
+const DASH_DEFAULT = {online:12, acts:6, sales:6, funnel:12, year:6, note:6};
 // drag the corner handle: width snaps to 1–12 grid columns, height is free (min 110 px)
 let rs = null;
 document.addEventListener("pointerdown", e => {
@@ -2427,14 +2443,17 @@ async function boot(){
   for (const col of COLS) store.sub(col, docs => {
     if (col==="installs" && S.view==="install" && S.loaded.installs && stableStr(docs.find(d=>d.id===S.param)) === stableStr(S.installs.find(d=>d.id===S.param))){ S.installs = docs; return; }
     if (col==="config"){ const m = docs.find(d=>d.id==="main"); S.config = {...DEFAULT_CONFIG, ...(m||{})}; } else S[col] = docs;
-    S.loaded[col] = true;
+    const firstLoad = !S.loaded[col]; S.loaded[col] = true;
     if (col==="leads" || col==="accounts") setTimeout(processWebLeads, 500);
     const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest("#instform,#loginform,#setupform,#customform,#prodform,#commentform,#pdfform,.inl-note,.inl-state");
-    if (!EDITING.includes(S.view) && !typing) render();
+    if (col==="presence" && !firstLoad) paintOnline(); else if (!EDITING.includes(S.view) && !typing) render();
+    if (col==="accounts" || col==="config") heartbeat();
     if (Object.values(S.loaded).every(Boolean) && !staleTimer){ staleTimer = setInterval(checkStale, 15*60*1000); setTimeout(checkStale, 4000); }
   });
 }
 boot();
+setInterval(heartbeat, 60*1000); setInterval(paintOnline, 30*1000);
+document.addEventListener("visibilitychange", heartbeat);
 })();
 </script>
 
