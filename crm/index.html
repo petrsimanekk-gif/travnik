@@ -425,10 +425,9 @@ function loginView(){
   </div></form></div>`;
 }
 // ---------- move to own server: export here, import there ----------
-const OFFER_FILES = ["DejaVuSans.ttf","DejaVuSans-Bold.ttf","Poppins-Regular.ttf","Poppins-Bold.ttf","doprava.png","led-lamely.png","led-obvod.png","montaz.png","ovladani.png","pergola.png","screen.png","zkouska.png","prestige.pdf","ultra.pdf"];
 function migrCard(){
   return SV ? `<div class="card"><div class="ch"><h2>Import dat z claude.ai</h2></div><div class="cb" style="display:grid;gap:10px"><p class="muted" style="margin:0">Nahrajte soubor <b>stinko-export-….json</b> stažený v původním CRM (Nastavení → Export pro vlastní server). Záznamy se stejným ID se přepíšou, uživatelské účty se nepřenáší.</p><div class="row"><input type="file" id="imp-file" accept=".json,application/json" style="width:auto"><button class="btn blue" data-act="imp-run">Importovat</button></div><div id="imp-log" class="muted"></div></div></div>`
-    : `<div class="card"><div class="ch"><h2>Export pro vlastní server</h2></div><div class="cb" style="display:grid;gap:10px"><p class="muted" style="margin:0">Stáhne jeden soubor se všemi záznamy, fotkami, PDF a podklady nabídek. Ten pak nahrajete na vlastním serveru v Nastavení → Import.</p><div class="row"><button class="btn blue" data-act="exp-run">Stáhnout export</button><span id="exp-log" class="muted"></span></div></div></div>`;
+    : `<div class="card"><div class="ch"><h2>Export pro vlastní server</h2></div><div class="cb" style="display:grid;gap:10px"><p class="muted" style="margin:0">Stáhne jeden soubor se všemi záznamy, fotkami a PDF. Ten pak nahrajete na vlastním serveru v Nastavení → Import.</p><div class="row"><button class="btn blue" data-act="exp-run">Stáhnout export</button><span id="exp-log" class="muted"></span></div></div></div>`;
 }
 const blobToB64 = b => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = () => ko(r.error); r.readAsDataURL(b); });
 function fileRefs(docs){
@@ -442,7 +441,6 @@ async function exportAll(){
   for (const col of COLS){ if (col==="accounts") continue; for (const r of (col==="config" ? [{id:"main", ...C()}] : S[col]||[])){ const {id, ...data} = JSON.parse(JSON.stringify(r)); docs.push({col, id, data}); } }
   const blobs = [], ids = fileRefs(docs); let miss = 0;
   for (let i = 0; i < ids.length; i++){ lg(`Soubory ${i+1}/${ids.length}…`); try { const r = await fetch(blobUrl(ids[i])); if (!r.ok) { miss++; continue; } const b = await r.blob(); blobs.push({key:ids[i], type:b.type, b64:await blobToB64(b)}); } catch { miss++; } }
-  for (const f of OFFER_FILES){ lg(`Podklady nabídek: ${f}`); try { const r = await fetch("offer/"+f); if (r.ok){ const b = await r.blob(); blobs.push({key:"offer/"+f, name:f, type:b.type, b64:await blobToB64(b)}); } } catch {} }
   const out = new Blob([JSON.stringify({format:"stinko-export", version:1, at:Date.now(), docs, blobs})], {type:"application/json"});
   const name = `stinko-export-${today()}.json`;
   const dl = window.claude && window.claude.use ? await window.claude.use("downloads").catch(()=>null) : null;
