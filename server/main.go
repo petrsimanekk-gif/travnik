@@ -60,7 +60,10 @@ func main() {
 		if err := e.Next(); err != nil {
 			return err
 		}
-		return ensureSchema(e.App)
+		if err := ensureSchema(e.App); err != nil {
+			return err
+		}
+		return ensureMailSchema(e.App)
 	})
 
 	// Other accounts' password hashes are hidden from non-admins everywhere
@@ -134,6 +137,8 @@ func main() {
 			}
 			return serveBlob(e, "offer/"+e.Request.PathValue("name"))
 		})
+		bindMailRoutes(se)
+		startMailLoop(se.App)
 		r.GET("/{path...}", apis.Static(os.DirFS(publicDir()), true)).Bind(noCacheHTML())
 		return se.Next()
 	})

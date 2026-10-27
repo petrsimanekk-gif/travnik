@@ -77,9 +77,23 @@ func handleWebLead(e *core.RequestEvent) error {
 	if !b.Consent {
 		return e.BadRequestError("Potvrďte souhlas se zpracováním údajů.", nil)
 	}
+	_, code, err := createLead(e.App, map[string]any{
+		"name": name, "phone": phone, "email": email, "subject": clip(b.Subject, 200), "source": "Web",
+		"street": clip(b.Street, 200), "city": clip(b.City, 120), "zip": clip(b.Zip, 12), "note": clip(b.Message, 4000),
+		"gdpr": "Souhlas z webového formuláře " + time.Now().In(prague).Format("2.1.2006 15:04"),
+	}, "Web", "Lead přijat z webového formuláře", "Nový lead z webu: ")
+	if err != nil {
+		return err
+	}
+	e.App.Logger().Info("web lead", "code", code)
+	return e.JSON(http.StatusOK, map[string]any{"ok": true})
+}
+
+// createLead stores a new lead with the next code; notif (if set) goes to every CRM user.
+func createLead(app core.App, fields map[string]any, by, event, notif string) (string, string, error) {
 	now := time.Now().In(prague)
-	var code string
-	err := e.App.RunInTransaction(func(tx core.App) error {
+	var id, code string
+	err := app.RunInTransaction(func(tx core.App) error {
 		cfg := crmConfig(tx)
 		prefix, _ := cfg["leadPrefix"].(string)
 		if prefix == "" {
@@ -104,33 +118,30 @@ func handleWebLead(e *core.RequestEvent) error {
 			state = st[0]
 		}
 		ms := now.UnixMilli()
-		id := randUUID()
-		note := clip(b.Message, 4000)
+		id = randUUID()
 		lead := map[string]any{
-			"code": code, "name": name, "phone": phone, "email": email,
-			"subject": clip(b.Subject, 200), "state": state, "owner": "", "source": "Web",
-			"street": clip(b.Street, 200), "city": clip(b.City, 120), "zip": clip(b.Zip, 12),
-			"receivedAt": now.Format("2006-01-02"), "note": note, "createdAt": ms,
-			"gdpr":        "Souhlas z webového formuláře " + now.Format("2.1.2006 15:04"),
-			"events":      []any{map[string]any{"at": ms, "by": "Web", "text": "Lead přijat z webového formuláře", "kind": "edit"}},
+			"code": code, "state": state, "owner": "", "receivedAt": now.Format("2006-01-02"), "createdAt": ms,
+			"events":      []any{map[string]any{"at": ms, "by": by, "text": event, "kind": "edit"}},
 			"autoPending": true, // the first signed-in CRM page runs the "new lead" automations
+		}
+		for k, v := range fields {
+			lead[k] = v
 		}
 		if err := putDoc(tx, "leads", id, lead); err != nil {
 			return err
 		}
+		if notif == "" {
+			return nil
+		}
 		for _, u := range strList(cfg["users"]) {
-			n := map[string]any{"to": u, "text": "Nový lead z webu: " + name + " (" + code + ")", "at": ms, "read": false, "dealId": "", "leadId": id, "by": "Web"}
+			n := map[string]any{"to": u, "text": notif + fmt.Sprint(lead["name"]) + " (" + code + ")", "at": ms, "read": false, "dealId": "", "leadId": id, "by": by}
 			if err := putDoc(tx, "notifs", randUUID(), n); err != nil {
 				return err
 			}
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	e.App.Logger().Info("web lead", "code", code)
-	return e.JSON(http.StatusOK, map[string]any{"ok": true})
+	return id, code, err
 }
 
 func randUUID() string {
