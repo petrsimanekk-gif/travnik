@@ -135,6 +135,25 @@ table.g.fixed{table-layout:fixed;min-width:0} table.g.fixed th,table.g.fixed td{
 .coldrop{position:fixed;width:3px;margin-left:-1px;background:var(--link);z-index:40;pointer-events:none;border-radius:2px}
 .colghost{position:fixed;z-index:41;pointer-events:none;background:var(--surface);color:var(--fg);box-shadow:0 6px 18px rgba(0,0,0,.25);padding:6px 10px;border-radius:4px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
 body.colresizing,body.colresizing *{cursor:col-resize!important;user-select:none} body.colmoving,body.colmoving *{cursor:grabbing!important;user-select:none}
+.ldtitle{font-size:30px;font-weight:400;margin:2px 0 0;overflow-wrap:anywhere}
+.lstate{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0 14px}
+select.lstsel{appearance:none;-webkit-appearance:none;width:auto;min-width:260px;border:0;border-left:4px solid var(--sc);border-radius:4px;background:color-mix(in srgb,var(--sc) 20%,var(--surface)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236c7a85' stroke-width='1.6'/%3E%3C/svg%3E") right 12px center/10px no-repeat;color:var(--fg);font-weight:700;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;padding:10px 36px 10px 14px;cursor:pointer}
+.btn.conv{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);padding:10px 20px;font-weight:700;letter-spacing:.03em} .btn.conv:hover{filter:brightness(1.05)}
+.btn.lrej{border-radius:4px;background:var(--surface-2);border-color:var(--line);text-transform:uppercase;font-weight:700;font-size:12px;letter-spacing:.03em;padding:9px 18px;color:var(--muted)}
+.lcols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0} .lcols>div{padding:2px 18px;display:grid;gap:14px;align-content:start} .lcols>div+div{border-left:1px solid var(--line)} .lcols>div:first-child{padding-left:0}
+.lcols .v{font-size:14.5px;overflow-wrap:anywhere} .lcols a{color:var(--link);text-decoration:none} .lcols a:hover{text-decoration:underline}
+@media (max-width:760px){.lcols{grid-template-columns:minmax(0,1fr)} .lcols>div{padding:8px 0} .lcols>div+div{border-left:0;border-top:1px solid var(--line)}}
+/* narrow timeline (right column): the phone layout */
+.rcol .trow{grid-template-columns:40px minmax(0,1fr);gap:4px 10px} .rcol .trow::before{left:19px} .rcol .tdate{grid-column:2;text-align:left;order:2;font-size:12px} .rcol .taxis{grid-row:1/span 3} .rcol .tlabel{grid-column:2;display:flex;gap:8px;align-items:center} .rcol .tcard{grid-column:2} .rcol .thead{padding-left:0} .rcol .tico{width:36px;height:36px}
+/* lead conversion */
+.cvgrid{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr))} .cvcol{background:var(--surface-2);padding:18px 20px;display:grid;gap:12px;align-content:start} .cvcol+.cvcol{border-left:4px solid var(--surface)}
+.cvh{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding-bottom:8px;border-bottom:1px solid var(--line)}
+.cvrow{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:center} .cvic{width:44px;height:44px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;color:var(--link);position:relative;z-index:1}
+.cvrow .cvin{margin-left:-14px;padding-left:22px;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:0 22px 22px 0;min-height:40px;padding-right:10px} .cvrow .cvin input,.cvrow .cvin select{border:0;box-shadow:none;padding:6px 0;background:transparent}
+.cvtag{white-space:nowrap;font-size:12px;font-weight:700;color:var(--good)} .cvtag.ex{color:var(--link)}
+.cvopt{display:grid;gap:8px} .cvopt label.c{font-size:14px} .cvopt label.c.dis{opacity:.45}
+.cvtypes{display:flex;flex-wrap:wrap;gap:4px;justify-content:center} .cvtypes .chip{text-transform:none;letter-spacing:0;font-weight:500}
+@media (max-width:860px){.cvgrid{grid-template-columns:minmax(0,1fr)} .cvcol+.cvcol{border-left:0;border-top:4px solid var(--surface)}}
 .bulkbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--fg);color:var(--bg);border-radius:24px;padding:6px 8px 6px 18px;box-shadow:0 8px 28px rgba(0,0,0,.28);max-width:calc(100vw - 24px)}
 body.notadmin [data-act="ask"][data-what="del"],body.notadmin [data-act="inst-askdel"],body.notadmin [data-act="ask-delp"]{display:none!important}
 .bulkbar .btn{border-color:transparent} .bulkbar .bs{display:none} .bulkbar .btn.ghost{color:var(--bg)} .bulkbar .btn.ghost:hover{background:rgba(127,127,127,.25)}
@@ -1781,13 +1800,116 @@ function nice(x){ const p = Math.pow(10, Math.floor(Math.log10(x))); const n = x
 function vLead(){
   const l = S.leads.find(x=>x.id===S.param); if (!l) return `<div class="empty"><strong>Lead nenalezen</strong></div>`;
   pushRecent("lead", l.id, l.code + " " + l.name);
-  const cf = S.confirm;
-  return `<div class="dhead"><div class="dtop"><div><span class="lbl">Lead</span> <span class="mono muted">${esc(l.code)}</span><div class="dtitle">${esc(l.name)}</div></div>
-    <div class="row">${l.state!=="Převeden"?`<button class="btn good up" data-act="convert-lead" data-id="${l.id}">Převést na obchod</button>`:""}${l.dealId?`<button class="btn" data-act="open-deal" data-id="${l.dealId}">Otevřít obchod</button>`:""}<button class="btn" data-act="edit-lead" data-id="${l.id}">Upravit</button>${cf==="del"?`<span class="confirm">Smazat?<button class="btn sm badfill" data-act="del-lead" data-id="${l.id}">Ano</button><button class="btn sm" data-act="no">Ne</button></span>`:`<button class="btn ghost bad" data-act="ask" data-what="del">Smazat</button>`}</div></div>
-    <div class="phasebar"><label class="row stavlbl"><b>Stav:</b>${leadStateSel(l,"stavsel")}</label><button class="btn sm ghost" data-act="edit-states" data-kind="lead" title="Upravit, přidat a seřadit stavy">✎ Upravit stavy</button></div>
-    <div class="meta"><div><span class="lbl">Přijato</span>${fmtD(l.receivedAt)}</div><div><span class="lbl">Předmět</span>${esc(l.subject||"–")}</div><div><span class="lbl">Vlastník</span>${esc(l.owner||"–")}</div><div><span class="lbl">Zdroj</span>${esc(l.source||"–")}</div></div></div>
-  <div class="dgrid"><div class="card"><div class="cb"><dl class="kv"><dt>Telefon</dt><dd class="mono">${esc(l.phone||"–")}</dd><dt>E-mail</dt><dd>${esc(l.email||"–")}</dd><dt>Adresa</dt><dd>${esc([l.street,[l.zip,l.city].filter(Boolean).join(" ")].filter(Boolean).join(", ")||"–")}</dd></dl><label class="f" style="margin-top:12px"><span>Poznámka k leadu</span><textarea class="inl-note dnote" data-kind="lead" data-id="${l.id}" placeholder="Napište poznámku, uloží se po kliknutí mimo pole">${esc(l.note||"")}</textarea></label></div></div>
-    <div class="rcol">${commsPanel(commsFor({leadId:l.id}))}<div class="card"><div class="ch"><span class="lbl">Historie</span></div><div class="cb">${timeline(l.events||[], {entity:"Lead", title:`${l.code} ${l.name}`})}</div></div></div></div>`;
+  const cf = S.confirm, ed = canEdit("leads"), conv = l.state==="Převeden", deal = l.dealId ? getDeal(l.dealId) : null, client = getClient(l.clientId) || (deal && getClient(deal.clientId));
+  const rej = C().leadStates.find(x => /zamít|zamit|nelze|zruš/i.test(x)), addr = [l.street,[l.zip,l.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  const acts = S.activities.filter(a => a.leadId===l.id);
+  const fld = (k, v) => `<div><span class="lbl">${k}</span><div class="v">${v || `<span class="muted">–</span>`}</div></div>`;
+  return `<div class="dhead"><div class="dtop"><div style="min-width:0"><span class="lbl"><span class="link" data-act="fav" data-id="${l.id}" title="Oblíbené" style="color:${favs.has(l.id)?"var(--accent)":"var(--muted)"};font-size:15px">${favs.has(l.id)?"★":"☆"}</span> Lead <span class="muted" style="letter-spacing:0">${esc(l.code)}</span></span><div class="ldtitle">${esc(l.name)}</div></div>
+    <div class="row">${!conv && ed ? `<button class="btn conv up" data-act="convert-lead" data-id="${l.id}">⇱ Převést lead</button>` : ""}${deal && canSee("deals") ? `<button class="btn" data-act="open-deal" data-id="${deal.id}">Obchod ${esc(deal.code)}</button>` : ""}${client && canSee("clients") ? `<button class="btn" data-act="open-client" data-id="${client.id}">Klient</button>` : ""}${ed ? `<button class="btn" data-act="edit-lead" data-id="${l.id}">Upravit</button>` : ""}${cf==="del"?`<span class="confirm">Smazat?<button class="btn sm badfill" data-act="del-lead" data-id="${l.id}">Ano</button><button class="btn sm" data-act="no">Ne</button></span>`:`<button class="btn ghost bad" data-act="ask" data-what="del">Smazat</button>`}</div></div>
+    <div class="lstate">${leadStateSel(l, "lstsel")}${rej && !conv && l.state!==rej && ed ? `<button class="btn lrej" data-act="lead-state" data-id="${l.id}" data-st="${esc(rej)}">✕ ${esc(rej)}</button>` : ""}${ed ? `<button class="btn ico" data-act="edit-states" data-kind="lead" title="Upravit, přidat a seřadit stavy" aria-label="Upravit stavy">✎</button>` : ""}</div>
+    <div class="meta"><div><span class="lbl">Přijato</span>${fmtD(l.receivedAt)}</div><div><span class="lbl">Zdroj</span>${esc(l.source||"–")}</div><div><span class="lbl">Předmět</span>${esc(l.subject||"–")}</div><div><span class="lbl">Vlastník</span>${ownerHtml(l.owner)}</div>${conv && deal ? `<div><span class="lbl">Převedeno na</span>${esc(deal.code)}</div>` : ""}</div></div>
+  <div class="dgrid"><div style="display:grid;gap:14px;align-content:start;min-width:0">
+    <div class="card"><div class="cb"><div class="lcols">
+      <div>${fld("Jméno / firma", esc(l.name))}${fld("Předmět poptávky", esc(l.subject))}</div>
+      <div>${fld("Adresa", esc(addr))}${addr ? `<div class="row" style="gap:6px">${navLinks(addr)}</div>` : ""}</div>
+      <div>${fld("Telefon", l.phone ? `📱 <a href="tel:${esc(l.phone.replace(/\s/g,""))}">${esc(l.phone)}</a>` : "")}${fld("E-mail", l.email ? `✉ <a href="mailto:${esc(l.email)}">${esc(l.email)}</a>` : "")}</div>
+    </div></div></div>
+    <div class="card"><div class="ch"><span class="lbl">Poznámka k leadu</span></div><div class="cb"><textarea class="inl-note dnote" data-kind="lead" data-id="${l.id}" placeholder="Napište poznámku, uloží se po kliknutí mimo pole">${esc(l.note||"")}</textarea></div></div>
+  </div>
+  <div class="rcol"><div class="card"><div class="ch"><span class="lbl">Časová osa</span>${canEdit("activities") ? `<button class="btn sm good" data-act="new-act" data-type="call" data-lead="${l.id}">+ Přidat aktivitu</button>` : ""}</div><div class="cb">${timeline([...(l.events||[]), ...acts.map(a=>({at:new Date((a.date||today())+"T"+(a.time||"08:00")).getTime(), text:`${ACT[a.type]?.[0]}: ${a.title}`, by:a.owner, kind:"act", actId:a.id, status:a.status, type:a.type}))], {entity:"Lead", title:`${l.code} ${l.name}`})}</div></div>
+    ${commsPanel(commsFor({leadId:l.id}))}</div></div>`;
+}
+
+// ---------- lead conversion: client (new or existing), optionally a deal and a calendar activity in one go ----------
+function openConvert(l){
+  const match = S.clients.find(c => (l.phone && c.phone && c.phone.replace(/\s/g,"")===l.phone.replace(/\s/g,"")) || (l.email && c.email && c.email.toLowerCase()===l.email.toLowerCase()));
+  const ph = C().phases.find(p=>p.kind==="open");
+  S.modal = {kind:"convert", data:{leadId:l.id, client:match ? match.id : "new", clientName:l.name, person:false, contact:"", owner:l.owner||me(),
+    mkDeal:canEdit("deals"), linkDeal:false, linkDealId:"", mkAct:false,
+    deal:{name:`${l.subject||"Obchod"} – ${l.name}`, value:"", type:C().types.includes(l.subject) ? l.subject : (C().types[0]||""), phaseId:ph?.id||"", category:"", source:l.source||""},
+    act:{type:"meeting", title:"", date:addDays(today(),1), time:"", duration:"60"}}};
+  S._forceModal = true; renderOverlay();
+}
+function readConvert(){
+  const d = S.modal.data, v = id => document.getElementById(id), val = id => v(id)?.value ?? "";
+  if (v("cv-client")) d.client = val("cv-client"); if (v("cv-name")) d.clientName = val("cv-name"); if (v("cv-person")) d.person = v("cv-person").checked; d.contact = v("cv-contact") ? val("cv-contact") : d.contact; if (v("cv-owner")) d.owner = val("cv-owner");
+  for (const k of ["mkDeal","linkDeal","mkAct"]) if (v("cv-"+k)) d[k] = v("cv-"+k).checked;
+  if (v("cv-linkid")) d.linkDealId = val("cv-linkid");
+  for (const k of ["name","value","type","phaseId","category","source"]) if (v("cvd-"+k)) d.deal[k] = val("cvd-"+k);
+  for (const k of ["title","date","time","duration"]) if (v("cva-"+k)) d.act[k] = val("cva-"+k);
+}
+function convertModal(){
+  const d = S.modal.data, l = S.leads.find(x=>x.id===d.leadId); if (!l) return "";
+  const ex = d.client!=="new" ? getClient(d.client) : null;
+  const openDeals = ex ? S.deals.filter(x => x.clientId===ex.id && phaseById(x.phaseId).kind==="open") : [];
+  const canDeal = canEdit("deals"), canAct = canEdit("activities");
+  if (!openDeals.length) d.linkDeal = false; const dealCol = d.mkDeal && !d.linkDeal, n = 1 + (dealCol?1:0) + (d.mkAct?1:0);
+  const matches = S.clients.filter(c => (l.phone && c.phone && c.phone.replace(/\s/g,"")===l.phone.replace(/\s/g,"")) || (l.email && c.email && c.email.toLowerCase()===l.email.toLowerCase()) || c.name.trim().toLowerCase()===l.name.trim().toLowerCase());
+  const others = [...S.clients].filter(c => !matches.includes(c)).sort((a,b)=>a.name.localeCompare(b.name,"cs"));
+  const opt = (arr, cur, empty) => (empty?`<option value="">—</option>`:"") + arr.map(x=>`<option ${x===cur?"selected":""}>${esc(x)}</option>`).join("");
+  const icHome = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h14V10"/></svg>`, icUser = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>`;
+  const col1 = `<div class="cvcol"><div class="cvh">Převedení na klienta / kontaktní osobu</div>
+    <div class="cvrow"><span class="cvic">${icHome}</span><div class="cvin"><select id="cv-client" class="cv-tg" aria-label="Klient" style="flex:1;min-width:0"><option value="new" ${d.client==="new"?"selected":""}>＋ Nový klient</option>${matches.length?`<optgroup label="Nalezení podle telefonu, e-mailu nebo jména">${matches.map(c=>`<option value="${c.id}" ${d.client===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}</optgroup>`:""}${others.length?`<optgroup label="Ostatní klienti">${others.map(c=>`<option value="${c.id}" ${d.client===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}</optgroup>`:""}</select><span class="cvtag ${ex?"ex":""}">${ex?"● Existující klient":"● Nový klient"}</span></div></div>
+    ${ex ? "" : `<div class="cvrow"><span></span><div style="display:grid;gap:6px;margin-left:8px"><input id="cv-name" value="${esc(d.clientName)}" placeholder="Jméno nebo název nového klienta" aria-label="Jméno nového klienta"><label class="c"><input type="checkbox" id="cv-person" ${d.person?"checked":""}> Jedná se o fyzickou osobu</label></div></div>`}
+    <div class="cvrow"><span class="cvic">${icUser}</span><div class="cvin"><input id="cv-contact" value="${esc(d.contact)}" placeholder="Kontaktní osoba (nepovinné)" aria-label="Kontaktní osoba" style="flex:1;min-width:0"></div></div>
+    <div class="cvh" style="margin-top:6px">Vlastník nově vytvořených záznamů</div>
+    <div class="cvrow"><span class="cvic" style="color:var(--link);font-weight:700;font-size:13px">${esc(initials(d.owner))}</span><div class="cvin"><select id="cv-owner" aria-label="Vlastník" style="flex:1">${opt(C().users, d.owner)}</select></div></div>
+    <div class="cvh" style="margin-top:6px">Další možnosti</div>
+    <div class="cvopt"><label class="c ${canDeal?"":"dis"}"><input type="checkbox" id="cv-mkDeal" class="cv-tg" ${d.mkDeal?"checked":""} ${canDeal?"":"disabled"}> Vytvořit současně nový obchodní případ</label>
+      <label class="c ${openDeals.length&&canDeal?"":"dis"}"><input type="checkbox" id="cv-linkDeal" class="cv-tg" ${d.linkDeal?"checked":""} ${openDeals.length&&canDeal?"":"disabled"}> Napojit na již zaevidovaný obchodní případ</label>
+      ${d.linkDeal ? `<select id="cv-linkid" aria-label="Obchodní případ" style="margin-left:26px;width:calc(100% - 26px)">${openDeals.map(x=>`<option value="${x.id}" ${d.linkDealId===x.id?"selected":""}>${esc(x.code+" "+x.name)}</option>`).join("")}</select>` : ""}
+      <label class="c ${canAct?"":"dis"}"><input type="checkbox" id="cv-mkAct" class="cv-tg" ${d.mkAct?"checked":""} ${canAct?"":"disabled"}> Vytvořit současně aktivitu v kalendáři</label></div></div>`;
+  const D = d.deal;
+  const col2 = dealCol ? `<div class="cvcol"><div class="cvh">Obchodní případ</div>
+    <label class="f"><span>Předmět *</span><input id="cvd-name" value="${esc(D.name)}"></label>
+    <label class="f"><span>Konečná cena (Kč)</span><input id="cvd-value" value="${esc(D.value)}" inputmode="decimal" placeholder="0,00" style="text-align:right"></label>
+    <label class="f"><span>Typ obchodu</span><select id="cvd-type">${opt(C().types, D.type)}</select></label>
+    <label class="f"><span>Stav</span><select id="cvd-phaseId">${phaseOpts(D.phaseId)}</select></label>
+    <label class="f"><span>Kategorie</span><select id="cvd-category">${opt(C().categories, D.category, true)}</select></label>
+    <label class="f"><span>Zdroj</span><select id="cvd-source">${opt(C().sources, D.source, true)}</select></label></div>` : "";
+  const A = d.act;
+  const col3 = d.mkAct ? `<div class="cvcol"><div class="cvh">Aktivita v kalendáři</div>
+    <div class="cvtypes" role="group" aria-label="Typ aktivity">${Object.entries(ACT).map(([k,[t,i]])=>`<button type="button" class="chip" data-act="cv-acttype" data-type="${k}" aria-pressed="${A.type===k}">${i} ${t}</button>`).join("")}</div>
+    <label class="f"><span>Předmět</span><input id="cva-title" value="${esc(A.title)}" placeholder="${esc(`${ACT[A.type]?.[0]||"Aktivita"} – ${ex ? ex.name : d.clientName}`)}"></label>
+    <div class="fgrid" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)"><label class="f"><span>Datum</span><input id="cva-date" type="date" value="${esc(A.date)}"></label><label class="f"><span>Začátek</span><input id="cva-time" type="time" value="${esc(A.time)}"></label></div>
+    <label class="f"><span>Trvání (min)</span><input id="cva-duration" value="${esc(A.duration)}" inputmode="numeric"></label>
+    <p class="muted" style="margin:0;font-size:12px">Aktivita se přiřadí vlastníkovi${dealCol||d.linkDeal?" a k obchodnímu případu":""}. Místo se vyplní z adresy leadu.</p></div>` : "";
+  const w = n===1 ? 480 : n===2 ? 860 : 1180;
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Převedení leadu"><form class="box" id="modalform" style="width:min(${w}px,100%)"><div class="mh"><div><b style="font-size:22px;font-weight:500">Převedení leadu</b><div class="muted" style="font-size:13px;margin-top:2px">${esc(l.code)} · Převod vytvoří nového klienta, případně obchodní případ a aktivitu.</div></div><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="cvgrid" style="--n:${n}">${col1}${col2}${col3}</div>
+  <div class="mf" style="justify-content:center"><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn good up" type="submit" style="padding:10px 28px">Převést</button></div></form></div>`;
+}
+async function convertLead(){
+  readConvert(); const d = S.modal.data, l0 = S.leads.find(x=>x.id===d.leadId); if (!l0) return;
+  if (l0.state==="Převeden"){ toast("Lead už je převedený."); closeModal(); return; }
+  let client = d.client!=="new" ? getClient(d.client) : null;
+  if (!client && !d.clientName.trim()){ toast("Vyplňte jméno klienta."); $("#cv-name")?.focus(); return; }
+  if (d.mkDeal && !d.linkDeal && !d.deal.name.trim()){ toast("Vyplňte předmět obchodního případu."); $("#cvd-name")?.focus(); return; }
+  const btn = document.querySelector('#modalform button[type=submit]'); if (btn) btn.disabled = true;
+  try {
+    const contact = d.contact.trim() ? {name:d.contact.trim(), role:"", phone:"", email:""} : null;
+    if (!client){
+      client = {id:uid(), name:d.clientName.trim(), person:d.person, phone:l0.phone||"", email:l0.email||"", street:l0.street||"", city:l0.city||"", zip:l0.zip||"", state:"Potenciální", role:"Odběratel", owner:d.owner, source:l0.source||"", gdpr:"Plnění smlouvy", persons:contact?[contact]:[], createdAt:Date.now(), leadCode:l0.code, events:[]};
+      log(client, `Klient založen z leadu ${l0.code}`); if (!await save("clients", client)) return;
+    } else if (contact){ const c = JSON.parse(JSON.stringify(client)); c.persons = [...(c.persons||[]), contact]; await save("clients", c); }
+    let deal = null, newDeal = false;
+    if (d.linkDeal && d.linkDealId && getDeal(d.linkDealId)){ deal = JSON.parse(JSON.stringify(getDeal(d.linkDealId))); if (!deal.leadCode) deal.leadCode = l0.code; log(deal, `Napojen lead ${l0.code} ${l0.name}`); await save("deals", deal); }
+    else if (d.mkDeal){ const D = d.deal; const ph = D.phaseId || C().phases.find(p=>p.kind==="open")?.id;
+      deal = {id:uid(), code:nextCode(S.all.deals||S.deals, C().dealPrefix||"OP"), name:D.name.trim(), clientId:client.id, type:D.type, phaseId:ph, probability:50, value:toH(D.value), expectedCost:0, owner:d.owner, openedAt:today(), source:D.source, category:D.category, leadCode:l0.code, note:l0.note||"", custom:{}, products:[], photos:[], events:[], createdAt:Date.now(), phaseSince:Date.now()};
+      log(deal, `Obchodní případ založen z leadu ${l0.code}`); if (!await save("deals", deal)) return; newDeal = true; }
+    const nl = JSON.parse(JSON.stringify(l0)); nl.state = "Převeden"; nl.dealId = deal?.id || ""; nl.clientId = client.id;
+    log(nl, `Stav: ${l0.state} → Převeden`, "phase"); log(nl, `Převeden: klient ${client.name}${deal?`, obchod ${deal.code}`:""}`); await save("leads", nl);
+    for (const a of S.activities.filter(a => a.leadId===l0.id && !a.dealId)) await save("activities", {...a, dealId:deal?.id||"", clientId:a.clientId||client.id});
+    let act = null;
+    if (d.mkAct){ const A = d.act;
+      act = {id:uid(), type:A.type, title:A.title.trim() || `${ACT[A.type]?.[0]||"Aktivita"} – ${client.name}`, date:A.date, time:A.time, duration:A.duration, status:"planned", priority:"Normální", owner:d.owner, dealId:deal?.id||"", clientId:client.id, leadId:l0.id, place:[l0.street,[l0.zip,l0.city].filter(Boolean).join(" ")].filter(Boolean).join(", "), category:"", note:`Z převodu leadu ${l0.code}`, createdAt:Date.now()};
+      await save("activities", act); }
+    closeModal();
+    toast(`Převedeno: ${[client.name, deal?.code, act?ACT[act.type]?.[0]:""].filter(Boolean).join(" · ")}`);
+    if (act) warnConflicts(conflicts([act.owner], act.date, tmin(act.time), toN(act.duration)||60, act.id));
+    await runAuto("lead_state", {lead:nl}); if (newDeal) await runAuto("deal_created", {deal});
+    if (deal && canSee("deals")) go("deal", deal.id); else if (canSee("clients")) go("client", client.id); else render();
+  } finally { if (btn) btn.disabled = false; }
 }
 
 // ---------- deals ----------
@@ -2014,7 +2136,7 @@ function vAct(){
     <div class="meta" style="margin-top:12px"><div><span class="lbl">Termín</span>${fmtD(a.date)} ${esc(a.time||"")}${a.duration?` · ${esc(a.duration)} min`:""}</div><div><span class="lbl">Stav</span>${({planned:"Naplánováno",done:"Realizováno",cancelled:"Zrušeno"})[a.status]}</div><div><span class="lbl">Priorita</span>${esc(a.priority||"Normální")}</div><div><span class="lbl">Vlastník</span>${esc(a.owner||"–")}</div><div><span class="lbl">Kategorie</span>${esc(a.category||"–")}</div>${a.place?`<div><span class="lbl">Místo</span>${esc(a.place)}</div>`:""}${a.repeat?`<div><span class="lbl">Opakování</span>↻ ${esc(REPEAT[a.repeat]||"")}${a.repeatUntil?` do ${fmtD(a.repeatUntil)}`:""}</div>`:""}</div>
     ${(() => { const addr = a.place || instAddr(deal) || (() => { const c = getClient(a.clientId); return c ? [c.street,[c.zip,c.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") : ""; })(); return addr ? `<div class="row" style="margin-top:12px;gap:8px">${navLinks(addr)}<span class="muted">${esc(addr)}</span></div>` : ""; })()}</div>
   <div class="dgrid"><div class="card"><div class="dtabs">${tabs.map(([k,t])=>`<button data-tab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div><div class="cb">${tab==="photos"?photosPanel("activity", a):`<dl class="kv"><dt>Popis</dt><dd style="white-space:pre-wrap">${esc(a.note||"–")}</dd>${a.result?`<dt>Výsledek</dt><dd style="white-space:pre-wrap">${esc(a.result)}</dd>`:""}</dl>`}</div></div>
-    <div class="rcol"><div class="card"><div class="ch"><span class="lbl">Čeho se to týká</span></div><div class="cb">${deal?`<span class="lbl">Obchodní případ</span><div><span class="link" data-act="open-deal" data-id="${deal.id}">${esc(deal.code)} ${esc(deal.name)}</span></div>`:""}${a.clientId?`<div style="margin-top:6px"><span class="lbl">Klient</span><div><span class="link" data-act="open-client" data-id="${a.clientId}">${esc(clientName(a.clientId))}</span></div></div>`:""}${!deal&&!a.clientId?`<span class="muted">Nepřiřazeno</span>`:""}</div></div></div></div>`;
+    <div class="rcol"><div class="card"><div class="ch"><span class="lbl">Čeho se to týká</span></div><div class="cb">${deal?`<span class="lbl">Obchodní případ</span><div><span class="link" data-act="open-deal" data-id="${deal.id}">${esc(deal.code)} ${esc(deal.name)}</span></div>`:""}${a.clientId?`<div style="margin-top:6px"><span class="lbl">Klient</span><div><span class="link" data-act="open-client" data-id="${a.clientId}">${esc(clientName(a.clientId))}</span></div></div>`:""}${a.leadId && S.leads.some(x=>x.id===a.leadId) ? `<div style="margin-top:6px"><span class="lbl">Lead</span><div><span class="link" data-act="open-lead" data-id="${a.leadId}">${esc(S.leads.find(x=>x.id===a.leadId).code)} ${esc(S.leads.find(x=>x.id===a.leadId).name)}</span></div></div>` : ""}${!deal&&!a.clientId&&!a.leadId?`<span class="muted">Nepřiřazeno</span>`:""}</div></div></div></div>`;
 }
 const CAL_H = 48;
 // colour per person (Nastavení → Barvy uživatelů); default from a fixed palette by position in the user list
@@ -2275,6 +2397,7 @@ function modalHtml(){
   if (md.kind === "acc") return accModal();
   if (md.kind === "pwd") return pwModal();
   if (md.kind === "bulk") return bulkModal();
+  if (md.kind === "convert") return convertModal();
   if (md.kind === "bulkdel") return bulkDelModal();
   if (md.kind === "move"){ const pr = S.products.find(x=>x.id===md.id); const inn = md.dir==="in";
     const log = [...(pr?.stockLog||[])].reverse().slice(0,8);
@@ -2556,10 +2679,10 @@ document.addEventListener("click", async e => {
     case "new-deal": { const ph = C().phases.find(p=>p.kind==="open"); openModal("deal", {id:uid(), name:"", clientId:a.dataset.client||"", type:C().types[0]||"", phaseId:ph?.id, probability:50, owner:me(), openedAt:today(), _new:true}); break; }
     case "new-client": openModal("client", {id:uid(), state:"Potenciální", role:"Odběratel", owner:me(), gdpr:"Plnění smlouvy", persons:[], _new:true}); break;
     case "new-lead": openModal("lead", {id:uid(), subject:C().types[0]||"", state:C().leadStates[0]||"Nový", owner:me(), receivedAt:today(), _new:true}); break;
-    case "new-act": case "newact-day": if (e.detail < 2) break; /* falls through: a new activity only on double click */ case "newact-task": case "newact-meeting": case "newact-call": case "newact-event": case "newact-email": case "newact-letter": {
+    case "newact-day": if (e.detail < 2) break; /* falls through: on a calendar day a new activity only on double click */ case "new-act": case "newact-task": case "newact-meeting": case "newact-call": case "newact-event": case "newact-email": case "newact-letter": {
       const type = a.dataset.type || (act.startsWith("newact-") && ACT[act.slice(7)] ? act.slice(7) : "meeting");
       const dealId = a.dataset.deal || (S.view==="deal" ? S.param : ""); const clientId = a.dataset.client || (dealId ? getDeal(dealId)?.clientId : "") || "";
-      openModal("act", {id:uid(), type, title:"", date:a.dataset.date||today(), time:"", status:"planned", priority:"Normální", owner:me(), dealId, clientId, _new:true}); break; }
+      openModal("act", {id:uid(), type, title:"", date:a.dataset.date||today(), time:"", status:"planned", priority:"Normální", owner:me(), dealId, clientId, leadId:a.dataset.lead||"", _new:true}); break; }
     case "act-type": { readModalAct(); S.modal.data.type = a.dataset.type; S._forceModal = true; renderOverlay(); break; }
     // edit
     case "edit-deal": openModal("deal", JSON.parse(JSON.stringify(getDeal(id)))); break;
@@ -2574,14 +2697,8 @@ document.addEventListener("click", async e => {
     case "del-act": { const x = S.activities.find(v=>v.id===id); await store.del("activities", id).catch(()=>toast("Smazání se nepovedlo.")); toast("Aktivita smazána"); x?.dealId ? go("deal", x.dealId, "timeline") : go("activities"); break; }
     // lead
     case "lead-state": { const l = JSON.parse(JSON.stringify(S.leads.find(x=>x.id===id))); if (l.state===a.dataset.st) break; log(l, `Stav: ${l.state} → ${a.dataset.st}`); l.state = a.dataset.st; if (await save("leads", l)) await runAuto("lead_state", {lead:l}); break; }
-    case "convert-lead": { const l = S.leads.find(x=>x.id===id);
-      let client = S.clients.find(c => (l.phone && c.phone===l.phone) || (l.email && c.email===l.email));
-      if (!client){ client = {id:uid(), name:l.name, phone:l.phone||"", email:l.email||"", street:l.street||"", city:l.city||"", zip:l.zip||"", state:"Potenciální", role:"Odběratel", owner:l.owner, source:l.source||"", gdpr:"Plnění smlouvy", persons:[], createdAt:Date.now(), leadCode:l.code}; if (!await save("clients", client)) break; }
-      const ph = C().phases.find(p=>p.kind==="open");
-      const d = {id:uid(), code:nextCode(S.all.deals||S.deals, C().dealPrefix||"OP"), name:`${l.subject||"Obchod"} – ${l.name}`, clientId:client.id, type:C().types.includes(l.subject)?l.subject:(C().types[0]||""), phaseId:ph?.id, probability:50, value:0, expectedCost:0, owner:l.owner, openedAt:today(), source:l.source||"", leadCode:l.code, note:l.note||"", custom:{}, products:[], photos:[], events:[], createdAt:Date.now(), phaseSince:Date.now()};
-      log(d, `Obchodní případ založen z leadu ${l.code}`); if (!await save("deals", d)) break;
-      const nl = JSON.parse(JSON.stringify(l)); nl.state = "Převeden"; nl.dealId = d.id; log(nl, `Převeden na ${d.code}`); await save("leads", nl);
-      toast(`Založen ${d.code}`); await runAuto("lead_state", {lead:nl}); await runAuto("deal_created", {deal:d}); go("deal", d.id); break; }
+    case "convert-lead": { const l = S.leads.find(x=>x.id===id); if (l && l.state!=="Převeden") openConvert(l); break; }
+    case "cv-acttype": readConvert(); S.modal.data.act.type = a.dataset.type; S._forceModal = true; renderOverlay(); break;
     // deal
     case "close": { const kind = a.dataset.kind; const ph = kind==="cancel" ? (C().phases.find(p=>p.kind==="lost"&&/zru/i.test(p.name)) || C().phases.find(p=>p.kind==="lost")) : C().phases.find(p=>p.kind===kind); if (ph) await movePhase(D(), ph.id); break; }
     case "reopen": { const ph = C().phases.find(p=>p.kind==="open"); if (ph) await movePhase(D(), ph.id); break; }
@@ -2626,6 +2743,7 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", async e => {
   const t = e.target;
+  if (t.classList.contains("cv-tg")){ readConvert(); const d = S.modal.data; if (t.id==="cv-mkDeal" && t.checked) d.linkDeal = false; if (t.id==="cv-linkDeal" && t.checked){ d.mkDeal = false; } S._forceModal = true; renderOverlay(); return; }
   if (t.classList.contains("rowsel") || t.classList.contains("selall")){ const kind = t.closest("table.g")?.dataset.gkind; if (!kind) return;
     if (S.sel?.kind!==kind) S.sel = {kind, ids:new Set()};
     const ids = t.classList.contains("selall") ? [...t.closest("table.g").querySelectorAll(".rowsel")].map(x=>x.value) : [t.value];
@@ -2711,6 +2829,7 @@ document.addEventListener("submit", async e => {
       { const F = m.f||{}, st = tmin(F.start) ?? tmin(m.time), en = tmin(F.end); warnConflicts(conflicts(m.techs, m.date, st, en!=null && en>st ? en-st : (toN(m.dur)||240), m.id)); } }
     return; }
   if (f.id==="modalform" && S.modal?.kind==="bulk"){ await bulkApply(); return; }
+  if (f.id==="modalform" && S.modal?.kind==="convert"){ if (!canEdit("leads")){ toast("Nemáte oprávnění upravovat."); return; } await convertLead(); return; }
   if (f.id==="modalform" && S.modal?.kind==="auto"){ if (!isAdmin()) return; readAuto(); const r = {...S.modal.data}; delete r._new; delete r._open;
     if (!r.name.trim()){ toast("Zadejte název."); return; } if (TRIGGERS[r.trigger]?.[1] && !r.param){ toast("Vyberte stav ve spouštěči."); return; } if (!(r.actions||[]).length){ toast("Přidejte aspoň jednu akci."); return; }
     const list = autos().some(x=>x.id===r.id) ? autos().map(x=>x.id===r.id?r:x) : [...autos(), r];
