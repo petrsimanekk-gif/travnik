@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stínko CRM – instalace a aktualizace na Ubuntu VPS (24.04 / 26.04).
+# Prima Shade CRM – instalace a aktualizace na Ubuntu VPS (24.04 / 26.04).
 #
 #   curl -fsSL https://raw.githubusercontent.com/petrsimanekk-gif/travnik/claude/bold-brown-vhwapp/server/install.sh | bash -s -- crm.primashade.cz
 #
@@ -56,7 +56,7 @@ chown -R stinko:stinko "$BASE/pb_data"
 
 cat > /etc/systemd/system/stinko.service <<EOF
 [Unit]
-Description=Stínko CRM
+Description=Prima Shade CRM
 After=network-online.target
 Wants=network-online.target
 
@@ -135,14 +135,14 @@ EOF
 chmod 700 "$BASE/backup.sh"
 cat > /etc/systemd/system/stinko-backup.service <<EOF
 [Unit]
-Description=Stínko CRM – záloha
+Description=Prima Shade CRM – záloha
 [Service]
 Type=oneshot
 ExecStart=$BASE/backup.sh
 EOF
 cat > /etc/systemd/system/stinko-backup.timer <<'EOF'
 [Unit]
-Description=Stínko CRM – noční záloha
+Description=Prima Shade CRM – noční záloha
 [Timer]
 OnCalendar=*-*-* 02:30
 Persistent=true

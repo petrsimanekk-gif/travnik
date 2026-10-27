@@ -1,4 +1,4 @@
-// Stínko CRM – adapter for the own server (PocketBase + /api/stinko/*).
+// Prima Shade CRM – adapter for the own server (PocketBase + /api/stinko/*).
 // Provides the same window.claude.use("db" | "assets" | "user" | "downloads")
 // interface the page was written against on claude.ai, so index.html runs
 // unchanged apart from the login flow (window.STINKO_SERVER).

@@ -1,4 +1,4 @@
-// Stínko CRM server: PocketBase with a small document store that mirrors the
+// Prima Shade CRM server: PocketBase with a small document store that mirrors the
 // window.claude db/assets API the CRM page was written against.
 //
 //	docs   – one row per CRM document (col + key + JSON data), realtime enabled
@@ -230,7 +230,7 @@ func ensureSchema(app core.App) error {
 		}
 	}
 	if s.Meta.AppName == "Acme" || s.Meta.AppName == "" {
-		s.Meta.AppName = "Stínko CRM"
+		s.Meta.AppName = "Prima Shade CRM"
 		changed = true
 	}
 	if len(s.TrustedProxy.Headers) == 0 {
