@@ -584,7 +584,8 @@ function rtabsHtml(){
 
 // ---------- render ----------
 const EDITING = ["settings"];
-function go(view, param=null, sub=null){ S.dealplus = false; S.view = view; S.param = param; S.sub = sub; S.confirm = null; S.page = 0; S.newmenu = false; render(); $("#main").scrollTop = 0; window.scrollTo({top:0}); }
+const RECORD_VIEWS = ["deal","client","lead","activity","offer","install"];
+function go(view, param=null, sub=null){ if (!RECORD_VIEWS.includes(S.view)) S.backView = S.view; S.dealplus = false; S.view = view; S.param = param; S.sub = sub; S.confirm = null; S.page = 0; S.newmenu = false; render(); $("#main").scrollTop = 0; window.scrollTo({top:0}); }
 let after = [];
 function render(){
   if (!Object.values(S.loaded).every(Boolean)) return;
@@ -905,6 +906,17 @@ function dealInstallsPanel(d){
     ${(m.photos||[]).length?`<div class="photos" style="grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px">${m.photos.map(f=>thumb(f,false)).join("")}</div>`:""}
     ${m.signature?`<div class="sig"><img src="${blobUrl(m.signature.id)}" alt="Podpis"><div>Podepsal(a): <b>${esc(m.signature.name)}</b><br><small class="muted">${fmtTs(m.signature.at)}</small></div></div>`:""}
   </div></div>`; }).join("") || `<p class="muted">K obchodu zatím není naplánovaná montáž.</p>`}`;
+}
+function calQuickModal(){
+  const md = S.modal, m = md.inst && S.installs.find(x=>x.id===md.inst), a = md.act && S.activities.find(x=>x.id===md.act);
+  if (!m && !a) return "";
+  const d = getDeal(m ? m.dealId : a.dealId) || {}, c = getClient(d.clientId || a?.clientId) || {};
+  const addr = (a && a.place) || instAddr(d) || [c.street,[c.zip,c.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  const rows = m ? [["Termín", `${m.date?fmtD(m.date):"Bez termínu"} ${m.time||""}`], ["Technici", (m.techs||[]).join(", ")||"nepřiřazeno"], ["Klient", c.name], ["Obchod", d.code ? `${d.code} ${d.name}` : ""], ["Telefon", c.phone], ["Stav", m.status==="done"?"Dokončeno":"Naplánováno"], ["Pokyny", m.note]]
+    : [["Termín", `${fmtD(a.date)} ${a.time||""}${a.duration?` · ${a.duration} min`:""}`], ["Vlastník", a.owner], ["Klient", c.name], ["Obchod", d.code ? `${d.code} ${d.name}` : ""], ["Popis", a.note]];
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Náhled"><div class="box" style="width:min(520px,100%)"><div class="mh"><b style="font-size:17px">${m ? "🔧 Montáž" : esc((ACT[a.type]?.[0]||"")+": "+a.title)}</b><button class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="mb"><dl class="kv">${rows.filter(r=>r[1]).map(([k,v])=>`<dt>${k}</dt><dd style="white-space:pre-wrap">${esc(v)}</dd>`).join("")}</dl>${addr?`<div class="row" style="gap:8px">${navLinks(addr)}<span class="muted" style="font-size:13px">${esc(addr)}</span></div>`:""}</div>
+  <div class="mf">${m && canEdit("installs") && m.status!=="done" ? `<button class="btn" data-act="inst-edit" data-id="${m.id}">Termín a technici</button>` : ""}<button class="btn blue" data-act="cal-full" data-v="${m ? "install" : "activity"}" data-id="${m ? m.id : a.id}">${m ? "Otevřít montáž" : "Otevřít detail"}</button></div></div></div>`;
 }
 function instModal(){
   const r = S.modal.data; const users = C().users;
@@ -1880,7 +1892,7 @@ function easter(y){ const a=y%19, b=Math.floor(y/100), c=y%100, d=Math.floor(b/4
 function holiday(s){ const e = easterOf[s.slice(0,4)] ||= easter(Number(s.slice(0,4))); return s===addDays(e,-2) ? "Velký pátek" : s===addDays(e,1) ? "Velikonoční pondělí" : HOLIDAYS[s.slice(5,10)] || ""; }
 const tmin = t => { const m = /^(\d{1,2}):(\d{2})/.exec(t||""); return m ? Number(m[1])*60 + Number(m[2]) : null; };
 const calInst = (s, users) => canSee("installs") ? S.installs.filter(x=>x.date===s && users.some(u=>(x.techs||[]).includes(u)||!(x.techs||[]).length)) : [];
-const calChip = (e, from="") => e.inst ? `<span class="cev ${e.inst.status==="done"?"done":""} ${instClash(e.inst)?"clash":""}" style="background:${instColor(e.inst)}" data-act="open-install" data-id="${e.inst.id}" data-from="${esc(from)}">${instClash(e.inst)?"⚠ ":""}🔧 ${esc(e.inst.time||"")} ${esc(clientName(getDeal(e.inst.dealId)?.clientId) || getDeal(e.inst.dealId)?.name || "Montáž")}</span>` : `<span class="cev ${e.a.status==="done"?"done":""} ${actClash(e.a)?"clash":""}" style="background:${actColor(e.a)}" data-act="open-act" data-id="${e.a.id}" ${e.a._occ?'data-occ="1"':""} data-from="${esc(from)}" title="${e.a.repeat?esc(REPEAT[e.a.repeat]||""):""}">${actClash(e.a)?"⚠ ":""}${e.a.repeat?"↻ ":""}${esc(e.a.time||"")} ${esc(e.a.title)}</span>`;
+const calChip = (e, from="") => e.inst ? `<span class="cev ${e.inst.status==="done"?"done":""} ${instClash(e.inst)?"clash":""}" style="background:${instColor(e.inst)}" data-act="cal-inst" data-id="${e.inst.id}" data-from="${esc(from)}">${instClash(e.inst)?"⚠ ":""}🔧 ${esc(e.inst.time||"")} ${esc(clientName(getDeal(e.inst.dealId)?.clientId) || getDeal(e.inst.dealId)?.name || "Montáž")}</span>` : `<span class="cev ${e.a.status==="done"?"done":""} ${actClash(e.a)?"clash":""}" style="background:${actColor(e.a)}" data-act="cal-act" data-id="${e.a.id}" ${e.a._occ?'data-occ="1"':""} data-from="${esc(from)}" title="${e.a.repeat?esc(REPEAT[e.a.repeat]||""):""}">${actClash(e.a)?"⚠ ":""}${e.a.repeat?"↻ ":""}${esc(e.a.time||"")} ${esc(e.a.title)}</span>`;
 function calTimeGrid(dates, acts, users){
   const DN = ["Ne","Po","Út","St","Čt","Pá","So"], t = today();
   const cols = dates.map(s => {
@@ -1898,7 +1910,7 @@ function calTimeGrid(dates, acts, users){
   const evBox = e => { const inst = e.inst, top = hr(e.st), h = Math.min(hr(e.st+e.dur), h1-h0) - top;
     const end = e.st+e.dur, tt = `${pad(Math.floor(e.st/60))}:${pad(e.st%60)}–${pad(Math.floor(end/60)%24)}:${pad(end%60)}`;
     const clash = inst ? instClash(inst) : actClash(e.a);
-    const [act, id, bg, done, title] = inst ? ["open-install", inst.id, instColor(inst), inst.status==="done", (clash?"⚠ ":"")+"🔧 "+(getDeal(inst.dealId)?.name||"Montáž")] : ["open-act", e.a.id, actColor(e.a), e.a.status==="done", (clash?"⚠ ":"")+(e.a.repeat?"↻ ":"")+(ACT[e.a.type]?.[1]||"")+" "+e.a.title];
+    const [act, id, bg, done, title] = inst ? ["cal-inst", inst.id, instColor(inst), inst.status==="done", (clash?"⚠ ":"")+"🔧 "+(getDeal(inst.dealId)?.name||"Montáž")] : ["cal-act", e.a.id, actColor(e.a), e.a.status==="done", (clash?"⚠ ":"")+(e.a.repeat?"↻ ":"")+(ACT[e.a.type]?.[1]||"")+" "+e.a.title];
     const sub = inst ? clientName(getDeal(inst.dealId)?.clientId) : (e.a.dealId ? getDeal(e.a.dealId)?.name : clientName(e.a.clientId)) || "";
     return `<span class="tg-ev ${done?"done":""} ${clash?"clash":""}" ${e.a?._occ?'data-occ="1"':""} style="top:calc(var(--hh) * ${top});height:calc(var(--hh) * ${h} - 2px);left:calc(${e.lane/e.n*100}% + 2px);width:calc(${100/e.n}% - 4px);background:${bg}" data-act="${act}" data-id="${id}" data-st="${e.st}" data-dur="${e.dur}" title="${esc(tt+" "+title)}"><b>${esc(title)}</b><small>${tt}${sub?" · "+esc(sub):""}</small><i class="tg-rsz" aria-hidden="true"></i></span>`; };
   const now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
@@ -1916,7 +1928,7 @@ const snap15 = m => Math.round(m/15)*15;
 document.addEventListener("pointerdown", e => {
   if (S.view!=="calendar" || e.button!==0 || e.pointerType==="touch") return;
   const el = e.target.closest && e.target.closest(".tg-ev, .cev"); if (!el || el.dataset.occ) return;
-  const inst = el.dataset.act==="open-install", rec = inst ? S.installs.find(x=>x.id===el.dataset.id) : S.activities.find(x=>x.id===el.dataset.id);
+  const inst = el.dataset.act==="cal-inst", rec = inst ? S.installs.find(x=>x.id===el.dataset.id) : S.activities.find(x=>x.id===el.dataset.id);
   if (!rec || !canEdit(inst ? "installs" : "activities")) return;
   const col = el.closest(".tg-col"), tg = el.closest(".tg");
   cdrag = {el, inst, rec, x0:e.clientX, y0:e.clientY, moved:false, resize:!!e.target.closest(".tg-rsz"), col, h0: col ? Number(col.dataset.h0) : 0,
@@ -2085,6 +2097,7 @@ function modalHtml(){
   if (md.kind === "filter") return filterModal();
   if (md.kind === "states") return statesModal();
   if (md.kind === "inst") return instModal();
+  if (md.kind === "calq") return calQuickModal();
   if (md.kind === "auto") return autoModal();
   if (md.kind === "notifs") return notifsModal();
   if (md.kind === "mail") return mailModal();
@@ -2159,7 +2172,7 @@ function modalHtml(){
     <label class="f"><span>Popis</span><textarea id="a-note">${esc(r.note||"")}</textarea></label><label class="f"><span>Výsledek</span><textarea id="a-result">${esc(r.result||"")}</textarea></label>`;
   }
   return `<div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title||"Obchodní případ")}"><form class="box" id="modalform"><div class="mh">${big || `<b style="font-size:17px">${esc(title)}</b>`}<button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div><div class="mb">${body}</div>
-  <div class="mf"><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button>${md.kind==="deal"||md.kind==="client"||md.kind==="lead"||md.kind==="offer"?`<button class="btn good up" type="submit" data-open="1">Uložit & otevřít</button>`:""}<button class="btn blue up" type="submit">Uložit</button></div></form></div>`;
+  <div class="mf">${md.kind==="act" && r._cal ? `<button type="button" class="btn" data-act="cal-full" data-v="activity" data-id="${r.id}" style="margin-right:auto">Otevřít celý detail</button>${r.status==="planned"?`<button type="button" class="btn good" data-act="cal-done" data-id="${r.id}">✓ Realizováno</button>`:""}` : ""}<button type="button" class="btn ghost" data-act="close-modal">Zrušit</button>${md.kind==="deal"||md.kind==="client"||md.kind==="lead"||md.kind==="offer"?`<button class="btn good up" type="submit" data-open="1">Uložit & otevřít</button>`:""}<button class="btn blue up" type="submit">Uložit</button></div></form></div>`;
 }
 function newMenuHtml(){ const b = (act, sec, t) => canEdit(sec) ? `<button data-act="${act}" role="menuitem">${t}</button>` : ""; const acts = canEdit("activities") ? `<hr>${Object.entries(ACT).map(([k,[t]])=>`<button data-act="newact-${k}" role="menuitem">${t}</button>`).join("")}` : ""; return `<div class="newmenu" role="menu">${b("new-client","clients","Klient")}${b("new-lead","leads","Lead")}${b("new-deal","deals","Obchodní případ")}${b("new-offer","offers","Nabídka")}${b("new-product","pricelist","Produkt do ceníku")}${acts}</div>`; }
 function renderOverlay(){
@@ -2342,7 +2355,7 @@ document.addEventListener("click", async e => {
     case "fc-remove": { const md = S.modal.data; prefs.filters[md.kind] = (prefs.filters[md.kind]||[]).filter(f=>f.id!==md.id); if (prefs.active[md.kind]?.id===md.id) prefs.active[md.kind] = null; savePrefs(); closeModal(); render(); toast("Filtr smazán"); break; }
     case "newmenu": S.newmenu = !S.newmenu; renderOverlay(); break;
     case "tab": go(a.dataset.v, id); break;
-    case "tabx": e.stopPropagation(); recent = recent.filter(r=>!(r.view===a.dataset.v&&r.param===id)); ls.set("stinko-recent", recent); if (S.view===a.dataset.v && S.param===id) go({deal:"deals",client:"clients",lead:"leads",activity:"activities"}[a.dataset.v]); else render(); break;
+    case "tabx": e.stopPropagation(); recent = recent.filter(r=>!(r.view===a.dataset.v&&r.param===id)); ls.set("stinko-recent", recent); if (S.view===a.dataset.v && S.param===id) go(S.backView || {deal:"deals",client:"clients",lead:"leads",activity:"activities",offer:"offers",install:"installs"}[a.dataset.v] || "dashboard"); else render(); break;
     case "fav": favs.has(id) ? favs.delete(id) : favs.add(id); ls.set("stinko-favs", [...favs]); render(); break;
     case "pg": S.page += Number(a.dataset.d); render(); break;
     case "ask": S.confirm = a.dataset.what; render(); break;
@@ -2356,6 +2369,10 @@ document.addEventListener("click", async e => {
     case "open-client": go("client", id); break;
     case "open-lead": go("lead", id); break;
     case "open-act": S.sub = null; go("activity", id); break;
+    case "cal-act": { const x = S.activities.find(v=>v.id===id); if (!x) break; if (!canEdit("activities")){ S.modal = {kind:"calq", act:id}; S._forceModal = true; renderOverlay(); break; } openModal("act", {...JSON.parse(JSON.stringify(x)), _cal:true}); break; }
+    case "cal-inst": S.modal = {kind:"calq", inst:id}; S._forceModal = true; renderOverlay(); break;
+    case "cal-full": { const v = a.dataset.v; closeModal(); S.sub = null; go(v, id); break; }
+    case "cal-done": { const x = JSON.parse(JSON.stringify(S.activities.find(v=>v.id===id))); x.status = "done"; x.doneAt = Date.now(); if (await save("activities", x)){ closeModal(); toast("Označeno jako realizované"); } break; }
     case "open-doc": { const row = id; const d = S.deals.find(x=>(x.photos||[]).some(f=>f.id===row)||(x.signatures||[]).some(s=>s.id===row)); const ac = S.activities.find(x=>(x.photos||[]).some(f=>f.id===row)); const f = [...(d?.photos||[]),...(ac?.photos||[])].find(f=>f.id===row); if (f && isImg(f) || (d&&(d.signatures||[]).some(s=>s.id===row))){ S.light = row; renderOverlay(); } else toast("Soubor otevřete kliknutím na jeho název."); break; }
     case "phase-filter": S.group = "ph:"+id; S.q = ""; go("deals"); break;
     // new
@@ -2581,7 +2598,7 @@ document.addEventListener("submit", async e => {
       return;
     }
     if (md.kind==="act"){
-      readModalAct(); const x = {...S.modal.data}; delete x._new; delete x._open;
+      readModalAct(); const x = {...S.modal.data}; delete x._new; delete x._open; delete x._cal;
       if (!x.title){ S.modal.data._new = isNew; toast("Vyplňte předmět."); return; }
       if (x.dealId && !x.clientId) x.clientId = getDeal(x.dealId)?.clientId || "";
       if (isNew) x.createdAt = Date.now(); if (x.status==="done" && !x.doneAt) x.doneAt = Date.now();
