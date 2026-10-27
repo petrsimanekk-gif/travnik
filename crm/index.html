@@ -128,6 +128,7 @@ table.g td select.inl-state:hover,table.g td select.inl-state:focus{background:v
 table.g td input.inl-note{border:1px solid transparent;background:transparent;padding:3px 6px;margin-left:-6px;box-shadow:none} table.g td input.inl-note:hover{border-color:var(--line)} table.g td input.inl-note:focus{background:var(--surface);border-color:var(--link)}
 table.g tr:not(:hover) input.inl-note:not(:focus)::placeholder{color:transparent}
 .bulkbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--fg);color:var(--bg);border-radius:24px;padding:6px 8px 6px 18px;box-shadow:0 8px 28px rgba(0,0,0,.28);max-width:calc(100vw - 24px)}
+body.notadmin [data-act="ask"][data-what="del"],body.notadmin [data-act="inst-askdel"],body.notadmin [data-act="ask-delp"]{display:none!important}
 .bulkbar .btn{border-color:transparent} .bulkbar .bs{display:none} .bulkbar .btn.ghost{color:var(--bg)} .bulkbar .btn.ghost:hover{background:rgba(127,127,127,.25)}
 .sumbar{position:sticky;bottom:0;margin-top:10px;background:var(--surface);border:1px solid var(--line);border-radius:6px;display:flex;gap:24px;align-items:center;padding:8px 14px;font-size:13px;flex-wrap:wrap}
 .sumbar b{font-family:var(--mono);font-weight:500}
@@ -547,6 +548,7 @@ function readAccModal(){ const md = S.modal.data; const v = id => document.getEl
   if (md.role!=="admin" && document.querySelector(".fl-chk")){ const fl = {}; document.querySelectorAll(".fl-chk").forEach(c => fl[c.value] = c.checked); md.fields = fl; }
   if (md.role!=="admin"){ const pm = {}; SECTIONS.forEach(([k]) => { const r = document.querySelector(`input[name="pm-${k}"]:checked`); pm[k] = r ? r.value : (md.perms?.[k]||"none"); }); md.perms = pm; } }
 function pwModal(){ return `<div class="modal" role="dialog" aria-modal="true" aria-label="Změna hesla"><form class="box" id="modalform" style="width:min(420px,100%)"><div class="mh"><b style="font-size:17px">Změna hesla</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div><div class="mb"><label class="f"><span>Současné heslo</span><input id="pw-old" type="password" autocomplete="current-password"></label><label class="f"><span>Nové heslo (min. 8 znaků)</span><input id="pw-new" type="password" autocomplete="new-password"></label><label class="f"><span>Nové heslo znovu</span><input id="pw-new2" type="password" autocomplete="new-password"></label></div><div class="mf"><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit">Změnit heslo</button></div></form></div>`; }
+const ADMIN_DEL = ["del-lead","del-deal","del-client","del-offer","del-act","del-product","inst-askdel","inst-del","ask-delp","bulk-del","bulk-del-yes","bulk-xlsx"];
 const ACT_SEC = {"new-install":"installs","new-client":"clients","new-lead":"leads","new-deal":"deals","new-offer":"offers","new-act":"activities","newact-day":"activities","stock-move":"stock"};
 const WRITE_ACT = /^(inst-|new-|newact-|edit-|del-|ask$|convert-lead|close$|reopen|lead-state|offer-|add-prod|sign$|sig-|act-status|pdf-make|pdf-ex|stock-move)/;
 function actSection(act, a){
@@ -607,7 +609,7 @@ let after = [];
 function render(){
   if (!Object.values(S.loaded).every(Boolean)) return;
   if (rs) return;
-  const A = acc(); document.body.classList.toggle("nologin", !A);
+  const A = acc(); document.body.classList.toggle("nologin", !A); document.body.classList.toggle("notadmin", !!A && !isAdmin());
   if (!A){ $("#nav").innerHTML = ""; $("#main").classList.remove("ro"); $("#main").innerHTML = loginView(); S.modal = null; S.newmenu = false; renderOverlay(); return; }
   if (S.view==="settings" ? !isAdmin() : !canSee(secOf(S.view))){ S.view = firstAllowed(); S.param = null; S.sub = null; }
   $("#nav").innerHTML = navHtml();
@@ -828,7 +830,7 @@ function paintBulk(){
   if (t){ t.querySelectorAll(".rowsel").forEach(x => { x.checked = !!S.sel?.ids.has(x.value) && S.sel.kind===kind; x.closest("tr").classList.toggle("sel", x.checked); }); const all = [...t.querySelectorAll(".rowsel")]; const sa = t.querySelector(".selall"); if (sa) sa.checked = all.length>0 && all.every(x=>x.checked); }
   if (!n){ old?.remove(); return; }
   const total = S.gridIds.ids.length;
-  const html = `<b>Vybráno ${n}</b>${n<total?`<button class="btn sm ghost" data-act="bulk-all">Vybrat všech ${total}</button>`:""}<button class="btn sm blue" data-act="bulk-edit">✎ <span class="bl">Hromadná úprava</span><span class="bs">Upravit</span></button><button class="btn sm bad" data-act="bulk-del">🗑 Smazat</button><button class="btn sm ghost" data-act="bulk-clear" aria-label="Zrušit výběr">✕</button>`;
+  const html = `<b>Vybráno ${n}</b>${n<total?`<button class="btn sm ghost" data-act="bulk-all">Vybrat všech ${total}</button>`:""}<button class="btn sm blue" data-act="bulk-edit">✎ <span class="bl">Hromadná úprava</span><span class="bs">Upravit</span></button>${isAdmin()?`<button class="btn sm" data-act="bulk-xlsx">⤓ <span class="bl">Export do Excelu</span><span class="bs">Excel</span></button><button class="btn sm bad" data-act="bulk-del">🗑 Smazat</button>`:""}<button class="btn sm ghost" data-act="bulk-clear" aria-label="Zrušit výběr">✕</button>`;
   let bar = old; if (!bar){ bar = document.createElement("div"); bar.id = "bulkbar"; bar.className = "bulkbar"; bar.setAttribute("role","toolbar"); bar.setAttribute("aria-label","Hromadné akce"); document.body.appendChild(bar); }
   bar.innerHTML = html; bar.dataset.kind = kind;
 }
@@ -871,8 +873,33 @@ async function bulkApply(){
   }
   S.sel = null; render(); toast(ok===ids.length ? `Upraveno ${ok} ${ok===1?"záznam":ok<5?"záznamy":"záznamů"}` : `Upraveno ${ok} z ${ids.length}, zbytek se nepovedl`);
 }
+// export the ticked rows with the columns the list shows now (admin only)
+const XLSX_JS = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+const KIND_TITLE = {leads:"Leady", deals:"Obchodní případy", clients:"Klienti", offers:"Nabídky", acts:"Aktivity"};
+async function bulkExport(kind){
+  if (!isAdmin()){ toast("Exportovat může jen admin."); return; }
+  const B = BULK[kind], rows = bulkIds(kind).map(id => S[B.col].find(r=>r.id===id)).filter(Boolean), cols = visibleCols(kind);
+  if (!rows.length) return;
+  toast("Připravuji Excel…");
+  try {
+    await loadScript(XLSX_JS); const X = window.XLSX;
+    const cell = (c, r) => { const v = c.val(r); if (v==null || v==="") return null;
+      if (c.type==="date"){ const m = /^\d{4}-\d{2}-\d{2}/.exec(String(v)); if (m) return new Date(m[0]+"T12:00:00"); }
+      if (c.type==="money" || c.type==="number"){ const n = typeof v==="number" ? v : toN(v); if (isFinite(n)) return n; }
+      return String(v); };
+    const aoa = [cols.map(c=>c.label), ...rows.map(r => cols.map(c => cell(c, r)))];
+    const ws = X.utils.aoa_to_sheet(aoa, {cellDates:true});
+    cols.forEach((c, j) => { for (let i = 1; i < aoa.length; i++){ const ref = X.utils.encode_cell({r:i, c:j}); const z = ws[ref]; if (!z) continue; if (c.type==="money") z.z = '#,##0.00 "Kč"'; else if (z.t==="d" || c.type==="date") z.z = "d.m.yyyy"; } });
+    ws["!cols"] = cols.map((c, j) => ({wch: Math.min(60, Math.max(8, ...aoa.map(row => { const v = row[j]; return v instanceof Date ? 10 : String(v ?? "").length + 2; })))}));
+    ws["!autofilter"] = {ref: X.utils.encode_range({s:{r:0,c:0}, e:{r:aoa.length-1, c:cols.length-1}})};
+    const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, (KIND_TITLE[kind]||kind).slice(0,31));
+    const blob = new Blob([X.write(wb, {bookType:"xlsx", type:"array"})], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    const name = `${(KIND_TITLE[kind]||kind).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g,"-")}-${today()}.xlsx`;
+    await saveFile(name, blob); toast(`Exportováno ${rows.length} ${rows.length===1?"řádek":rows.length<5?"řádky":"řádků"}`);
+  } catch(e){ console.error(e); toast(e?.code==="declined" ? "Stahování zrušeno." : "Export se nepovedl."); }
+}
 async function bulkDelete(){
-  const kind = S.modal.data.kind, B = BULK[kind]; if (!canEdit(B.sec)){ toast("Nemáte oprávnění."); return; }
+  const kind = S.modal.data.kind, B = BULK[kind]; if (!isAdmin()){ toast("Mazat může jen admin."); return; }
   const ids = bulkIds(kind); let ok = 0, kept = 0; closeModal();
   for (const id of ids){ if (kind==="clients" && S.deals.some(d=>d.clientId===id)){ kept++; continue; } try { await store.del(B.col, id); ok++; } catch(e){ console.error(e); } }
   S.sel = null; render(); toast(`Smazáno ${ok}${kept?`, ${kept} klientů s obchody ponecháno`:""}`);
@@ -2357,6 +2384,7 @@ document.addEventListener("click", async e => {
   if (a.tagName==="INPUT" || (["INPUT","SELECT","TEXTAREA","OPTION"].includes(e.target.tagName) && act!=="newact-day")) return;
   if (act !== "close-light" && e.target.closest(".lightbox img")) return;
   e.stopPropagation();
+  if ((ADMIN_DEL.includes(act) || (act==="ask" && a.dataset.what==="del")) && !isAdmin()){ toast("Mazat záznamy může jen admin."); return; }
   { const need = actSection(act, a); if (need && !canEdit(need)){ toast("Na tuto akci nemáte oprávnění."); return; } }
   const D = () => getDeal(S.param);
   switch (act){
@@ -2364,7 +2392,8 @@ document.addEventListener("click", async e => {
     case "bulk-all": { const k = S.gridIds?.kind; if (!k) break; S.sel = {kind:k, ids:new Set(S.gridIds.ids)}; paintBulk(); break; }
     case "bulk-clear": S.sel = null; paintBulk(); break;
     case "bulk-edit": { const k = document.getElementById("bulkbar")?.dataset.kind; if (!k || !bulkIds(k).length) break; S.modal = {kind:"bulk", data:{kind:k}}; S._forceModal = true; renderOverlay(); break; }
-    case "bulk-del": { const k = document.getElementById("bulkbar")?.dataset.kind; if (!k || !bulkIds(k).length) break; S.modal = {kind:"bulkdel", data:{kind:k}}; S._forceModal = true; renderOverlay(); break; }
+    case "bulk-xlsx": { const k = document.getElementById("bulkbar")?.dataset.kind; if (k) await bulkExport(k); break; }
+    case "bulk-del": { const k = document.getElementById("bulkbar")?.dataset.kind; if (!k || !bulkIds(k).length || !isAdmin()) break; S.modal = {kind:"bulkdel", data:{kind:k}}; S._forceModal = true; renderOverlay(); break; }
     case "bulk-del-yes": await bulkDelete(); break;
     case "order-make": { toast("Připravuji objednávku…"); try { await supplierOrder(getDeal(id), "ručně"); S.modal = {kind:"order"}; S._forceModal = true; renderOverlay(); } catch(err){ console.error(err); toast("Objednávku se nepodařilo vytvořit."); } break; }
     case "order-close": S.orderPdf = null; closeModal(); if (S.mailQueue?.length){ S.modal = {kind:"mail"}; S._forceModal = true; renderOverlay(); } break;

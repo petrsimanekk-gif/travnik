@@ -555,6 +555,8 @@ func keepOneAdmin(app core.App, id string, data map[string]any) error {
 	return errors.New("Musí zůstat aspoň jeden aktivní admin.")
 }
 
+var adminDeleteOnly = map[string]bool{"deals": true, "leads": true, "clients": true, "offers": true, "activities": true, "products": true, "installs": true, "comms": true}
+
 func handleDel(e *core.RequestEvent) error {
 	a, err := authAccount(e)
 	if err != nil {
@@ -565,6 +567,10 @@ func handleDel(e *core.RequestEvent) error {
 		return e.BadRequestError("", err)
 	}
 	if body.Col == "accounts" || !canWrite(a, body.Col, body.ID, nil, e.App) {
+		return e.ForbiddenError("permission_denied", nil)
+	}
+	// deleting CRM records is for admins only; others may still remove their own prefs etc.
+	if adminDeleteOnly[body.Col] && a["role"] != "admin" {
 		return e.ForbiddenError("permission_denied", nil)
 	}
 	rec, err := findDoc(e.App, body.Col, body.ID)
