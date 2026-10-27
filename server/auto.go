@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"html"
 
 	"github.com/pocketbase/dbx"
 	"net/http"
@@ -76,19 +77,40 @@ var (
 
 // fillAuto fills {proměnné}. {osloveni} written after a greeting ("Dobrý den, {osloveni},")
 // keeps a single greeting and a single comma.
-func fillAuto(t string, v map[string]string) string {
+func fillAuto(t string, v map[string]string) string { return fillAutoAs(t, v, false) }
+
+// fillAutoHTML fills a formatted (HTML) template: values are escaped and a line ends at a
+// <br> or a block tag as well as at a newline.
+func fillAutoHTML(t string, v map[string]string) string { return fillAutoAs(t, v, true) }
+
+var (
+	htmlLineRe  = regexp.MustCompile(`(?i)<br\s*/?>|</?(div|p|li|h\d|blockquote)\b[^>]*>`)
+	htmlTrailRe = regexp.MustCompile(`(?:[ \t]|&nbsp;)+$`)
+)
+
+func fillAutoAs(t string, v map[string]string, rich bool) string {
 	var b strings.Builder
 	last := 0
+	trimR := func(s string) string { return strings.TrimRight(s, " \t") }
+	if rich {
+		trimR = func(s string) string { return htmlTrailRe.ReplaceAllString(s, "") }
+	}
 	for _, l := range autoVarRe.FindAllStringSubmatchIndex(t, -1) {
 		b.WriteString(t[last:l[0]])
 		key, val := t[l[2]:l[3]], v[t[l[2]:l[3]]]
 		if key == "osloveni" {
 			out := b.String()
 			line := out[strings.LastIndex(out, "\n")+1:]
+			if rich {
+				if m := htmlLineRe.FindAllStringIndex(line, -1); len(m) > 0 {
+					line = line[m[len(m)-1][1]:]
+				}
+				line = strings.ReplaceAll(html.UnescapeString(tagRe.ReplaceAllString(line, "")), "\u00a0", " ")
+			}
 			if greetEndRe.MatchString(line) {
 				val = greetRe.ReplaceAllString(val, "")
 				if val == "" { // nothing left but the greeting already written
-					trimmed := strings.TrimRight(out, " \t")
+					trimmed := trimR(out)
 					b.Reset()
 					b.WriteString(strings.TrimSuffix(trimmed, ","))
 					if !strings.HasPrefix(t[l[1]:], ",") {
@@ -96,7 +118,7 @@ func fillAuto(t string, v map[string]string) string {
 					}
 				} else if !strings.HasSuffix(strings.TrimRight(line, " \t"), ",") {
 					b.Reset()
-					b.WriteString(strings.TrimRight(out, " \t") + ", ")
+					b.WriteString(trimR(out) + ", ")
 				} else if !strings.HasSuffix(line, " ") {
 					b.WriteString(" ")
 				}
@@ -104,6 +126,9 @@ func fillAuto(t string, v map[string]string) string {
 			if strings.HasPrefix(t[l[1]:], ",") {
 				val = strings.TrimSuffix(val, ",")
 			}
+		}
+		if rich {
+			val = html.EscapeString(val)
 		}
 		b.WriteString(val)
 		last = l[1]
@@ -119,22 +144,23 @@ func leadVars(l map[string]any) map[string]string {
 }
 
 // actionText: the action's own subject/body, or those of the e-mail template it points to
-// (so editing the template changes what the automation sends).
-func actionText(app core.App, a map[string]any) (string, string) {
+// (so editing the template changes what the automation sends). A formatted template also
+// gives its HTML.
+func actionText(app core.App, a map[string]any) (string, string, string) {
 	if id := str(a, "tpl"); id != "" {
 		if l, ok := crmConfig(app)["mailTpls"].([]any); ok {
 			for _, x := range l {
 				if t, ok := x.(map[string]any); ok && str(t, "id") == id {
-					return str(t, "subject"), str(t, "body")
+					return str(t, "subject"), str(t, "body"), str(t, "html")
 				}
 			}
 		}
 	}
-	return str(a, "subject"), str(a, "body")
+	return str(a, "subject"), str(a, "body"), ""
 }
 
 // sendAuto sends one automation e-mail and records it in Komunikace.
-func sendAuto(app core.App, rule string, act map[string]any, to, subject, body string, link map[string]string) error {
+func sendAuto(app core.App, rule string, act map[string]any, to, subject, body, htm string, link map[string]string) error {
 	box, cfg := autoBox(app, str(act, "box"))
 	cid := randUUID()
 	comm := map[string]any{"kind": "email", "to": to, "subject": subject, "body": body, "status": "odesílá se", "at": time.Now().UnixMilli(), "by": "Automatizace",
@@ -151,7 +177,7 @@ func sendAuto(app core.App, rule string, act map[string]any, to, subject, body s
 	if str(act, "sig") == "box" {
 		sig, logo = cfg.Signature, cfg.SigLogo
 	}
-	_, err := doSend(app, map[string]any{"name": "Automatizace „" + rule + "“", "role": "admin"}, &sendReq{Box: box, To: to, Subject: subject, Text: body, SigText: sig, SigLogo: logo, CommID: cid})
+	_, err := doSend(app, map[string]any{"name": "Automatizace „" + rule + "“", "role": "admin"}, &sendReq{Box: box, To: to, Subject: subject, Text: body, HTML: htm, SigText: sig, SigLogo: logo, CommID: cid})
 	if err != nil {
 		if d, e2 := findDoc(app, "comms", cid); e2 == nil {
 			cm := docData(d)
@@ -226,9 +252,13 @@ func sendLeadAutoMails(app core.App, leadID string, keys []string) {
 				}
 				continue
 			}
-			subj, body := actionText(app, a)
-			subject := fillAuto(subj, v)
-			if err := sendAuto(app, name, a, to, subject, fillAuto(body, v), map[string]string{"leadId": leadID}); err != nil {
+			subj, body, htm := actionText(app, a)
+			subject, text := fillAuto(subj, v), fillAuto(body, v)
+			if htm != "" {
+				htm = fillAutoHTML(htm, v)
+				text = richToText(htm)
+			}
+			if err := sendAuto(app, name, a, to, subject, text, htm, map[string]string{"leadId": leadID}); err != nil {
 				app.Logger().Warn("auto mail", "lead", leadID, "err", err)
 				events = append(events, map[string]any{"at": ms, "by": "Automatizace", "kind": "edit", "text": "✉ E-mail „" + subject + "“ se nepodařilo odeslat: " + clip(err.Error(), 200)})
 			} else {
@@ -287,6 +317,7 @@ func handleMailAuto(e *core.RequestEvent) error {
 		To       string `json:"to"`
 		Subject  string `json:"subject"`
 		Body     string `json:"body"`
+		HTML     string `json:"html"`
 		LeadID   string `json:"leadId"`
 		DealID   string `json:"dealId"`
 		OfferID  string `json:"offerId"`
@@ -335,7 +366,7 @@ func handleMailAuto(e *core.RequestEvent) error {
 	if to == "" || !allowed[to] {
 		return e.ForbiddenError("Příjemce není e-mail leadu ani klienta.", nil)
 	}
-	err := sendAuto(e.App, str(rule, "name"), act, b.To, clip(b.Subject, 500), b.Body, map[string]string{"leadId": b.LeadID, "dealId": b.DealID, "clientId": clientID})
+	err := sendAuto(e.App, str(rule, "name"), act, b.To, clip(b.Subject, 500), b.Body, b.HTML, map[string]string{"leadId": b.LeadID, "dealId": b.DealID, "clientId": clientID})
 	if err != nil {
 		return e.BadRequestError(err.Error(), nil)
 	}

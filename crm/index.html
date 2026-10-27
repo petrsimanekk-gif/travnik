@@ -399,7 +399,15 @@ textarea.dnote{min-height:110px}
 .mtext{padding:14px 16px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.45}
 .mrec{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 8px;padding:6px 0;border-bottom:1px solid var(--line);cursor:pointer} .mrec:last-child{border-bottom:0} .mrec .mr3{grid-column:1/-1} .mrec.unread b{color:var(--link)} .mrec span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mcbox{width:min(780px,100%)} .mcgrid{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 10px;align-items:center} .mcgrid label{color:var(--muted);font-size:13px}
-#mc-text{min-height:260px;font:14px/1.45 var(--f,inherit)}
+.rte{border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)} .rte:focus-within{border-color:var(--link);box-shadow:0 0 0 2px var(--link-soft)}
+.rte-bar{display:flex;flex-wrap:wrap;align-items:center;gap:2px;padding:4px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.rte-bar button{all:unset;box-sizing:border-box;min-width:28px;height:28px;padding:0 6px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--fg)} .rte-bar button:hover{background:var(--line)} .rte-bar button:focus-visible{outline:2px solid var(--link)}
+.rte-bar select{width:auto;height:28px;padding:2px 4px;font-size:13px} .rte-sep{width:1px;height:20px;background:var(--line);margin:0 3px}
+.rte-col{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:4px;cursor:pointer;font-weight:700} .rte-col:hover{background:var(--line)} .rte-col input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;padding:0;border:0}
+.rte-col i{position:absolute;left:5px;right:5px;bottom:3px;height:4px;border-radius:1px}
+.rte-ed,.rte-prev{min-height:240px;max-height:55vh;overflow:auto;padding:10px 12px;background:#fff;color:#222;font:14px/1.45 Arial,Helvetica,sans-serif;outline:none;overflow-wrap:anywhere} .rte-ed a,.rte-prev a{color:#0b62b6}
+.rte-ed p,.rte-prev p{margin:0 0 .6em} .rte-ed ul,.rte-ed ol,.rte-prev ul,.rte-prev ol{margin:.3em 0;padding-left:26px} .rte-ed blockquote,.rte-prev blockquote{margin:0 0 0 6px;padding-left:10px;border-left:2px solid #ccc;color:#555}
+.rte-prev{min-height:0;max-height:260px;border:1px solid var(--line);border-radius:4px}
 .side .it .badge{margin-left:auto}
 .mfhead{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 14px;box-sizing:border-box;width:100%;font-weight:600;font-size:13.5px} .mfhead:hover{background:var(--hover,rgba(0,0,0,.04))} .mfhead .badge{margin-left:auto}
 .mfname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .mdot{width:9px;height:9px;border-radius:50%;flex:none}
@@ -1207,24 +1215,27 @@ const ACTIONS = {order:"Vytvořit PDF objednávku výroby pro výrobce", stock:"
 const autos = () => C().automations || [];
 const autoSalut = x => { const cl = getClient(x.deal?.clientId || x.offer?.clientId); return x.lead ? salutation(x.lead.name, x.lead.salutation) : cl ? salutation(cl.person || cl.persons?.[0]?.name || cl.name, cl.salutation) : "Dobrý den,"; };
 // {proměnné} → text; {osloveni} right after a written greeting ("Dobrý den, {osloveni},") keeps one greeting and one comma
-function fillVars(t, get){
-  t = String(t||""); let out = "", last = 0;
+// html: the template is formatted text (values are escaped, a line also ends at <br> or a block tag)
+function fillVars(t, get, html){
+  t = String(t||""); let out = "", last = 0; const trail = html ? /(?:[ \t]|&nbsp;)+$/ : /[ \t]+$/;
   for (const m of t.matchAll(/\{(\w+)\}/g)){
     out += t.slice(last, m.index); last = m.index + m[0].length;
     let val = String(get(m[1], m[0]) ?? "");
     if (m[1]==="osloveni"){
-      const line = out.slice(out.lastIndexOf("\n") + 1), greet = /(dobrý\s+den|dobrý\s+večer|dobré\s+ráno|zdravím)[ \t]*,?[ \t]*$/i;
+      let line = out.slice(out.lastIndexOf("\n") + 1); const greet = /(dobrý\s+den|dobrý\s+večer|dobré\s+ráno|zdravím)[ \t]*,?[ \t]*$/i;
+      if (html){ const bs = [...line.matchAll(/<br\s*\/?>|<\/?(div|p|li|h\d|blockquote)\b[^>]*>/gi)].at(-1); if (bs) line = line.slice(bs.index + bs[0].length);
+        line = line.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&"); }
       if (greet.test(line)){ val = val.replace(/^(dobrý\s+den|dobrý\s+večer|dobré\s+ráno|zdravím)[ \t]*,?[ \t]*/i, "");
-        if (!val){ out = out.replace(/[ \t]+$/, "").replace(/,$/, "") + (t[last]==="," ? "" : ","); }
-        else if (!/,[ \t]*$/.test(line)) out = out.replace(/[ \t]+$/, "") + ", ";
+        if (!val){ out = out.replace(trail, "").replace(/,$/, "") + (t[last]==="," ? "" : ","); }
+        else if (!/,[ \t]*$/.test(line)) out = out.replace(trail, "") + ", ";
         else if (!/ $/.test(line)) out += " "; }
       if (t[last]==="," ) val = val.replace(/,$/, "");
     }
-    out += val;
+    out += html ? esc(val) : val;
   }
   return out + t.slice(last);
 }
-const fillT = (t, x) => fillVars(t, k => k==="osloveni" ? autoSalut(x) : ({obchod:x.deal?.name, kod:x.deal?.code, klient:clientName(x.deal?.clientId || x.offer?.clientId) || x.lead?.name, stav:x.deal?phaseById(x.deal.phaseId).name:(x.lead?.state||x.offer?.status), lead:x.lead?.name, jmeno:x.lead?.name || clientName(x.deal?.clientId), nabidka:x.offer?.code, vlastnik:x.deal?.owner||x.lead?.owner})[k] ?? (TPL_VARS.some(v => v[0]===k) ? tplVars({offerId:x.offer?.id, dealId:x.deal?.id, clientId:x.deal?.clientId || x.offer?.clientId, leadId:x.lead?.id})[k] : "") ?? "");
+const fillT = (t, x, html) => fillVars(t, k => k==="osloveni" ? autoSalut(x) : ({obchod:x.deal?.name, kod:x.deal?.code, klient:clientName(x.deal?.clientId || x.offer?.clientId) || x.lead?.name, stav:x.deal?phaseById(x.deal.phaseId).name:(x.lead?.state||x.offer?.status), lead:x.lead?.name, jmeno:x.lead?.name || clientName(x.deal?.clientId), nabidka:x.offer?.code, vlastnik:x.deal?.owner||x.lead?.owner})[k] ?? (TPL_VARS.some(v => v[0]===k) ? tplVars({offerId:x.offer?.id, dealId:x.deal?.id, clientId:x.deal?.clientId || x.offer?.clientId, leadId:x.lead?.id})[k] : "") ?? "", html);
 const adminNames = () => S.accounts.filter(a=>a.role==="admin" && a.active!==false).map(a=>a.name);
 const resolveWho = (w, x) => w==="owner" ? [x.deal?.owner || x.lead?.owner || x.offer?.owner || me()] : w==="me" ? [me()] : w==="admins" ? (adminNames().length ? adminNames() : [me()]) : w==="techs" ? (x.install?.techs||[]) : [w];
 async function notify(to, text, x){ for (const n of [...new Set(to)].filter(Boolean)) await save("notifs", {id:uid(), to:n, text, at:Date.now(), read:false, dealId:x.deal?.id||"", leadId:x.lead?.id||"", by:me()}); }
@@ -1373,7 +1384,7 @@ async function runAutoInner(trigger, x, depth=0, only=null){
           if ((x.lead?.autoMailDone || []).includes(r.id + ":" + ai)) continue;
           const cl = getClient(x.deal?.clientId || x.offer?.clientId); const to = x.lead?.email || cl?.email || ""; const at = autoText(a), subject = fillT(at.subject, x);
           let res = "";
-          if (to){ try { await mailApi("auto", {ruleId:r.id, idx:ai, to, subject, body:fillT(at.body, x), leadId:x.lead?.id||"", dealId:x.deal?.id||"", offerId:x.offer?.id||"", clientId:cl?.id||""}); res = `✉ E-mail „${subject}“ odeslán na ${to} (automatizace „${r.name}“)`; }
+          if (to){ try { const html = at.html ? cleanHtml(fillT(at.html, x, true)) : ""; await mailApi("auto", {ruleId:r.id, idx:ai, to, subject, body:html ? rteText(html) : fillT(at.body, x), html, leadId:x.lead?.id||"", dealId:x.deal?.id||"", offerId:x.offer?.id||"", clientId:cl?.id||""}); res = `✉ E-mail „${subject}“ odeslán na ${to} (automatizace „${r.name}“)`; }
             catch(e){ res = `✉ E-mail „${subject}“ se nepodařilo odeslat: ${e.message} (automatizace „${r.name}“)`; toast("Automatický e-mail se nepodařilo odeslat: " + e.message); await notify(resolveWho("owner", x), res, x); } }
           else res = `✉ E-mail neodeslán – ${x.lead ? "lead nemá" : "klient nemá"} e-mail (automatizace „${r.name}“)`;
           if (x.lead){ const l = JSON.parse(JSON.stringify(S.leads.find(v=>v.id===x.lead.id) || x.lead)); log(l, res); await save("leads", l); x.lead = l; }
@@ -1424,7 +1435,7 @@ function autoModal(){
     else if (a.kind==="order") f = `<span class="muted" style="font-size:12.5px">Vytvoří PDF objednávku (pergola, screen rolety, příslušenství) z akceptované nabídky, jinak z produktů obchodu. Uloží ji k obchodu a nabídne ke stažení.</span>`;
     else if (a.kind==="stock") f = `<span class="muted" style="font-size:12.5px">Odečte ze skladu množství všech produktů obchodu (záložka Produkty). Každý obchod se odepíše jen jednou.</span>`;
     else if (a.kind==="log") f = `<input class="au-f" data-k="text" data-i="${i}" value="${esc(a.text||"")}" placeholder="Text do historie">`;
-    else if (a.kind==="email") f = `<label class="f" style="grid-column:1/-1"><span>E-mailová šablona</span><select class="au-f au-tpl" data-k="tpl" data-i="${i}"><option value="">— vlastní text —</option>${mailTpls().map(t => `<option value="${t.id}" ${a.tpl===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>${a.tpl && mailTpls().some(t => t.id===a.tpl) ? (() => { const t = mailTpls().find(x => x.id===a.tpl); return `<div class="autpl" style="grid-column:1/-1"><b>${esc(t.subject)}</b><pre>${esc(t.body)}</pre><span class="muted" style="font-size:12px">Text se bere ze šablony. Když šablonu změníte v Nastavení → E-mailové šablony, automatizace pošle novou verzi.</span></div>`; })() : `<input class="au-f" data-k="subject" data-i="${i}" value="${esc(a.subject||"")}" placeholder="Předmět e-mailu" style="grid-column:1/-1"><textarea class="au-f" data-k="body" data-i="${i}" placeholder="Text e-mailu" style="grid-column:1/-1;min-height:150px">${esc(a.body||"")}</textarea>`}${SV ? `<label class="f" style="grid-column:1/-1"><span>Odeslat ze schránky</span><select class="au-f" data-k="box" data-i="${i}"><option value="">Automaticky – první společná schránka</option>${(MAIL.all||[]).filter(b => !b.owner).map(b => `<option value="${b.id}" ${a.box===b.id?"selected":""}>${esc(b.name)} · ${esc(b.email)}</option>`).join("")}</select></label><label class="f" style="grid-column:1/-1"><span>Podpis</span><select class="au-f" data-k="sig" data-i="${i}"><option value="">Bez podpisu (podpis je v textu)</option><option value="box" ${a.sig==="box"?"selected":""}>Podpis schránky</option></select></label>` : ""}<span class="muted" style="grid-column:1/-1;font-size:12px">Příjemce: e-mail leadu nebo klienta. ${SV ? "E-mail odejde sám hned, jak se automatizace spustí (u nové poptávky z webu odešle server i bez otevřeného CRM). Uloží se do Odeslaných a do Komunikace." : "V náhledu na claude.ai se e-mail jen připraví k odeslání; na vlastním serveru odchází sám."} Proměnné: {osloveni} {jmeno} {klient} {obchod} {kod} {stav} {nabidka} {vlastnik}</span>`;
+    else if (a.kind==="email") f = `<label class="f" style="grid-column:1/-1"><span>E-mailová šablona</span><select class="au-f au-tpl" data-k="tpl" data-i="${i}"><option value="">— vlastní text —</option>${mailTpls().map(t => `<option value="${t.id}" ${a.tpl===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>${a.tpl && mailTpls().some(t => t.id===a.tpl) ? (() => { const t = mailTpls().find(x => x.id===a.tpl); return `<div class="autpl" style="grid-column:1/-1"><b>${esc(t.subject)}</b><div class="rte-prev" style="margin-top:6px">${tplHtml(t)}</div><span class="muted" style="font-size:12px">Text se bere ze šablony. Když šablonu změníte v Nastavení → E-mailové šablony, automatizace pošle novou verzi.</span></div>`; })() : `<input class="au-f" data-k="subject" data-i="${i}" value="${esc(a.subject||"")}" placeholder="Předmět e-mailu" style="grid-column:1/-1"><textarea class="au-f" data-k="body" data-i="${i}" placeholder="Text e-mailu" style="grid-column:1/-1;min-height:150px">${esc(a.body||"")}</textarea>`}${SV ? `<label class="f" style="grid-column:1/-1"><span>Odeslat ze schránky</span><select class="au-f" data-k="box" data-i="${i}"><option value="">Automaticky – první společná schránka</option>${(MAIL.all||[]).filter(b => !b.owner).map(b => `<option value="${b.id}" ${a.box===b.id?"selected":""}>${esc(b.name)} · ${esc(b.email)}</option>`).join("")}</select></label><label class="f" style="grid-column:1/-1"><span>Podpis</span><select class="au-f" data-k="sig" data-i="${i}"><option value="">Bez podpisu (podpis je v textu)</option><option value="box" ${a.sig==="box"?"selected":""}>Podpis schránky</option></select></label>` : ""}<span class="muted" style="grid-column:1/-1;font-size:12px">Příjemce: e-mail leadu nebo klienta. ${SV ? "E-mail odejde sám hned, jak se automatizace spustí (u nové poptávky z webu odešle server i bez otevřeného CRM). Uloží se do Odeslaných a do Komunikace." : "V náhledu na claude.ai se e-mail jen připraví k odeslání; na vlastním serveru odchází sám."} Proměnné: {osloveni} {jmeno} {klient} {obchod} {kod} {stav} {nabidka} {vlastnik}</span>`;
     return `<div class="auact"><select class="au-kind" data-i="${i}" aria-label="Akce">${opts(Object.entries(ACTIONS), a.kind)}</select><div class="aufields">${f}</div><button type="button" class="btn sm ghost" data-act="auto-act-del" data-i="${i}" aria-label="Odebrat akci">✕</button></div>`; };
   return `<div class="modal" role="dialog" aria-modal="true" aria-label="Automatizace"><form class="box" id="modalform"><div class="mh"><b style="font-size:17px">${r._new?"Nová automatizace":"Upravit automatizaci"}</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
   <div class="mb"><label class="f"><span>Název *</span><input id="au-name" value="${esc(r.name||"")}" placeholder="např. Follow-up po odeslání nabídky"></label>
@@ -1444,7 +1455,7 @@ function readAuto(){ const r = S.modal.data; const v = id => document.getElement
 // templates go along, so the server (new web leads) knows the ones an automation points to
 async function saveAutos(list){ const tp = C().mailTpls ? {} : {mailTpls:DEFAULT_TPLS}; const ok = await save("config", {id:"main", ...C(), automations:list, ...tp}); if (ok && cfgDraft){ cfgDraft.automations = list; if (tp.mailTpls) cfgDraft.mailTpls = tp.mailTpls; } return ok; }
 // subject and body of an e-mail action: its template (current version) or its own text
-const autoText = a => { const t = a.tpl && mailTpls().find(x => x.id===a.tpl); return t ? {subject:t.subject, body:t.body} : {subject:a.subject||"", body:a.body||""}; };
+const autoText = a => { const t = a.tpl && mailTpls().find(x => x.id===a.tpl); return t ? {subject:t.subject, body:t.body, html:t.html||""} : {subject:a.subject||"", body:a.body||"", html:""}; };
 const MAIL_TPL = {subject:"Děkujeme za poptávku – Prima Shade", body:"{osloveni}\n\nděkujeme za Vaši poptávku bioklimatické pergoly. Ozveme se Vám do 24 hodin a domluvíme se na dalším postupu, případně na nezávazné obhlídce.\n\nPokud máte mezitím jakýkoli dotaz, stačí odpovědět na tento e-mail.\n\nS pozdravem\n{vlastnik}\nPrima Shade"};
 const AUTO_SAMPLES = () => { const ph = n => C().phases.find(p=>p.name===n)?.id || "";
   return [
@@ -2518,7 +2529,7 @@ function renderOverlay(){
   let h = ""; if (S.newmenu) h += newMenuHtml(); h += modalHtml();
   if (S.light) h += `<div class="lightbox" data-act="close-light"><img src="${blobUrl(S.light)}" alt="Náhled fotky"><button class="btn" data-act="close-light">Zavřít ✕</button></div>`;
   const o = $("#overlay"); const keep = o.querySelector(".modal") && S.modal && S.modal._open; if (keep && !S._forceModal) { if (!S.newmenu && o.querySelector(".newmenu")) o.querySelector(".newmenu").remove(); return; }
-  o.innerHTML = h; S._forceModal = false; if (S.modal){ const first = !S.modal._open; S.modal._open = true; if (S.modal.kind==="sign" || S.modal.kind==="isign") initSigPad(); if (first && S.modal.kind==="mailc"){ const t = o.querySelector(S.modal.data.to ? "#mc-text" : "#mc-to"); if (t){ t.focus(); if (t.id==="mc-text") t.setSelectionRange(0,0); } }
+  o.innerHTML = h; S._forceModal = false; if (S.modal){ const first = !S.modal._open; S.modal._open = true; if (S.modal.kind==="sign" || S.modal.kind==="isign") initSigPad(); if (first && S.modal.kind==="mailc"){ const t = o.querySelector(S.modal.data.to ? "#mc-text" : "#mc-to"); if (t){ t.focus(); if (t.id==="mc-text"){ const r = document.createRange(); r.setStart(t, 0); r.collapse(true); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } } }
   if (first && !["cols","filter","states","acc","isign","auto","notifs","mail","phist","mailc","mbox","sigs"].includes(S.modal.kind)){ const f = o.querySelector("input:not([type=hidden]),select,textarea"); f && f.focus(); } }
 }
 const openModal = (kind, data) => { S.modal = {kind, data}; S.newmenu = false; S._forceModal = true; renderOverlay(); };
@@ -2713,16 +2724,20 @@ document.addEventListener("click", async e => {
     case "ask": S.confirm = a.dataset.what; render(); break;
     case "no": S.confirm = null; render(); break;
     case "pm-qedit": { try { const r = await mailApi("hold", {id}), q = r.req; const known = q.sigId && sigFor(q.sigId, q.box);
-        mailCompose({box:q.box, to:q.to, cc:q.cc, subject:q.subject, text:q.text, sigId:known ? q.sigId : (q.sigText || q.sigLogo ? "__orig" : ""), origSig:known ? null : (q.sigText || q.sigLogo ? {text:q.sigText, logo:q.sigLogo ? {id:q.sigLogo} : null} : null),
+        mailCompose({box:q.box, to:q.to, cc:q.cc, subject:q.subject, text:q.text, html:q.html||"", sigId:known ? q.sigId : (q.sigText || q.sigLogo ? "__orig" : ""), origSig:known ? null : (q.sigText || q.sigLogo ? {text:q.sigText, logo:q.sigLogo ? {id:q.sigLogo} : null} : null),
           quote:q.quote, useQuote:!!q.quote, replyTo:q.replyTo, fwd:q.fwd, att:(q.att||[]).map((k,i) => ({id:k, name:(q.attNames||[])[i] || "příloha"})), commId:q.commId, title:"Naplánovaný e-mail", hold:r.id, schedAt:r.sendAt});
         mailRefresh(true); } catch(e){ toast(e.message); } break; }
     case "pm-qnow": try { await mailApi("sendnow", {id}); toast("Odesílám…"); setTimeout(() => mailRefresh(true), 2500); } catch(e){ toast(e.message); } break;
     case "pm-qdel": if (!confirm("Zrušit naplánovaný e-mail? Neodešle se.")) break; try { await mailApi("unqueue", {id}); toast("Naplánovaný e-mail zrušen"); mailRefresh(true); } catch(e){ toast(e.message); } break;
     case "offer-mail": { const o = getOffer(id); if (o) offerMail(o); break; }
-    case "tpl-new": if (!isAdmin()) break; openModal("tpl", {_new:true, id:"t-" + uid().slice(0,8), name:"", subject:"", body:"Dobrý den,\n\n"}); break;
+    case "tpl-new": if (!isAdmin()) break; openModal("tpl", {_new:true, id:"t-" + uid().slice(0,8), name:"", subject:"", body:"{osloveni}\n\n"}); break;
     case "tpl-edit": { if (!isAdmin()) break; const t = mailTpls().find(x => x.id===id); if (t) openModal("tpl", JSON.parse(JSON.stringify(t))); break; }
     case "tpl-del": { if (!isAdmin() || !confirm("Smazat šablonu?")) break; if (await saveTpls(mailTpls().filter(x => x.id!==id))){ closeModal(); toast("Šablona smazána"); render(); } break; }
-    case "tpl-var": { const ta = $("#tp-body"), f = document.activeElement?.id==="tp-subj" ? $("#tp-subj") : ta; const ins = "{" + a.dataset.v + "}", p0 = f.selectionStart ?? f.value.length; f.value = f.value.slice(0, p0) + ins + f.value.slice(f.selectionEnd ?? p0); f.focus(); f.setSelectionRange(p0 + ins.length, p0 + ins.length); break; }
+    case "rte": rteCmd(rteEd(a), a.dataset.cmd, a.dataset.val); break;
+    case "tpl-var": { const ins = "{" + a.dataset.v + "}";
+      if (document.activeElement?.id==="tp-subj"){ const f = $("#tp-subj"), p0 = f.selectionStart ?? f.value.length; f.value = f.value.slice(0, p0) + ins + f.value.slice(f.selectionEnd ?? p0); f.focus(); f.setSelectionRange(p0 + ins.length, p0 + ins.length); }
+      else { const ed = $("#tp-body"); rteFocus(ed); document.execCommand("insertText", false, ins); }
+      break; }
     case "mb-logo-company": { const d = readMbox(); try { d.sigLogo = (await companyLogo()).id; } catch(e){ toast("Logo se nepodařilo nahrát."); } if (S.modal?.data===d){ S._forceModal = true; renderOverlay(); } break; }
     case "mb-unlogo": { const d = readMbox(); d.sigLogo = ""; S._forceModal = true; renderOverlay(); break; }
     case "sig-logo-company": { const d = readSigs(); try { const lg = await companyLogo(); const cur = d.list[d.sel]; if (cur) cur.logo = lg; } catch(e){ toast("Logo se nepodařilo nahrát."); } if (S.modal?.data===d){ S._forceModal = true; renderOverlay(); } break; }
@@ -2841,8 +2856,8 @@ document.addEventListener("input", e => {
 document.addEventListener("change", async e => {
   const t = e.target;
   if (t.id==="mc-tpl"){ const d = readCompose(), tp = mailTpls().find(x => x.id===t.value); if (!tp){ d.tplId = ""; return; }
-    if (d.text.trim() && d.text !== d.tplText && !confirm("Nahradit napsaný text e-mailu šablonou?")){ t.value = d.tplId; return; }
-    const v = tplVars(composeCtx(d)); d.tplId = tp.id; d.subject = fillTpl(tp.subject, v); d.text = d.tplText = fillTpl(tp.body, v); S._forceModal = true; renderOverlay(); return; }
+    if (d.text.trim() && d.html !== d.tplHtml && !confirm("Nahradit napsaný text e-mailu šablonou?")){ t.value = d.tplId; return; }
+    const v = tplVars(composeCtx(d)); d.tplId = tp.id; d.subject = fillTpl(tp.subject, v); d.html = d.tplHtml = cleanHtml(fillTpl(tplHtml(tp), v, true)); d.text = rteText(d.html); S._forceModal = true; renderOverlay(); return; }
   if (t.id==="mc-sig"){ readCompose(); S._forceModal = true; renderOverlay(); return; }
   if (t.id==="mc-box"){ const d = readCompose(); d.sigId = defaultSig(d.box); S._forceModal = true; renderOverlay(); return; }
   if (t.id==="mb-logo"){ const f = t.files[0]; t.value = ""; if (!f || !assets) return; const d = readMbox(); if (f.size > 1.5e6){ toast("Obrázek je moc velký (max. 1,5 MB)."); return; }
@@ -2918,7 +2933,7 @@ function readModalAct(){ const r = S.modal.data, v = id => document.getElementBy
 document.addEventListener("submit", async e => {
   e.preventDefault(); const f = e.target; const v = id => (document.getElementById(id)?.value ?? "").trim();
   if (f.id==="mailform"){ mailSend(); return; }
-  if (f.id==="tplform"){ const d = S.modal.data, t = {id:d.id, name:v("tp-name"), subject:v("tp-subj"), body:$("#tp-body").value.replace(/\s+$/,"")}; if (!t.name){ toast("Vyplňte název šablony."); return; }
+  if (f.id==="tplform"){ const d = S.modal.data, html = cleanHtml($("#tp-body").innerHTML), t = {id:d.id, name:v("tp-name"), subject:v("tp-subj"), body:rteText(html), html}; if (!t.name){ toast("Vyplňte název šablony."); return; }
     const L = mailTpls(), list = d._new ? [...L, t] : L.map(x => x.id===t.id ? t : x); if (await saveTpls(list)){ closeModal(); toast("Šablona uložena"); render(); } return; }
   if (f.id==="mboxform"){ const d = readMbox(); if (!d.email || !d.imapHost || !d.smtpHost){ toast("Vyplňte adresu a servery."); return; } if (!d.id && !d.password){ toast("Zadejte heslo ke schránce."); return; }
     d.busy = "save"; S._forceModal = true; renderOverlay();
@@ -3179,7 +3194,7 @@ function openSigs(){ const back = S.modal?.kind==="mailc" ? readCompose() : null
 function mailCompose(o = {}){
   const box = mailBox(o.box) || sendBox(); if (!box){ toast(isAdmin() ? "Nejdřív připojte e-mailovou schránku v Nastavení." : "Není připojená žádná e-mailová schránka."); return; }
   openModal("mailc", {box:box.id, to:o.to||"", cc:o.cc||"", subject:o.subject||"", text:o.text||"", sigId:o.sigId ?? defaultSig(box.id), origSig:o.origSig||null,
-    quote:o.quote||"", useQuote:o.useQuote ?? true, replyTo:o.replyTo||"", fwd:o.fwd||"", fwdAtt:o.fwdAtt||[], att:o.att||[], title:o.title||"Nový e-mail", commId:o.commId||"", hold:o.hold||"", schedAt:o.schedAt||0, sched:false, tplId:o.tplId||"", tplText:o.tplId ? o.text||"" : "", ctx:o.ctx||null});
+    html:o.html || plainToHtml(o.text||""), quote:o.quote||"", useQuote:o.useQuote ?? true, replyTo:o.replyTo||"", fwd:o.fwd||"", fwdAtt:o.fwdAtt||[], att:o.att||[], title:o.title||"Nový e-mail", commId:o.commId||"", hold:o.hold||"", schedAt:o.schedAt||0, sched:false, tplId:o.tplId||"", ctx:o.ctx||null}); const d = S.modal?.data; if (d?.tplId) d.tplHtml = d.html;
 }
 function mailReplyData(kind){
   const m = MAIL.msg, mine = new Set((MAIL.boxes||[]).map(b => b.email));
@@ -3200,7 +3215,7 @@ function composeCtx(d){
     const per = (cl.persons||[]).find(p => (p.email||"").toLowerCase()===addr); return {clientId:cl.id, offerId:off?.id||"", dealId:off?.dealId||"", person:per?.name||""}; }
   return mt.leads[0] ? {leadId:mt.leads[0].id} : {};
 }
-function readCompose(){ const d = S.modal?.data; if (!d || S.modal.kind!=="mailc") return d; [["box","mc-box"],["to","mc-to"],["cc","mc-cc"],["subject","mc-subj"],["text","mc-text"],["sigId","mc-sig"]].forEach(([k,id]) => { const el = document.getElementById(id); if (el) d[k] = el.value; }); const q = $("#mc-useq"); if (q) d.useQuote = q.checked; return d; }
+function readCompose(){ const d = S.modal?.data; if (!d || S.modal.kind!=="mailc") return d; [["box","mc-box"],["to","mc-to"],["cc","mc-cc"],["subject","mc-subj"],["sigId","mc-sig"]].forEach(([k,id]) => { const el = document.getElementById(id); if (el) d[k] = el.value; }); const ed = $("#mc-text"); if (ed){ d.html = cleanHtml(ed.innerHTML); d.text = rteText(d.html); } const q = $("#mc-useq"); if (q) d.useQuote = q.checked; return d; }
 const atTime = (days, h, m=0) => { const d = new Date(); d.setDate(d.getDate()+days); d.setHours(h, m, 0, 0); return d.getTime(); };
 function schedPresets(){
   const now = new Date(), out = [["Za hodinu", Date.now() + 3600e3]];
@@ -3220,7 +3235,7 @@ function mailComposeModal(){
   <label for="mc-cc">Kopie</label><input id="mc-cc" value="${esc(d.cc)}" list="mc-addrs" autocomplete="off">
   <label for="mc-subj">Předmět</label><input id="mc-subj" value="${esc(d.subject)}">
   <label for="mc-tpl">Šablona</label><select id="mc-tpl"><option value="">— bez šablony —</option>${mailTpls().map(t => `<option value="${t.id}" ${t.id===d.tplId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></div>
-  <textarea id="mc-text" rows="11" aria-label="Text e-mailu">\n${esc(d.text)}</textarea>
+  ${rteBox("mc-text", d.html, "Text e-mailu")}
   <div class="mcsig"><label for="mc-sig" class="muted">Podpis</label><select id="mc-sig">${sigOptions(d.sigId, d.box, d)}</select><button type="button" class="btn sm ghost" data-act="sig-manage">✎ Spravovat podpisy</button></div>
   ${sigPreview(sig)}
   ${d.quote?`<details class="mquote"><summary><label class="c" style="display:inline-flex"><input type="checkbox" id="mc-useq" ${d.useQuote?"checked":""}> ${d.fwd?"Připojit přeposílanou zprávu":"Připojit původní zprávu"}</label></summary><pre>${esc(d.quote)}</pre></details>`:""}
@@ -3237,7 +3252,7 @@ async function mailSend(sendAt){
   const sig = sigFor(d.sigId, d.box, d);
   d.sending = true; S._forceModal = true; renderOverlay();
   try {
-    const r = await mailApi("send", {box:d.box, to:d.to, cc:d.cc, subject:d.subject, text:d.text, sigText:sig?.text||"", sigLogo:sig?.logo?.id||"", sigId:d.sigId,
+    const r = await mailApi("send", {box:d.box, to:d.to, cc:d.cc, subject:d.subject, text:d.text, html:d.html, sigText:sig?.text||"", sigLogo:sig?.logo?.id||"", sigId:d.sigId,
       quote:d.useQuote ? d.quote : "", replyTo:d.replyTo, fwd:d.fwd, att:d.att.map(a => a.id), attNames:d.att.map(a => a.name), commId:d.commId, sendAt:sendAt||0});
     if (d.hold){ await mailApi("unqueue", {id:d.hold}).catch(() => {}); d.hold = ""; }
     d.done = true; closeModal(); toast(r.queued ? "E-mail naplánován na " + fmtTs(sendAt) : "E-mail odeslán"); MAIL.rec = {};
@@ -3290,6 +3305,72 @@ function salutation(name, own){
   if (MALE_FIRST.has(f) && !/ová$/.test(l)) return `Dobrý den, pane ${capFirst(vocMale(last))},`;
   return "Dobrý den,";
 }
+// ---------- formátovaný text (šablony a psaní e-mailu): úprava písma, barvy, tučnosti… ----------
+const RTE_FONTS = [["Arial, Helvetica, sans-serif","Arial"],["Verdana, Geneva, sans-serif","Verdana"],["Tahoma, Geneva, sans-serif","Tahoma"],["'Trebuchet MS', Helvetica, sans-serif","Trebuchet MS"],["Georgia, serif","Georgia"],["'Times New Roman', Times, serif","Times New Roman"],["'Courier New', Courier, monospace","Courier New"]];
+const RTE_SIZES = [10,12,14,16,18,20,24,28,36];
+const RTE_KEEP = new Set("B STRONG I EM U S STRIKE DEL SPAN FONT DIV P BR UL OL LI A BLOCKQUOTE H1 H2 H3 SUB SUP HR".split(" "));
+const RTE_DROP = "script,style,head,title,iframe,object,embed,template,svg,math,noscript,textarea,select,meta,link,img,video,audio,input,button,form";
+const RTE_CSS = /^(color|background-color|font-family|font-size|font-weight|font-style|text-decoration|text-decoration-line|text-align|margin-left|padding-left|line-height)$/;
+const rteVal = v => /^[#%,.'"\w\s()-]{1,120}$/.test(v) && !/url\s*\(|expression|javascript|@import|\\/i.test(v);
+// only plain formatting survives (the server cleans it the same way before sending)
+function cleanHtml(h){
+  const doc = new DOMParser().parseFromString(`<body>${String(h||"")}</body>`, "text/html"); doc.body.querySelectorAll(RTE_DROP).forEach(x => x.remove());
+  const walk = el => { [...el.children].forEach(c => { walk(c);
+    if (!RTE_KEEP.has(c.tagName)){ c.replaceWith(...c.childNodes); return; }
+    [...c.attributes].forEach(a => { const k = a.name.toLowerCase(), v = a.value;
+      if (k==="style"){ const st = v.split(";").map(d => d.split(":")).filter(([p, ...x]) => x.length && RTE_CSS.test(p.trim().toLowerCase()) && rteVal(x.join(":").trim())).map(([p, ...x]) => p.trim().toLowerCase() + ":" + x.join(":").trim()).join(";"); st ? c.setAttribute("style", st) : c.removeAttribute(k); }
+      else if (k==="href" && c.tagName==="A" && /^(https?:\/\/|mailto:|tel:)/i.test(v.trim())) {}
+      else if (c.tagName==="FONT" && ["color","face","size"].includes(k) && rteVal(v)) {}
+      else if (k==="align" && rteVal(v)) {}
+      else c.removeAttribute(a.name); });
+    if (c.tagName==="A") c.setAttribute("target", "_blank"); }); };
+  walk(doc.body); return doc.body.innerHTML;
+}
+// plain text → editor HTML (one <div> per line, like the browser writes it)
+const plainToHtml = t => String(t||"").replace(/\r/g, "").split("\n").map(l => `<div>${l ? linkify(esc(l)) : "<br>"}</div>`).join("");
+// editor HTML → plain text (the text part of the e-mail, Komunikace, previews)
+function rteText(h){
+  const x = String(h||"").replace(/<(div|p)\b[^>]*>\s*<br\s*\/?>\s*<\/(div|p)>/gi, "\n").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|li|h\d|blockquote)>/gi, "\n").replace(/<li\b[^>]*>/gi, "• ");
+  const d = new DOMParser().parseFromString(`<body>${x}</body>`, "text/html");
+  return (d.body.textContent||"").replace(/\u00a0/g, " ").split("\n").map(l => l.replace(/[ \t]+$/, "")).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+const tplHtml = t => t ? (t.html ? cleanHtml(t.html) : plainToHtml(t.body)) : "";
+function rteBox(id, html, label){
+  const b = (cmd, t, title, val) => `<button type="button" data-act="rte" data-cmd="${cmd}"${val?` data-val="${val}"`:""} title="${title}" aria-label="${title}">${t}</button>`, sep = `<span class="rte-sep"></span>`;
+  return `<div class="rte"><div class="rte-bar" role="toolbar" aria-label="Formátování textu" data-for="${id}">
+  <select class="rte-sel" data-cmd="fontName" title="Písmo" aria-label="Písmo"><option value="">Písmo</option>${RTE_FONTS.map(([v,t]) => `<option value="${esc(v)}" style="font-family:${esc(v)}">${t}</option>`).join("")}</select>
+  <select class="rte-sel" data-cmd="fontSize" title="Velikost písma" aria-label="Velikost písma"><option value="">Velikost</option>${RTE_SIZES.map(v => `<option value="${v}">${v} px</option>`).join("")}</select>${sep}
+  ${b("bold","<b>B</b>","Tučně (Ctrl+B)")}${b("italic","<i>I</i>","Kurzíva (Ctrl+I)")}${b("underline","<u>U</u>","Podtržení (Ctrl+U)")}${b("strikeThrough","<s>S</s>","Přeškrtnutí")}${sep}
+  <label class="rte-col" title="Barva textu">A<i style="background:#c0392b"></i><input type="color" class="rte-sel" data-cmd="foreColor" value="#c0392b" aria-label="Barva textu"></label>
+  <label class="rte-col" title="Zvýraznění (barva pozadí)"><span style="background:#ffe066;color:#222;padding:0 3px;border-radius:2px">ab</span><input type="color" class="rte-sel" data-cmd="hiliteColor" value="#ffe066" aria-label="Zvýraznění textu"></label>${sep}
+  ${b("insertUnorderedList","•≡","Odrážky")}${b("insertOrderedList","1≡","Číslovaný seznam")}${b("justifyLeft","⯇≡","Zarovnat vlevo")}${b("justifyCenter","≡","Na střed")}${b("justifyRight","≡⯈","Zarovnat vpravo")}${sep}
+  ${b("createLink","🔗","Vložit odkaz")}${b("unlink","⛓̸","Zrušit odkaz")}${b("removeFormat","T̸","Zrušit formátování výběru")}</div>
+  <div class="rte-ed" id="${id}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="${esc(label||"Text")}" spellcheck="true">${html||"<div><br></div>"}</div></div>`;
+}
+// the selection inside an editor, kept while a toolbar list or colour picker has the focus
+let rteRange = null;
+document.addEventListener("selectionchange", () => { const s = getSelection(); if (s.rangeCount && s.anchorNode && s.anchorNode.parentElement?.closest(".rte-ed")) rteRange = s.getRangeAt(0).cloneRange(); });
+function rteFocus(ed){ ed.focus(); if (rteRange && ed.contains(rteRange.commonAncestorContainer)){ const s = getSelection(); s.removeAllRanges(); s.addRange(rteRange); } }
+function rteCmd(ed, cmd, val){
+  if (!ed) return; rteFocus(ed);
+  if (cmd==="createLink"){ const u = prompt("Adresa odkazu (https://… nebo e-mail):", "https://"); if (!u || u==="https://") return; val = /^(https?:|mailto:|tel:)/i.test(u) ? u : /@/.test(u) ? "mailto:" + u : "https://" + u; if (getSelection().isCollapsed){ document.execCommand("insertHTML", false, `<a href="${esc(val)}">${esc(u)}</a>`); return; } }
+  if (cmd==="fontSize"){ document.execCommand("styleWithCSS", false, false); document.execCommand("fontSize", false, "7");
+    const made = [...ed.querySelectorAll('font[size="7"]')].map(f => { const sp = document.createElement("span"); sp.style.fontSize = val + "px"; sp.append(...f.childNodes); f.replaceWith(sp); sp.querySelectorAll("[style]").forEach(x => x.style.fontSize = ""); sp.querySelectorAll("font[size]").forEach(x => x.removeAttribute("size")); return sp; });
+    if (made.length){ const r = document.createRange(); r.setStartBefore(made[0].firstChild || made[0]); r.setEndAfter(made.at(-1).lastChild || made.at(-1)); const s = getSelection(); s.removeAllRanges(); s.addRange(r); rteRange = r.cloneRange(); }   // keep the text selected for the next change
+    return; }
+  document.execCommand("styleWithCSS", false, cmd==="hiliteColor" || cmd==="fontName" || cmd==="foreColor");
+  if (cmd==="hiliteColor" && !document.queryCommandSupported("hiliteColor")) cmd = "backColor";
+  document.execCommand(cmd, false, val ?? null);
+}
+const rteEd = el => document.getElementById(el.closest(".rte-bar")?.dataset.for || "");
+document.addEventListener("mousedown", e => { if (e.target.closest?.(".rte-bar button")) e.preventDefault(); });
+document.addEventListener("change", e => { const t = e.target; if (!t.classList?.contains("rte-sel")) return;
+  const ed = rteEd(t); if (t.value) rteCmd(ed, t.dataset.cmd, t.value);
+  if (t.tagName==="SELECT") t.value = ""; else { const i = t.closest(".rte-col")?.querySelector("i"); if (i) i.style.background = t.value; } });
+// pasted text keeps only plain formatting (Word, web pages)
+document.addEventListener("paste", e => { const ed = e.target.closest?.(".rte-ed"); if (!ed) return; const cd = e.clipboardData; if (!cd) return;
+  const h = cd.getData("text/html"); e.preventDefault();
+  document.execCommand("insertHTML", false, h ? cleanHtml(h.replace(/^[\s\S]*<!--StartFragment-->|<!--EndFragment-->[\s\S]*$/g, "")) : plainToHtml(cd.getData("text/plain"))); });
 // ---------- e-mailové šablony (společné pro firmu, v config.mailTpls) ----------
 const DEFAULT_TPLS = [
   {id:"t-poptavka", name:"Potvrzení poptávky (nový lead)", subject:"Děkujeme za Vaši poptávku – Prima Shade", body:`{osloveni}
@@ -3385,7 +3466,7 @@ function tplVars(ctx = {}){
     platnost: o?.validTo ? fmtD(o.validTo) : "", obchod: deal?.code || "", obchodnik: me()};
 }
 // a variable without a value stays visible as [what is missing], so it is not sent by mistake
-const fillTpl = (s, v) => fillVars(s, (k, m) => v[k] ? v[k] : k in v ? `[${TPL_VARS.find(x => x[0]===k)[1]}]` : m);
+const fillTpl = (s, v, html) => fillVars(s, (k, m) => v[k] ? v[k] : k in v ? `[${TPL_VARS.find(x => x[0]===k)[1]}]` : m, html);
 function tplsCard(){
   const L = mailTpls();
   return `<div class="card"><div class="ch"><h2>E-mailové šablony</h2><span class="row" style="gap:6px">${C().mailTpls?"":`<span class="muted" style="font-size:12px">připravené šablony</span>`}${C().mailTpls && DEFAULT_TPLS.some(t => !C().mailTpls.some(x => x.id===t.id)) ? `<button class="btn sm" data-act="tpl-defaults" title="Přidá připravené šablony, které v seznamu chybí">Doplnit připravené</button>` : ""}<button class="btn sm blue" data-act="tpl-new">+ Nová šablona</button></span></div><div class="cb"><table class="lines" style="min-width:0"><tbody>${L.map(t => `<tr><td><b>${esc(t.name)}</b><br><small class="muted">${esc(t.subject)}</small></td><td style="white-space:nowrap;text-align:right"><button class="btn sm" data-act="tpl-edit" data-id="${t.id}">Upravit</button></td></tr>`).join("")}</tbody></table>
@@ -3396,7 +3477,7 @@ function tplModal(){
   return `<div class="modal" role="dialog" aria-modal="true" aria-label="E-mailová šablona"><form class="box" id="tplform" style="width:min(760px,100%)"><div class="mh"><b style="font-size:17px">${d._new?"Nová šablona":"Upravit šablonu"}</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
   <div class="mb"><label class="f"><span>Název šablony</span><input id="tp-name" value="${esc(d.name||"")}" placeholder="např. Zaslání cenové nabídky"></label>
   <label class="f"><span>Předmět e-mailu</span><input id="tp-subj" value="${esc(d.subject||"")}"></label>
-  <label class="f"><span>Text</span><textarea id="tp-body" rows="16">\n${esc(d.body||"")}</textarea></label>
+  <div style="display:grid;gap:3px"><span class="lbl">Text</span>${rteBox("tp-body", tplHtml(d), "Text šablony")}</div>
   <div class="row" style="gap:4px"><span class="lbl" style="margin-right:4px">Vložit proměnnou:</span>${TPL_VARS.map(([k,t]) => `<button type="button" class="chip mlink" data-act="tpl-var" data-v="${k}" title="${esc(t)}">{${k}}</button>`).join("")}</div></div>
   <div class="mf">${d._new?"":`<button type="button" class="btn ghost bad" data-act="tpl-del" data-id="${d.id}" style="margin-right:auto">Smazat šablonu</button>`}<button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit">Uložit šablonu</button></div></form></div>`;
 }
@@ -3407,7 +3488,7 @@ async function offerMail(o){
   const sentBefore = S.comms.some(c => c.offerId===o.id && c.mailId);
   const t = mailTpls().find(x => x.id===(sentBefore ? "t-upravena" : "t-nabidka")) || mailTpls()[0];
   const ctx = {offerId:o.id, dealId:o.dealId||"", clientId:o.clientId||""}, v = tplVars(ctx);
-  mailCompose({to:cl?.email || "", subject:t ? fillTpl(t.subject, v) : `Cenová nabídka ${o.code}`, text:t ? fillTpl(t.body, v) : "", tplId:t?.id || "", ctx,
+  mailCompose({to:cl?.email || "", subject:t ? fillTpl(t.subject, v) : `Cenová nabídka ${o.code}`, html:t ? cleanHtml(fillTpl(tplHtml(t), v, true)) : "", tplId:t?.id || "", ctx,
     att:pdf ? [{id:pdf.id, name:pdf.name}] : [], title:"Nabídka " + o.code + " e-mailem", noPdf:!pdf});
   if (!pdf) toast("K nabídce zatím není uložené PDF. Uložte ho v záložce PDF nabídka, nebo přiložte soubor ručně.");
   if (!cl?.email) toast("Klient nemá vyplněný e-mail.");

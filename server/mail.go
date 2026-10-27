@@ -1403,6 +1403,7 @@ type sendReq struct {
 	Cc       string   `json:"cc"`
 	Subject  string   `json:"subject"`
 	Text     string   `json:"text"`
+	HTML     string   `json:"html"`     // formatted text from the editor ("" = plain Text only)
 	SigText  string   `json:"sigText"`  // signature, written under the text
 	SigLogo  string   `json:"sigLogo"`  // blob key of the signature image
 	SigID    string   `json:"sigId"`    // which of the author's signatures (kept for editing a scheduled e-mail)
@@ -1536,6 +1537,12 @@ func doSend(app core.App, a map[string]any, b *sendReq) (*core.Record, error) {
 		}
 	}
 	text, htm := strings.TrimRight(b.Text, " \n"), textToHTML(strings.TrimRight(b.Text, " \n"))
+	if strings.TrimSpace(b.HTML) != "" {
+		htm = richWrap(b.HTML)
+		if strings.TrimSpace(text) == "" {
+			text = richToText(b.HTML)
+		}
+	}
 	if strings.TrimSpace(b.SigText) != "" || logoCID != "" {
 		text += "\n\n-- \n" + b.SigText
 		htm += sigHTML(b.SigText, logoCID, logoData)
