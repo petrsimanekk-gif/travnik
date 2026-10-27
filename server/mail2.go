@@ -36,11 +36,17 @@ func boxAllowed(a map[string]any, cfg *mailCfg) bool {
 	return false
 }
 
+// inPosta: the mailboxes shown in someone's Pošta. A colleague's own mailbox stays out of an
+// admin's lists, counts and notifications (admins still manage it in Nastavení).
+func inPosta(a map[string]any, cfg *mailCfg) bool {
+	return boxAllowed(a, cfg) && (cfg.Owner == "" || cfg.Owner == a["id"])
+}
+
 func allowedBoxes(app core.App, a map[string]any) []string {
 	var out []string
 	recs, _ := app.FindAllRecords("mailboxes")
 	for _, r := range recs {
-		if _, cfg, _, err := loadBox(app, r.GetString("key")); err == nil && boxAllowed(a, cfg) {
+		if _, cfg, _, err := loadBox(app, r.GetString("key")); err == nil && inPosta(a, cfg) {
 			out = append(out, r.GetString("key"))
 		}
 	}
@@ -136,7 +142,7 @@ func processQueue(app core.App) {
 		a, _ := loadAccount(app, r.GetString("acc"))
 		_, cfg, _, cerr := loadBox(app, b.Box)
 		switch {
-		case !isActive(a) || mailPerm(a) != "edit" || cerr != nil || !boxAllowed(a, cfg):
+		case !isActive(a) || cerr != nil || !boxAllowed(a, cfg) || (mailPerm(a) != "edit" && !boxOwned(a, cfg)):
 			err = errors.New("Autor už nemá oprávnění odesílat z této schránky.")
 		default:
 			_, err = doSend(app, a, b)
@@ -199,7 +205,7 @@ func toAny(l []string) []any {
 
 // queuedRecord finds a scheduled e-mail the caller may change (author or admin).
 func queuedRecord(e *core.RequestEvent) (*core.Record, map[string]any, error) {
-	a, err := mailAccount(e, "edit")
+	a, err := mailAccount(e, "view")
 	if err != nil {
 		return nil, nil, err
 	}

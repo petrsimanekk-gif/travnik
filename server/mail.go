@@ -63,6 +63,7 @@ type mailCfg struct {
 	Enabled   bool     `json:"enabled"`
 	Signature string   `json:"signature"`
 	Access    []string `json:"access"` // account ids; empty = everyone with Pošta
+	Owner     string   `json:"owner"`  // account that connected its own mailbox (it may edit it)
 }
 
 type mailFolderState struct {
@@ -704,7 +705,7 @@ func notifyNewMail(app core.App, box string, p *parsedMail) {
 	for _, r := range recs {
 		a := docData(r)
 		a["id"] = r.GetString("key")
-		if !isActive(a) || mailPerm(a) == "none" || !boxAllowed(a, cfg) {
+		if !isActive(a) || mailPerm(a) == "none" || !inPosta(a, cfg) {
 			continue
 		}
 		name, _ := a["name"].(string)
@@ -777,7 +778,9 @@ func handleMailBoxes(e *core.RequestEvent) error {
 		unread, _ := e.App.CountRecords("mails", dbx.HashExp{"box": key, "folder": "inbox", "seen": false})
 		m := map[string]any{"id": key, "name": cfg.Name, "email": cfg.Email, "fromName": cfg.FromName, "enabled": cfg.Enabled, "signature": cfg.Signature,
 			"lastSync": st.LastSync, "error": st.Error, "unread": unread, "hasSent": st.Folders["sent"] != nil, "queued": queueCount(e.App, key)}
-		if a["role"] == "admin" {
+		m["owner"], m["inPosta"] = cfg.Owner, inPosta(a, cfg)
+		if boxOwned(a, cfg) {
+			m["mine"] = true
 			m["user"], m["imapHost"], m["imapPort"], m["smtpHost"], m["smtpPort"], m["security"] = cfg.User, cfg.ImapHost, cfg.ImapPort, cfg.SmtpHost, cfg.SmtpPort, cfg.Security
 			m["hasPassword"] = cfg.Password != ""
 			m["access"] = cfg.Access
@@ -789,7 +792,12 @@ func handleMailBoxes(e *core.RequestEvent) error {
 }
 
 // boxFromBody reads mailbox settings sent by the page; an empty password keeps the stored one.
-func boxFromBody(e *core.RequestEvent) (string, *mailCfg, error) {
+// boxOwned: admins manage every mailbox, a user only the one they connected.
+func boxOwned(a map[string]any, cfg *mailCfg) bool {
+	return a["role"] == "admin" || (cfg.Owner != "" && cfg.Owner == a["id"])
+}
+
+func boxFromBody(e *core.RequestEvent, a map[string]any) (string, *mailCfg, error) {
 	var b struct {
 		ID string `json:"id"`
 		mailCfg
@@ -809,10 +817,25 @@ func boxFromBody(e *core.RequestEvent) (string, *mailCfg, error) {
 	if cfg.Security != "starttls" && cfg.Security != "none" {
 		cfg.Security = "ssl"
 	}
-	if cfg.Password == "" && b.ID != "" {
-		if _, old, _, err := loadBox(e.App, b.ID); err == nil {
+	if b.ID != "" {
+		_, old, _, err := loadBox(e.App, b.ID)
+		if err != nil {
+			return "", nil, e.NotFoundError(err.Error(), nil)
+		}
+		if !boxOwned(a, old) {
+			return "", nil, e.ForbiddenError("permission_denied", nil)
+		}
+		if cfg.Password == "" {
 			cfg.Password = old.Password
 		}
+		cfg.Owner = old.Owner
+	} else {
+		cfg.Owner = ""
+	}
+	if a["role"] != "admin" {
+		// a user's own mailbox: only they (and admins) see it
+		id, _ := a["id"].(string)
+		cfg.Owner, cfg.Access = id, []string{id}
 	}
 	if cfg.Name == "" {
 		cfg.Name = cfg.Email
@@ -821,10 +844,11 @@ func boxFromBody(e *core.RequestEvent) (string, *mailCfg, error) {
 }
 
 func handleMailTest(e *core.RequestEvent) error {
-	if _, err := mailAccount(e, "admin"); err != nil {
+	a, err := mailAccount(e, "view")
+	if err != nil {
 		return err
 	}
-	_, cfg, err := boxFromBody(e)
+	_, cfg, err := boxFromBody(e, a)
 	if err != nil {
 		return err
 	}
@@ -843,10 +867,11 @@ func handleMailTest(e *core.RequestEvent) error {
 }
 
 func handleMailBoxSave(e *core.RequestEvent) error {
-	if _, err := mailAccount(e, "admin"); err != nil {
+	a, err := mailAccount(e, "view")
+	if err != nil {
 		return err
 	}
-	id, cfg, err := boxFromBody(e)
+	id, cfg, err := boxFromBody(e, a)
 	if err != nil {
 		return err
 	}
@@ -882,7 +907,8 @@ func handleMailBoxSave(e *core.RequestEvent) error {
 }
 
 func handleMailBoxDel(e *core.RequestEvent) error {
-	if _, err := mailAccount(e, "admin"); err != nil {
+	a, err := mailAccount(e, "view")
+	if err != nil {
 		return err
 	}
 	var b struct{ ID string }
@@ -892,9 +918,12 @@ func handleMailBoxDel(e *core.RequestEvent) error {
 	l := mailLock(b.ID)
 	l.Lock()
 	defer l.Unlock()
-	rec, _, _, err := loadBox(e.App, b.ID)
+	rec, cfg, _, err := loadBox(e.App, b.ID)
 	if err != nil {
 		return e.NotFoundError(err.Error(), nil)
+	}
+	if !boxOwned(a, cfg) {
+		return e.ForbiddenError("permission_denied", nil)
 	}
 	mails, _ := e.App.FindAllRecords("mails", dbx.HashExp{"box": b.ID})
 	for _, m := range mails {
@@ -1354,7 +1383,7 @@ func (u userErr) Error() string { return u.msg }
 func uerr(format string, a ...any) error { return userErr{fmt.Sprintf(format, a...)} }
 
 func handleMailSend(e *core.RequestEvent) error {
-	a, err := mailAccount(e, "edit")
+	a, err := mailAccount(e, "view")
 	if err != nil {
 		return err
 	}
@@ -1362,7 +1391,8 @@ func handleMailSend(e *core.RequestEvent) error {
 	if err := e.BindBody(&b); err != nil {
 		return e.BadRequestError("", err)
 	}
-	if _, cfg, _, err := loadBox(e.App, b.Box); err != nil || !boxAllowed(a, cfg) {
+	// sending needs Pošta "edit", except from a mailbox the user connected themselves
+	if _, cfg, _, err := loadBox(e.App, b.Box); err != nil || !boxAllowed(a, cfg) || (mailPerm(a) != "edit" && !boxOwned(a, cfg)) {
 		return e.ForbiddenError("permission_denied", nil)
 	}
 	if b.SendAt > time.Now().Add(30*time.Second).UnixMilli() {
