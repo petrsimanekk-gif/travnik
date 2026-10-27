@@ -759,6 +759,7 @@ func bindMailRoutes(se *core.ServeEvent) {
 	r.POST("/api/stinko/mail/unqueue", handleMailUnqueue)
 	r.POST("/api/stinko/mail/sendnow", handleMailSendNow)
 	r.POST("/api/stinko/mail/hold", handleMailHold)
+	r.POST("/api/stinko/mail/auto", handleMailAuto)
 	r.POST("/api/stinko/mail/release", handleMailRelease)
 }
 

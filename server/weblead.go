@@ -93,6 +93,7 @@ func handleWebLead(e *core.RequestEvent) error {
 func createLead(app core.App, fields map[string]any, by, event, notif string) (string, string, error) {
 	now := time.Now().In(prague)
 	var id, code string
+	mailKeys := leadAutoKeys(app)
 	err := app.RunInTransaction(func(tx core.App) error {
 		cfg := crmConfig(tx)
 		prefix, _ := cfg["leadPrefix"].(string)
@@ -127,6 +128,9 @@ func createLead(app core.App, fields map[string]any, by, event, notif string) (s
 		for k, v := range fields {
 			lead[k] = v
 		}
+		if len(mailKeys) > 0 {
+			lead["autoMailDone"] = mailKeys // the server sends these, the page skips them
+		}
 		if err := putDoc(tx, "leads", id, lead); err != nil {
 			return err
 		}
@@ -141,6 +145,9 @@ func createLead(app core.App, fields map[string]any, by, event, notif string) (s
 		}
 		return nil
 	})
+	if err == nil {
+		leadAutoStart(app, id, mailKeys)
+	}
 	return id, code, err
 }
 

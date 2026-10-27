@@ -1204,7 +1204,8 @@ const TRIGGERS = {
 };
 const ACTIONS = {order:"Vytvořit PDF objednávku výroby pro výrobce", stock:"Odepsat prodané produkty ze skladu", email:"Poslat e-mail zákazníkovi", task:"Vytvořit aktivitu / úkol", notify:"Upozornit uživatele", phase:"Změnit stav obchodu", category:"Nastavit kategorii obchodu", log:"Zapsat do historie obchodu"};
 const autos = () => C().automations || [];
-const fillT = (t, x) => String(t||"").replace(/\{(\w+)\}/g, (all, k) => ({obchod:x.deal?.name, kod:x.deal?.code, klient:clientName(x.deal?.clientId || x.offer?.clientId) || x.lead?.name, stav:x.deal?phaseById(x.deal.phaseId).name:(x.lead?.state||x.offer?.status), lead:x.lead?.name, jmeno:x.lead?.name || clientName(x.deal?.clientId), nabidka:x.offer?.code, vlastnik:x.deal?.owner||x.lead?.owner})[k] ?? "");
+const autoSalut = x => { const cl = getClient(x.deal?.clientId || x.offer?.clientId); return x.lead ? salutation(x.lead.name, x.lead.salutation) : cl ? salutation(cl.person || cl.persons?.[0]?.name || cl.name, cl.salutation) : "Dobrý den,"; };
+const fillT = (t, x) => String(t||"").replace(/\{(\w+)\}/g, (all, k) => k==="osloveni" ? autoSalut(x) : ({obchod:x.deal?.name, kod:x.deal?.code, klient:clientName(x.deal?.clientId || x.offer?.clientId) || x.lead?.name, stav:x.deal?phaseById(x.deal.phaseId).name:(x.lead?.state||x.offer?.status), lead:x.lead?.name, jmeno:x.lead?.name || clientName(x.deal?.clientId), nabidka:x.offer?.code, vlastnik:x.deal?.owner||x.lead?.owner})[k] ?? "");
 const adminNames = () => S.accounts.filter(a=>a.role==="admin" && a.active!==false).map(a=>a.name);
 const resolveWho = (w, x) => w==="owner" ? [x.deal?.owner || x.lead?.owner || x.offer?.owner || me()] : w==="me" ? [me()] : w==="admins" ? (adminNames().length ? adminNames() : [me()]) : w==="techs" ? (x.install?.techs||[]) : [w];
 async function notify(to, text, x){ for (const n of [...new Set(to)].filter(Boolean)) await save("notifs", {id:uid(), to:n, text, at:Date.now(), read:false, dealId:x.deal?.id||"", leadId:x.lead?.id||"", by:me()}); }
@@ -1345,9 +1346,19 @@ async function runAutoInner(trigger, x, depth=0, only=null){
   const rules = only ? [only] : autos().filter(r => r.on && r.trigger===trigger && (!r.param || r.param === (trigger==="lead_state" ? x.lead?.state : trigger==="offer_status" ? x.offer?.status : x.deal?.phaseId)) && (!r.condType || r.condType === x.deal?.type));
   for (const r of rules){
     try {
-      for (const a of (r.actions||[])){
+      for (const [ai, a] of (r.actions||[]).entries()){
         if (a.kind==="task"){ const owner = resolveWho(a.who||"owner", x)[0] || me(); const deal = x.deal;
           await save("activities", {id:uid(), type:a.actType||"task", title:fillT(a.title||r.name, x), date:addDays(today(), toN(a.days)), time:"", status:"planned", priority:a.prio||"Normální", owner, dealId:deal?.id||"", clientId:deal?.clientId||"", note:`Vytvořeno automatizací „${r.name}“`, createdAt:Date.now(), auto:r.id}); }
+        else if (a.kind==="email" && SV){
+          // own server: the e-mail goes out from a company mailbox at once (a new lead's ones the server already sent)
+          if ((x.lead?.autoMailDone || []).includes(r.id + ":" + ai)) continue;
+          const cl = getClient(x.deal?.clientId || x.offer?.clientId); const to = x.lead?.email || cl?.email || ""; const subject = fillT(a.subject, x);
+          let res = "";
+          if (to){ try { await mailApi("auto", {ruleId:r.id, idx:ai, to, subject, body:fillT(a.body, x), leadId:x.lead?.id||"", dealId:x.deal?.id||"", offerId:x.offer?.id||"", clientId:cl?.id||""}); res = `✉ E-mail „${subject}“ odeslán na ${to} (automatizace „${r.name}“)`; }
+            catch(e){ res = `✉ E-mail „${subject}“ se nepodařilo odeslat: ${e.message} (automatizace „${r.name}“)`; toast("Automatický e-mail se nepodařilo odeslat: " + e.message); await notify(resolveWho("owner", x), res, x); } }
+          else res = `✉ E-mail neodeslán – ${x.lead ? "lead nemá" : "klient nemá"} e-mail (automatizace „${r.name}“)`;
+          if (x.lead){ const l = JSON.parse(JSON.stringify(S.leads.find(v=>v.id===x.lead.id) || x.lead)); log(l, res); await save("leads", l); x.lead = l; }
+          if (x.deal){ const d = JSON.parse(JSON.stringify(x.deal)); log(d, res, "edit"); if (await save("deals", d)) x.deal = d; } }
         else if (a.kind==="email"){ const cl = getClient(x.deal?.clientId || x.offer?.clientId); const to = x.lead?.email || cl?.email || "";
           const mail = {to, subject:fillT(a.subject, x), body:fillT(a.body, x), rule:r.name};
           if (to){ const cm = await addComm({kind:"email", to, subject:mail.subject, body:mail.body, status:"připraveno", leadId:x.lead?.id||"", dealId:x.deal?.id||"", clientId:cl?.id||x.deal?.clientId||"", auto:r.name}); mail.commId = cm.id; }
@@ -1394,7 +1405,7 @@ function autoModal(){
     else if (a.kind==="order") f = `<span class="muted" style="font-size:12.5px">Vytvoří PDF objednávku (pergola, screen rolety, příslušenství) z akceptované nabídky, jinak z produktů obchodu. Uloží ji k obchodu a nabídne ke stažení.</span>`;
     else if (a.kind==="stock") f = `<span class="muted" style="font-size:12.5px">Odečte ze skladu množství všech produktů obchodu (záložka Produkty). Každý obchod se odepíše jen jednou.</span>`;
     else if (a.kind==="log") f = `<input class="au-f" data-k="text" data-i="${i}" value="${esc(a.text||"")}" placeholder="Text do historie">`;
-    else if (a.kind==="email") f = `<input class="au-f" data-k="subject" data-i="${i}" value="${esc(a.subject||"")}" placeholder="Předmět e-mailu" style="grid-column:1/-1"><textarea class="au-f" data-k="body" data-i="${i}" placeholder="Text e-mailu" style="grid-column:1/-1;min-height:150px">${esc(a.body||"")}</textarea><span class="muted" style="grid-column:1/-1;font-size:12px">Příjemce: e-mail leadu nebo klienta. Zatím testovací režim: e-mail se připraví a jedním klikem otevře ve vaší poště. Na vlastním serveru se bude odesílat sám.</span>`;
+    else if (a.kind==="email") f = `<input class="au-f" data-k="subject" data-i="${i}" value="${esc(a.subject||"")}" placeholder="Předmět e-mailu" style="grid-column:1/-1"><textarea class="au-f" data-k="body" data-i="${i}" placeholder="Text e-mailu" style="grid-column:1/-1;min-height:150px">${esc(a.body||"")}</textarea>${SV ? `<label class="f" style="grid-column:1/-1"><span>Odeslat ze schránky</span><select class="au-f" data-k="box" data-i="${i}"><option value="">Automaticky – první společná schránka</option>${(MAIL.all||[]).filter(b => !b.owner).map(b => `<option value="${b.id}" ${a.box===b.id?"selected":""}>${esc(b.name)} · ${esc(b.email)}</option>`).join("")}</select></label><label class="f" style="grid-column:1/-1"><span>Podpis</span><select class="au-f" data-k="sig" data-i="${i}"><option value="">Bez podpisu (podpis je v textu)</option><option value="box" ${a.sig==="box"?"selected":""}>Podpis schránky</option></select></label>` : ""}<span class="muted" style="grid-column:1/-1;font-size:12px">Příjemce: e-mail leadu nebo klienta. ${SV ? "E-mail odejde sám hned, jak se automatizace spustí (u nové poptávky z webu odešle server i bez otevřeného CRM). Uloží se do Odeslaných a do Komunikace." : "V náhledu na claude.ai se e-mail jen připraví k odeslání; na vlastním serveru odchází sám."} Proměnné: {osloveni} {jmeno} {klient} {obchod} {kod} {stav} {nabidka} {vlastnik}</span>`;
     return `<div class="auact"><select class="au-kind" data-i="${i}" aria-label="Akce">${opts(Object.entries(ACTIONS), a.kind)}</select><div class="aufields">${f}</div><button type="button" class="btn sm ghost" data-act="auto-act-del" data-i="${i}" aria-label="Odebrat akci">✕</button></div>`; };
   return `<div class="modal" role="dialog" aria-modal="true" aria-label="Automatizace"><form class="box" id="modalform"><div class="mh"><b style="font-size:17px">${r._new?"Nová automatizace":"Upravit automatizaci"}</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
   <div class="mb"><label class="f"><span>Název *</span><input id="au-name" value="${esc(r.name||"")}" placeholder="např. Follow-up po odeslání nabídky"></label>
@@ -1403,7 +1414,7 @@ function autoModal(){
     ${r.trigger==="deal_stale"?`<label class="row" style="flex-wrap:nowrap;gap:6px">déle než <input id="au-days" value="${esc(r.days??7)}" inputmode="numeric" style="width:70px"> dní</label>`:""}</div></div>
   ${["deal_created","deal_phase","deal_stale","install_done"].includes(r.trigger)?`<div class="aubox"><span class="lbl">A zároveň (nepovinné)</span><select id="au-cond"><option value="">Jakýkoli typ obchodu</option>${opts(C().types.map(t=>[t,"Typ obchodu: "+t]), r.condType)}</select></div>`:""}
   <div class="aubox"><span class="lbl">Pak udělej</span>${(r.actions||[]).map(act).join("")}<button type="button" class="btn sm" data-act="auto-act-add" style="justify-self:start">+ Přidat akci</button></div>
-  <p class="muted" style="margin:0;font-size:12px">V textech můžete použít {klient}, {obchod}, {kod}, {stav}, {lead}, {nabidka}, {vlastnik}.</p>
+  <p class="muted" style="margin:0;font-size:12px">V textech můžete použít {osloveni}, {klient}, {obchod}, {kod}, {stav}, {lead}, {nabidka}, {vlastnik}.</p>
   <label class="c"><input type="checkbox" id="au-on" ${r.on!==false?"checked":""}> Automatizace je zapnutá</label></div>
   <div class="mf"><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit">Uložit</button></div></form></div>`;
 }
@@ -1412,7 +1423,7 @@ function readAuto(){ const r = S.modal.data; const v = id => document.getElement
   document.querySelectorAll(".au-kind").forEach(el => { const a = r.actions[Number(el.dataset.i)]; if (a.kind !== el.value){ r.actions[Number(el.dataset.i)] = el.value==="email" ? {kind:"email", ...MAIL_TPL} : {kind:el.value}; } });
   document.querySelectorAll(".au-f").forEach(el => { const a = r.actions[Number(el.dataset.i)]; if (a) a[el.dataset.k] = el.value; }); }
 async function saveAutos(list){ const ok = await save("config", {id:"main", ...C(), automations:list}); if (ok && cfgDraft) cfgDraft.automations = list; return ok; }
-const MAIL_TPL = {subject:"Děkujeme za poptávku – Prima Shade", body:"Dobrý den,\n\nděkujeme za Vaši poptávku bioklimatické pergoly. Ozveme se Vám do 24 hodin a domluvíme se na dalším postupu, případně na nezávazné obhlídce.\n\nPokud máte mezitím jakýkoli dotaz, stačí odpovědět na tento e-mail.\n\nS pozdravem\n{vlastnik}\nPrima Shade"};
+const MAIL_TPL = {subject:"Děkujeme za poptávku – Prima Shade", body:"{osloveni}\n\nděkujeme za Vaši poptávku bioklimatické pergoly. Ozveme se Vám do 24 hodin a domluvíme se na dalším postupu, případně na nezávazné obhlídce.\n\nPokud máte mezitím jakýkoli dotaz, stačí odpovědět na tento e-mail.\n\nS pozdravem\n{vlastnik}\nPrima Shade"};
 const AUTO_SAMPLES = () => { const ph = n => C().phases.find(p=>p.name===n)?.id || "";
   return [
     {name:"Nový lead – potvrzení e-mailem", trigger:"lead_created", actions:[{kind:"email", ...MAIL_TPL}]},
