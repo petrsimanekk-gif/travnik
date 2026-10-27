@@ -217,6 +217,8 @@ table.g td.star,table.g th.star{width:30px;padding-right:0;cursor:pointer} .star
 .tg-times div{height:var(--hh);font-size:11.5px;color:var(--muted);text-align:right;padding-right:6px;line-height:1;transform:translateY(-5px)} .tg-times div:first-child{transform:none}
 .tg-col{position:relative;border-left:1px solid var(--line);background-image:linear-gradient(to bottom,var(--line) 1px,transparent 1px);background-size:100% var(--hh);cursor:pointer}
 .tg-col.today{background-color:color-mix(in srgb,var(--accent) 6%,transparent)}
+.cal .d.hol,.tg-dh.hol{background:color-mix(in srgb,var(--bad) 9%,var(--surface))} .cal .d.hol.o{background:color-mix(in srgb,var(--bad) 5%,var(--surface-2))}
+.holn{display:block;font-size:11px;line-height:1.25;color:var(--bad);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:none;letter-spacing:0} .tg-dh .holn{margin-top:2px}
 .tg-rsz{position:absolute;left:0;right:0;bottom:0;height:7px;cursor:ns-resize} .tg-ev:hover .tg-rsz{background:linear-gradient(transparent 2px,rgba(255,255,255,.55) 2px,rgba(255,255,255,.55) 4px,transparent 4px)}
 .tg-ev.cdragging,.cev.cdragging{opacity:.85;box-shadow:0 6px 18px rgba(0,0,0,.3);z-index:5;transition:none} .cdrop{outline:2px dashed var(--link);outline-offset:-2px;background:var(--link-soft)!important}
 body.cmoving,body.cmoving *{cursor:grabbing!important;user-select:none} body.cresizing,body.cresizing *{cursor:ns-resize!important;user-select:none}
@@ -1828,6 +1830,11 @@ function vAct(){
     <div class="rcol"><div class="card"><div class="ch"><span class="lbl">Čeho se to týká</span></div><div class="cb">${deal?`<span class="lbl">Obchodní případ</span><div><span class="link" data-act="open-deal" data-id="${deal.id}">${esc(deal.code)} ${esc(deal.name)}</span></div>`:""}${a.clientId?`<div style="margin-top:6px"><span class="lbl">Klient</span><div><span class="link" data-act="open-client" data-id="${a.clientId}">${esc(clientName(a.clientId))}</span></div></div>`:""}${!deal&&!a.clientId?`<span class="muted">Nepřiřazeno</span>`:""}</div></div></div></div>`;
 }
 const CAL_H = 48;
+// Czech public holidays; Easter-based ones are computed for every year
+const HOLIDAYS = {"01-01":"Nový rok · Den obnovy českého státu","05-01":"Svátek práce","05-08":"Den vítězství","07-05":"Cyril a Metoděj","07-06":"Mistr Jan Hus","09-28":"Den české státnosti","10-28":"Vznik Československa","11-17":"Den boje za svobodu a demokracii","12-24":"Štědrý den","12-25":"1. svátek vánoční","12-26":"2. svátek vánoční"};
+const easterOf = {};
+function easter(y){ const a=y%19, b=Math.floor(y/100), c=y%100, d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25), g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30, i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7, m=Math.floor((a+11*h+22*l)/451), n=h+l-7*m+114; return iso(new Date(y, Math.floor(n/31)-1, n%31+1)); }
+function holiday(s){ const e = easterOf[s.slice(0,4)] ||= easter(Number(s.slice(0,4))); return s===addDays(e,-2) ? "Velký pátek" : s===addDays(e,1) ? "Velikonoční pondělí" : HOLIDAYS[s.slice(5,10)] || ""; }
 const tmin = t => { const m = /^(\d{1,2}):(\d{2})/.exec(t||""); return m ? Number(m[1])*60 + Number(m[2]) : null; };
 const calInst = (s, users) => canSee("installs") ? S.installs.filter(x=>x.date===s && users.some(u=>(x.techs||[]).includes(u)||!(x.techs||[]).length)) : [];
 const calChip = (e) => e.inst ? `<span class="cev ${e.inst.status==="done"?"done":""}" style="background:var(--g-install)" data-act="open-install" data-id="${e.inst.id}">🔧 ${esc(e.inst.time||"")} ${esc(getDeal(e.inst.dealId)?.name||"Montáž")}</span>` : `<span class="cev ${e.a.status==="done"?"done":""}" style="background:${ACT_COLOR[e.a.type]}" data-act="open-act" data-id="${e.a.id}">${esc(e.a.time||"")} ${esc(e.a.title)}</span>`;
@@ -1852,10 +1859,10 @@ function calTimeGrid(dates, acts, users){
     return `<span class="tg-ev ${done?"done":""}" style="top:calc(var(--hh) * ${top});height:calc(var(--hh) * ${h} - 2px);left:calc(${e.lane/e.n*100}% + 2px);width:calc(${100/e.n}% - 4px);background:${bg}" data-act="${act}" data-id="${id}" data-st="${e.st}" data-dur="${e.dur}" title="${esc(tt+" "+title)}"><b>${esc(title)}</b><small>${tt}${sub?" · "+esc(sub):""}</small><i class="tg-rsz" aria-hidden="true"></i></span>`; };
   const now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
   return `<div class="tgw"><div class="tg" data-hours="${h1-h0}" style="--n:${dates.length};min-width:${dates.length>1?720:0}px">
-    <div class="tg-c tg-corner"></div>${cols.map(c => { const d = new Date(c.s+"T12:00:00"); return `<div class="tg-c tg-dh ${c.s===t?"today":""}" data-act="cal-goday" data-date="${c.s}" title="Zobrazit den">${DN[d.getDay()]}<b>${d.getDate()}</b></div>`; }).join("")}
+    <div class="tg-c tg-corner"></div>${cols.map(c => { const d = new Date(c.s+"T12:00:00"); return `<div class="tg-c tg-dh ${c.s===t?"today":""} ${holiday(c.s)?"hol":""}" data-act="cal-goday" data-date="${c.s}" title="${esc(holiday(c.s)||"Zobrazit den")}">${DN[d.getDay()]}<b>${d.getDate()}</b>${holiday(c.s)?`<span class="holn">${esc(holiday(c.s))}</span>`:""}</div>`; }).join("")}
     <div class="tg-c tg-lbl">celý den</div>${cols.map(c => `<div class="tg-c tg-ad" data-date="${c.s}">${c.allday.map(calChip).join("")}</div>`).join("")}
     <div class="tg-times">${Array.from({length:h1-h0}, (_,i) => `<div>${pad(h0+i)}:00</div>`).join("")}</div>
-    ${cols.map(c => `<div class="tg-col ${c.s===t?"today":""}" data-act="cal-slot" data-date="${c.s}" data-h0="${h0}" style="height:calc(var(--hh) * ${h1-h0})" title="Klikněte pro novou aktivitu">${c.timed.map(evBox).join("")}${c.s===t && nowM>=h0*60 && nowM<h1*60 ? `<span class="tg-now" style="top:calc(var(--hh) * ${hr(nowM)})"></span>` : ""}</div>`).join("")}
+    ${cols.map(c => `<div class="tg-col ${c.s===t?"today":""}" data-act="cal-slot" data-date="${c.s}" data-h0="${h0}" style="height:calc(var(--hh) * ${h1-h0})" title="Dvojklikem založíte novou aktivitu">${c.timed.map(evBox).join("")}${c.s===t && nowM>=h0*60 && nowM<h1*60 ? `<span class="tg-now" style="top:calc(var(--hh) * ${hr(nowM)})"></span>` : ""}</div>`).join("")}
   </div></div>`;
 }
 // ---------- calendar: drag an event with the mouse to move it, drag its bottom edge to change its length ----------
@@ -1938,7 +1945,7 @@ function vCal(){
     const first = new Date(y,m-1,1); const start = new Date(first); start.setDate(1-((first.getDay()+6)%7));
     let cells = ""; for (let i=0;i<42;i++){ const d = new Date(start); d.setDate(start.getDate()+i); const s = iso(d); const ev = acts.filter(a=>a.date===s).sort((a,b)=>(a.time||"").localeCompare(b.time||""));
       const ins = calInst(s, users);
-      cells += `<div class="d ${d.getMonth()!==m-1?"o":""} ${s===today()?"today":""}" data-act="newact-day" data-date="${s}"><b data-act="cal-goday" data-date="${s}" title="Zobrazit den">${d.getDate()}</b>${ins.map(x=>calChip({inst:x})).join("")}${ev.slice(0,6).map(a=>calChip({a})).join("")}${ev.length>6?`<span class="muted">+${ev.length-6} další</span>`:""}</div>`; }
+      cells += `<div class="d ${d.getMonth()!==m-1?"o":""} ${s===today()?"today":""} ${holiday(s)?"hol":""}" data-act="newact-day" data-date="${s}" title="Dvojklikem založíte novou aktivitu"><b data-act="cal-goday" data-date="${s}" title="Zobrazit den">${d.getDate()}</b>${holiday(s)?`<span class="holn" title="${esc(holiday(s))}">${esc(holiday(s))}</span>`:""}${ins.map(x=>calChip({inst:x})).join("")}${ev.slice(0,6).map(a=>calChip({a})).join("")}${ev.length>6?`<span class="muted">+${ev.length-6} další</span>`:""}</div>`; }
     title = `${MON[m-1]} ${y}`;
     main = `<div style="overflow-x:auto"><div class="cal" style="min-width:620px">${["Po","Út","St","Čt","Pá","So","Ne"].map(d=>`<div class="h">${d}</div>`).join("")}${cells}</div></div>`;
   } else if (view === "week"){
@@ -2284,7 +2291,7 @@ document.addEventListener("click", async e => {
     case "new-deal": { const ph = C().phases.find(p=>p.kind==="open"); openModal("deal", {id:uid(), name:"", clientId:a.dataset.client||"", type:C().types[0]||"", phaseId:ph?.id, probability:50, owner:me(), openedAt:today(), _new:true}); break; }
     case "new-client": openModal("client", {id:uid(), state:"Potenciální", role:"Odběratel", owner:me(), gdpr:"Plnění smlouvy", persons:[], _new:true}); break;
     case "new-lead": openModal("lead", {id:uid(), subject:C().types[0]||"", state:C().leadStates[0]||"Nový", owner:me(), receivedAt:today(), _new:true}); break;
-    case "new-act": case "newact-day": case "newact-task": case "newact-meeting": case "newact-call": case "newact-event": case "newact-email": case "newact-letter": {
+    case "new-act": case "newact-day": if (e.detail < 2) break; /* falls through: a new activity only on double click */ case "newact-task": case "newact-meeting": case "newact-call": case "newact-event": case "newact-email": case "newact-letter": {
       const type = a.dataset.type || (act.startsWith("newact-") && ACT[act.slice(7)] ? act.slice(7) : "meeting");
       const dealId = a.dataset.deal || (S.view==="deal" ? S.param : ""); const clientId = a.dataset.client || (dealId ? getDeal(dealId)?.clientId : "") || "";
       openModal("act", {id:uid(), type, title:"", date:a.dataset.date||today(), time:"", status:"planned", priority:"Normální", owner:me(), dealId, clientId, _new:true}); break; }
@@ -2329,7 +2336,7 @@ document.addEventListener("click", async e => {
     case "cal-filters": S.calf = !S.calf; render(); break;
     case "cal-view": S.calView = a.dataset.v; ls.set("stinko-calview", S.calView); render(); break;
     case "cal-goday": S.calView = "day"; S.calDate = a.dataset.date; ls.set("stinko-calview", "day"); render(); break;
-    case "cal-slot": { if (!canEdit("activities")){ toast("Na tuto akci nemáte oprávnění."); break; } const r = a.getBoundingClientRect(); const mins = Math.min(23*60+30, Number(a.dataset.h0)*60 + Math.floor((e.clientY - r.top)/(parseFloat(getComputedStyle(a).getPropertyValue("--hh"))||CAL_H)*2)*30);
+    case "cal-slot": { if (e.detail < 2) break; /* double click only */ if (!canEdit("activities")){ toast("Na tuto akci nemáte oprávnění."); break; } const r = a.getBoundingClientRect(); const mins = Math.min(23*60+30, Number(a.dataset.h0)*60 + Math.floor((e.clientY - r.top)/(parseFloat(getComputedStyle(a).getPropertyValue("--hh"))||CAL_H)*2)*30);
       openModal("act", {id:uid(), type:"meeting", title:"", date:a.dataset.date, time:`${pad(Math.floor(mins/60))}:${pad(mins%60)}`, duration:"60", status:"planned", priority:"Normální", owner:me(), dealId:"", clientId:"", _new:true}); break; }
     // settings
     case "ph-add": readCfg(); cfgDraft.phases.push({id:"p-"+uid().slice(0,8), name:"Nová fáze", group:"sales", kind:"open"}); render(); break;
