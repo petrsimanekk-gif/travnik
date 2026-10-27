@@ -32,6 +32,7 @@ import (
 
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
+	gomsg "github.com/emersion/go-message"
 	_ "github.com/emersion/go-message/charset" // windows-1250, iso-8859-2, …
 	"github.com/emersion/go-message/mail"
 	"github.com/pocketbase/dbx"
@@ -49,18 +50,19 @@ const (
 )
 
 type mailCfg struct {
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	FromName  string `json:"fromName"`
-	User      string `json:"user"`
-	Password  string `json:"password,omitempty"`
-	ImapHost  string `json:"imapHost"`
-	ImapPort  int    `json:"imapPort"`
-	SmtpHost  string `json:"smtpHost"`
-	SmtpPort  int    `json:"smtpPort"`
-	Security  string `json:"security"` // ssl (default) | starttls | none (local tests only)
-	Enabled   bool   `json:"enabled"`
-	Signature string `json:"signature"`
+	Name      string   `json:"name"`
+	Email     string   `json:"email"`
+	FromName  string   `json:"fromName"`
+	User      string   `json:"user"`
+	Password  string   `json:"password,omitempty"`
+	ImapHost  string   `json:"imapHost"`
+	ImapPort  int      `json:"imapPort"`
+	SmtpHost  string   `json:"smtpHost"`
+	SmtpPort  int      `json:"smtpPort"`
+	Security  string   `json:"security"` // ssl (default) | starttls | none (local tests only)
+	Enabled   bool     `json:"enabled"`
+	Signature string   `json:"signature"`
+	Access    []string `json:"access"` // account ids; empty = everyone with Pošta
 }
 
 type mailFolderState struct {
@@ -131,7 +133,7 @@ func ensureMailSchema(app core.App) error {
 			return err
 		}
 	}
-	return nil
+	return ensureQueueSchema(app)
 }
 
 func loadBox(app core.App, key string) (*core.Record, *mailCfg, *mailState, error) {
@@ -437,6 +439,7 @@ func fillMailRecord(rec *core.Record, p *parsedMail, raw []byte, size int64, whe
 // ---------- sync ----------
 
 func startMailLoop(app core.App) {
+	startQueueLoop(app)
 	go func() {
 		time.Sleep(10 * time.Second)
 		for {
@@ -697,9 +700,11 @@ func notifyNewMail(app core.App, box string, p *parsedMail) {
 	}
 	recs, _ := app.FindAllRecords("docs", dbx.HashExp{"col": "accounts"})
 	ms := time.Now().UnixMilli()
+	_, cfg, _, _ := loadBox(app, box)
 	for _, r := range recs {
 		a := docData(r)
-		if !isActive(a) || mailPerm(a) == "none" {
+		a["id"] = r.GetString("key")
+		if !isActive(a) || mailPerm(a) == "none" || !boxAllowed(a, cfg) {
 			continue
 		}
 		name, _ := a["name"].(string)
@@ -749,6 +754,11 @@ func bindMailRoutes(se *core.ServeEvent) {
 	r.POST("/api/stinko/mail/seen", handleMailSeen)
 	r.POST("/api/stinko/mail/send", handleMailSend)
 	r.POST("/api/stinko/mail/tolead", handleMailToLead)
+	r.GET("/api/stinko/mail/queue", handleMailQueue)
+	r.POST("/api/stinko/mail/unqueue", handleMailUnqueue)
+	r.POST("/api/stinko/mail/sendnow", handleMailSendNow)
+	r.POST("/api/stinko/mail/hold", handleMailHold)
+	r.POST("/api/stinko/mail/release", handleMailRelease)
 }
 
 func handleMailBoxes(e *core.RequestEvent) error {
@@ -761,12 +771,16 @@ func handleMailBoxes(e *core.RequestEvent) error {
 	for _, r := range recs {
 		key := r.GetString("key")
 		_, cfg, st, _ := loadBox(e.App, key)
+		if !boxAllowed(a, cfg) {
+			continue
+		}
 		unread, _ := e.App.CountRecords("mails", dbx.HashExp{"box": key, "folder": "inbox", "seen": false})
 		m := map[string]any{"id": key, "name": cfg.Name, "email": cfg.Email, "fromName": cfg.FromName, "enabled": cfg.Enabled, "signature": cfg.Signature,
-			"lastSync": st.LastSync, "error": st.Error, "unread": unread, "hasSent": st.Folders["sent"] != nil}
+			"lastSync": st.LastSync, "error": st.Error, "unread": unread, "hasSent": st.Folders["sent"] != nil, "queued": queueCount(e.App, key)}
 		if a["role"] == "admin" {
 			m["user"], m["imapHost"], m["imapPort"], m["smtpHost"], m["smtpPort"], m["security"] = cfg.User, cfg.ImapHost, cfg.ImapPort, cfg.SmtpHost, cfg.SmtpPort, cfg.Security
 			m["hasPassword"] = cfg.Password != ""
+			m["access"] = cfg.Access
 		}
 		out = append(out, m)
 	}
@@ -886,6 +900,10 @@ func handleMailBoxDel(e *core.RequestEvent) error {
 	for _, m := range mails {
 		_ = e.App.Delete(m)
 	}
+	queued, _ := e.App.FindAllRecords("mailqueue", dbx.HashExp{"box": b.ID})
+	for _, m := range queued {
+		_ = e.App.Delete(m)
+	}
 	if err := e.App.Delete(rec); err != nil {
 		return err
 	}
@@ -896,12 +914,16 @@ func handleMailBoxDel(e *core.RequestEvent) error {
 }
 
 func handleMailSync(e *core.RequestEvent) error {
-	if _, err := mailAccount(e, "view"); err != nil {
+	a, err := mailAccount(e, "view")
+	if err != nil {
 		return err
 	}
 	var b struct{ Box string }
 	if err := e.BindBody(&b); err != nil {
 		return e.BadRequestError("", err)
+	}
+	if !boxKeyAllowed(e.App, a, b.Box) {
+		return e.ForbiddenError("permission_denied", nil)
 	}
 	if err := syncBox(e.App, b.Box); err != nil {
 		return e.BadRequestError("Načtení pošty se nepovedlo: "+err.Error(), nil)
@@ -917,13 +939,27 @@ func mailItem(r *core.Record) map[string]any {
 }
 
 func handleMailList(e *core.RequestEvent) error {
-	if _, err := mailAccount(e, "view"); err != nil {
+	a, err := mailAccount(e, "view")
+	if err != nil {
 		return err
 	}
 	q := e.Request.URL.Query()
 	filter, params := []string{}, dbx.Params{}
 	if b := q.Get("box"); b != "" {
+		if !boxKeyAllowed(e.App, a, b) {
+			return e.ForbiddenError("permission_denied", nil)
+		}
 		filter, params["b"] = append(filter, "box = {:b}"), b
+	} else {
+		boxes := allowedBoxes(e.App, a)
+		if len(boxes) == 0 {
+			return e.JSON(http.StatusOK, map[string]any{"items": []any{}, "more": false})
+		}
+		f, p := boxesFilter(boxes)
+		filter = append(filter, f)
+		for k, v := range p {
+			params[k] = v
+		}
 	}
 	if f := q.Get("folder"); f != "" {
 		filter, params["f"] = append(filter, "folder = {:f}"), f
@@ -982,11 +1018,12 @@ func readRaw(app core.App, r *core.Record) ([]byte, error) {
 }
 
 func handleMailMsg(e *core.RequestEvent) error {
-	if _, err := mailAccount(e, "view"); err != nil {
+	a, err := mailAccount(e, "view")
+	if err != nil {
 		return err
 	}
 	r, err := e.App.FindRecordById("mails", e.Request.URL.Query().Get("id"))
-	if err != nil {
+	if err != nil || !boxKeyAllowed(e.App, a, r.GetString("box")) {
 		return e.NotFoundError("", nil)
 	}
 	raw, err := readRaw(e.App, r)
@@ -1029,11 +1066,12 @@ func handleMailAtt(e *core.RequestEvent) error {
 	if err != nil || u.Collection().Name != "users" || !u.GetBool("active") {
 		return e.UnauthorizedError("", nil)
 	}
-	if a, _ := loadAccount(e.App, u.GetString("acc")); !isActive(a) || mailPerm(a) == "none" {
+	a, _ := loadAccount(e.App, u.GetString("acc"))
+	if !isActive(a) || mailPerm(a) == "none" {
 		return e.ForbiddenError("", nil)
 	}
 	r, err := e.App.FindRecordById("mails", e.Request.URL.Query().Get("id"))
-	if err != nil {
+	if err != nil || !boxKeyAllowed(e.App, a, r.GetString("box")) {
 		return e.NotFoundError("", nil)
 	}
 	raw, err := readRaw(e.App, r)
@@ -1045,8 +1083,8 @@ func handleMailAtt(e *core.RequestEvent) error {
 	if i < 0 || i >= len(p.Atts) {
 		return e.NotFoundError("", nil)
 	}
-	a := p.Atts[i]
-	ct := a.Type
+	att := p.Atts[i]
+	ct := att.Type
 	if ct == "" {
 		ct = "application/octet-stream"
 	}
@@ -1055,13 +1093,13 @@ func handleMailAtt(e *core.RequestEvent) error {
 		disp = "inline"
 	}
 	e.Response.Header().Set("Content-Type", ct)
-	e.Response.Header().Set("Content-Disposition", disp+"; filename*=UTF-8''"+urlPathEscape(a.Name))
+	e.Response.Header().Set("Content-Disposition", disp+"; filename*=UTF-8''"+urlPathEscape(att.Name))
 	e.Response.Header().Set("Content-Security-Policy", "sandbox; frame-ancestors 'self'")
 	if ct == "application/pdf" {
 		e.Response.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
 	}
 	e.Response.Header().Set("Cache-Control", "private, max-age=3600")
-	_, err = e.Response.Write(a.data)
+	_, err = e.Response.Write(att.data)
 	return err
 }
 
@@ -1109,7 +1147,8 @@ func setSeen(app core.App, r *core.Record, seen bool) {
 }
 
 func handleMailSeen(e *core.RequestEvent) error {
-	if _, err := mailAccount(e, "view"); err != nil {
+	a, err := mailAccount(e, "view")
+	if err != nil {
 		return err
 	}
 	var b struct {
@@ -1120,7 +1159,7 @@ func handleMailSeen(e *core.RequestEvent) error {
 		return e.BadRequestError("", err)
 	}
 	r, err := e.App.FindRecordById("mails", b.ID)
-	if err != nil {
+	if err != nil || !boxKeyAllowed(e.App, a, r.GetString("box")) {
 		return e.NotFoundError("", nil)
 	}
 	setSeen(e.App, r, b.Seen)
@@ -1142,8 +1181,8 @@ func parseAddrs(s string) ([]*mail.Address, error) {
 }
 
 type outAtt struct {
-	name, ctype string
-	data        []byte
+	name, ctype, cid string
+	data             []byte
 }
 
 func blobAtt(app core.App, key string) (*outAtt, error) {
@@ -1176,10 +1215,11 @@ func blobAtt(app core.App, key string) (*outAtt, error) {
 	if ct == "" {
 		ct = "application/octet-stream"
 	}
-	return &outAtt{name, ct, b}, nil
+	return &outAtt{name: name, ctype: ct, data: b}, nil
 }
 
-func buildMail(cfg *mailCfg, to, cc []*mail.Address, subject, text, htmlBody, inReplyTo string, refs []string, atts []*outAtt) ([]byte, string, error) {
+// buildMail writes mixed{ related{ alternative{text, html}, inline images }, attachments }.
+func buildMail(cfg *mailCfg, to, cc []*mail.Address, subject, text, htmlBody, inReplyTo string, refs []string, inline, atts []*outAtt) ([]byte, string, error) {
 	var h mail.Header
 	h.SetDate(time.Now())
 	h.SetAddressList("From", []*mail.Address{{Name: cfg.FromName, Address: cfg.Email}})
@@ -1198,39 +1238,56 @@ func buildMail(cfg *mailCfg, to, cc []*mail.Address, subject, text, htmlBody, in
 		h.SetMsgIDList("References", append(refs, inReplyTo))
 	}
 	h.Set("X-Mailer", "Prima Shade CRM")
+	h.Set("MIME-Version", "1.0")
+	h.SetContentType("multipart/mixed", nil)
 	var buf bytes.Buffer
-	mw, err := mail.CreateWriter(&buf, h)
+	mw, err := gomsg.CreateWriter(&buf, h.Header)
 	if err != nil {
 		return nil, "", err
 	}
-	iw, err := mw.CreateInline()
+	part := func(parent *gomsg.Writer, ctype string, params map[string]string, set func(*gomsg.Header)) (*gomsg.Writer, error) {
+		var ph gomsg.Header
+		ph.SetContentType(ctype, params)
+		if set != nil {
+			set(&ph)
+		}
+		return parent.CreatePart(ph)
+	}
+	rel, err := part(mw, "multipart/related", nil, nil)
 	if err != nil {
 		return nil, "", err
 	}
-	var th mail.InlineHeader
-	th.SetContentType("text/plain", map[string]string{"charset": "utf-8"})
-	w, err := iw.CreatePart(th)
+	alt, err := part(rel, "multipart/alternative", nil, nil)
 	if err != nil {
 		return nil, "", err
 	}
-	_, _ = io.WriteString(w, text)
-	w.Close()
-	if htmlBody != "" {
-		var hh mail.InlineHeader
-		hh.SetContentType("text/html", map[string]string{"charset": "utf-8"})
-		w, err := iw.CreatePart(hh)
+	for _, x := range [][2]string{{"text/plain", text}, {"text/html", htmlBody}} {
+		w, err := part(alt, x[0], map[string]string{"charset": "utf-8"}, func(ph *gomsg.Header) { ph.Set("Content-Transfer-Encoding", "quoted-printable") })
 		if err != nil {
 			return nil, "", err
 		}
-		_, _ = io.WriteString(w, htmlBody)
+		_, _ = io.WriteString(w, x[1])
 		w.Close()
 	}
-	iw.Close()
+	alt.Close()
+	for _, a := range inline {
+		w, err := part(rel, a.ctype, nil, func(ph *gomsg.Header) {
+			ph.Set("Content-Transfer-Encoding", "base64")
+			ph.Set("Content-ID", "<"+a.cid+">")
+			ph.SetContentDisposition("inline", map[string]string{"filename": a.name})
+		})
+		if err != nil {
+			return nil, "", err
+		}
+		_, _ = w.Write(a.data)
+		w.Close()
+	}
+	rel.Close()
 	for _, a := range atts {
-		var ah mail.AttachmentHeader
-		ah.SetFilename(a.name)
-		ah.SetContentType(a.ctype, nil)
-		w, err := mw.CreateAttachment(ah)
+		w, err := part(mw, a.ctype, map[string]string{"name": a.name}, func(ph *gomsg.Header) {
+			ph.Set("Content-Transfer-Encoding", "base64")
+			ph.SetContentDisposition("attachment", map[string]string{"filename": a.name})
+		})
 		if err != nil {
 			return nil, "", err
 		}
@@ -1270,94 +1327,176 @@ func textToHTML(s string) string {
 	return b.String()
 }
 
+// sendReq is what the compose dialog sends; a scheduled one is stored as is.
+type sendReq struct {
+	Box      string   `json:"box"`
+	To       string   `json:"to"`
+	Cc       string   `json:"cc"`
+	Subject  string   `json:"subject"`
+	Text     string   `json:"text"`
+	SigText  string   `json:"sigText"`  // signature, written under the text
+	SigLogo  string   `json:"sigLogo"`  // blob key of the signature image
+	SigID    string   `json:"sigId"`    // which of the author's signatures (kept for editing a scheduled e-mail)
+	Quote    string   `json:"quote"`    // the answered / forwarded message, under the signature
+	ReplyTo  string   `json:"replyTo"`  // id of the mail answered
+	Fwd      string   `json:"fwd"`      // id of the mail forwarded (its attachments go along)
+	Att      []string `json:"att"`      // uploaded blob keys
+	AttNames []string `json:"attNames"` // their names, to show a scheduled e-mail
+	CommID   string   `json:"commId"`   // comms record to mark as sent
+	SendAt   int64    `json:"sendAt"`   // ms; later than now = scheduled
+}
+
+// userErr is shown to the user as is.
+type userErr struct{ msg string }
+
+func (u userErr) Error() string { return u.msg }
+
+func uerr(format string, a ...any) error { return userErr{fmt.Sprintf(format, a...)} }
+
 func handleMailSend(e *core.RequestEvent) error {
 	a, err := mailAccount(e, "edit")
 	if err != nil {
 		return err
 	}
-	var b struct {
-		Box, To, Cc, Subject, Text string
-		ReplyTo                    string   `json:"replyTo"` // id of the mail answered
-		Fwd                        string   `json:"fwd"`     // id of the mail forwarded (its attachments go along)
-		Att                        []string `json:"att"`     // uploaded blob keys
-		CommID                     string   `json:"commId"`  // comms record to mark as sent
-	}
+	var b sendReq
 	if err := e.BindBody(&b); err != nil {
 		return e.BadRequestError("", err)
 	}
-	_, cfg, st, err := loadBox(e.App, b.Box)
-	if err != nil {
-		return e.BadRequestError(err.Error(), nil)
+	if _, cfg, _, err := loadBox(e.App, b.Box); err != nil || !boxAllowed(a, cfg) {
+		return e.ForbiddenError("permission_denied", nil)
 	}
+	if b.SendAt > time.Now().Add(30*time.Second).UnixMilli() {
+		if err := checkSend(&b); err != nil {
+			return e.BadRequestError(err.Error(), nil)
+		}
+		id, err := queueMail(e.App, a, &b)
+		if err != nil {
+			return err
+		}
+		return e.JSON(http.StatusOK, map[string]any{"queued": id})
+	}
+	rec, err := doSend(e.App, a, &b)
+	if err != nil {
+		var ue userErr
+		if errors.As(err, &ue) {
+			return e.BadRequestError(ue.msg, nil)
+		}
+		return err
+	}
+	return e.JSON(http.StatusOK, mailItem(rec))
+}
+
+func checkSend(b *sendReq) error {
 	to, err := parseAddrs(b.To)
 	if err != nil {
-		return e.BadRequestError(err.Error(), nil)
+		return userErr{err.Error()}
 	}
-	cc, err := parseAddrs(b.Cc)
-	if err != nil {
-		return e.BadRequestError(err.Error(), nil)
+	if _, err := parseAddrs(b.Cc); err != nil {
+		return userErr{err.Error()}
 	}
 	if len(to) == 0 {
-		return e.BadRequestError("Vyplňte příjemce.", nil)
+		return uerr("Vyplňte příjemce.")
 	}
-	var atts []*outAtt
+	return nil
+}
+
+func sigHTML(text, cid string) string {
+	if strings.TrimSpace(text) == "" && cid == "" {
+		return ""
+	}
+	h := `<div style="margin-top:16px">` + textToHTML(text)
+	if cid != "" {
+		h += `<img src="cid:` + cid + `" alt="" style="max-width:240px;max-height:120px;margin-top:6px">`
+	}
+	return h + `</div>`
+}
+
+// doSend builds the message, hands it to SMTP and keeps a copy in Sent.
+func doSend(app core.App, a map[string]any, b *sendReq) (*core.Record, error) {
+	_, cfg, st, err := loadBox(app, b.Box)
+	if err != nil {
+		return nil, userErr{err.Error()}
+	}
+	if err := checkSend(b); err != nil {
+		return nil, err
+	}
+	to, _ := parseAddrs(b.To)
+	cc, _ := parseAddrs(b.Cc)
+	var atts, inline []*outAtt
 	for _, k := range b.Att {
-		x, err := blobAtt(e.App, k)
+		x, err := blobAtt(app, k)
 		if err != nil {
-			return e.BadRequestError(err.Error(), nil)
+			return nil, userErr{err.Error()}
 		}
 		atts = append(atts, x)
 	}
+	logoCID := ""
+	if b.SigLogo != "" {
+		if x, err := blobAtt(app, b.SigLogo); err == nil && strings.HasPrefix(x.ctype, "image/") {
+			logoCID = "sig-" + randHex(6) + "@crm"
+			x.cid = logoCID
+			inline = append(inline, x)
+		}
+	}
 	inReplyTo, refs, leadID := "", []string(nil), ""
 	if b.ReplyTo != "" {
-		if r, err := e.App.FindRecordById("mails", b.ReplyTo); err == nil {
+		if r, err := app.FindRecordById("mails", b.ReplyTo); err == nil {
 			inReplyTo, leadID = r.GetString("msgid"), r.GetString("leadId")
-			if raw, _ := readRaw(e.App, r); raw != nil {
+			if raw, _ := readRaw(app, r); raw != nil {
 				refs = parseMail(raw).References
 			}
 		}
 	}
 	if b.Fwd != "" {
-		if r, err := e.App.FindRecordById("mails", b.Fwd); err == nil {
-			raw, _ := readRaw(e.App, r)
+		if r, err := app.FindRecordById("mails", b.Fwd); err == nil {
+			raw, _ := readRaw(app, r)
 			for _, x := range parseMail(raw).Atts {
-				atts = append(atts, &outAtt{x.Name, x.Type, x.data})
+				atts = append(atts, &outAtt{name: x.Name, ctype: x.Type, data: x.data})
 			}
 		}
 	}
-	raw, msgID, err := buildMail(cfg, to, cc, b.Subject, b.Text, textToHTML(b.Text), inReplyTo, refs, atts)
+	text, htm := strings.TrimRight(b.Text, " \n"), textToHTML(strings.TrimRight(b.Text, " \n"))
+	if strings.TrimSpace(b.SigText) != "" || logoCID != "" {
+		text += "\n\n-- \n" + b.SigText
+		htm += sigHTML(b.SigText, logoCID)
+	}
+	if strings.TrimSpace(b.Quote) != "" {
+		text += "\n\n" + b.Quote
+		htm += `<div style="margin-top:16px">` + textToHTML(b.Quote) + `</div>`
+	}
+	raw, msgID, err := buildMail(cfg, to, cc, b.Subject, text, htm, inReplyTo, refs, inline, atts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	s, err := smtpDial(cfg)
 	if err != nil {
-		return e.BadRequestError(err.Error(), nil)
+		return nil, userErr{err.Error()}
 	}
 	defer s.Close()
 	if err := s.Mail(cfg.Email); err != nil {
-		return e.BadRequestError("Server odesílatele odmítl: "+err.Error(), nil)
+		return nil, uerr("Server odesílatele odmítl: %v", err)
 	}
 	for _, x := range append(append([]*mail.Address{}, to...), cc...) {
 		if err := s.Rcpt(x.Address); err != nil {
-			return e.BadRequestError("Server odmítl adresu "+x.Address+": "+err.Error(), nil)
+			return nil, uerr("Server odmítl adresu %s: %v", x.Address, err)
 		}
 	}
 	w, err := s.Data()
 	if err != nil {
-		return e.BadRequestError(err.Error(), nil)
+		return nil, userErr{err.Error()}
 	}
 	if _, err := w.Write(raw); err != nil {
-		return e.BadRequestError(err.Error(), nil)
+		return nil, userErr{err.Error()}
 	}
 	if err := w.Close(); err != nil {
-		return e.BadRequestError("Odeslání se nepovedlo: "+err.Error(), nil)
+		return nil, uerr("Odeslání se nepovedlo: %v", err)
 	}
 	_ = s.Quit()
 
 	// the copy in Sent: stored here at once, appended on the server in the background
-	coll, err := e.App.FindCachedCollectionByNameOrId("mails")
+	coll, err := app.FindCachedCollectionByNameOrId("mails")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	rec := core.NewRecord(coll)
 	rec.Set("box", b.Box)
@@ -1366,21 +1505,21 @@ func handleMailSend(e *core.RequestEvent) error {
 	rec.Set("seen", true)
 	rec.Set("leadId", leadID)
 	if err := fillMailRecord(rec, parseMail(raw), raw, int64(len(raw)), time.Now()); err != nil {
-		return err
+		return nil, err
 	}
-	if err := e.App.Save(rec); err != nil {
-		return err
+	if err := app.Save(rec); err != nil {
+		return nil, err
 	}
 	if b.ReplyTo != "" {
-		if r, err := e.App.FindRecordById("mails", b.ReplyTo); err == nil && !r.GetBool("seen") {
-			setSeen(e.App, r, true)
+		if r, err := app.FindRecordById("mails", b.ReplyTo); err == nil && !r.GetBool("seen") {
+			setSeen(app, r, true)
 		}
 	}
 	if b.CommID != "" {
-		if d, err := findDoc(e.App, "comms", b.CommID); err == nil {
+		if d, err := findDoc(app, "comms", b.CommID); err == nil {
 			cm := docData(d)
 			cm["status"], cm["sentAt"], cm["mailId"] = "odesláno", time.Now().UnixMilli(), rec.Id
-			_ = putDoc(e.App, "comms", b.CommID, cm)
+			_ = putDoc(app, "comms", b.CommID, cm)
 		}
 	}
 	box := b.Box
@@ -1406,11 +1545,11 @@ func handleMailSend(e *core.RequestEvent) error {
 			_, _ = ac.Wait()
 		}
 		_ = c.Logout().Wait()
-		_ = syncBox(e.App, box)
+		_ = syncBox(app, box)
 	}()
-	publishMailState(e.App, box)
-	e.App.Logger().Info("mail sent", "box", box, "by", a["name"], "to", b.To, "msgid", msgID)
-	return e.JSON(http.StatusOK, mailItem(rec))
+	publishMailState(app, box)
+	app.Logger().Info("mail sent", "box", box, "by", a["name"], "to", b.To, "msgid", msgID)
+	return rec, nil
 }
 
 // handleMailToLead creates a lead from an incoming e-mail.
@@ -1427,7 +1566,7 @@ func handleMailToLead(e *core.RequestEvent) error {
 		return e.BadRequestError("", err)
 	}
 	r, err := e.App.FindRecordById("mails", b.ID)
-	if err != nil {
+	if err != nil || !boxKeyAllowed(e.App, a, r.GetString("box")) {
 		return e.NotFoundError("", nil)
 	}
 	if id := r.GetString("leadId"); id != "" {
