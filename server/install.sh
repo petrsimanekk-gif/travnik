@@ -171,4 +171,8 @@ if [ -n "$IP" ] && [ "$DNSIP" != "$IP" ]; then
   echo "POZOR: $DOMAIN zatím vede na '${DNSIP:-nic}', server má $IP. HTTPS se zapne samo, jakmile se DNS záznam projeví."
 fi
 echo
-echo "Hotovo. Otevřete https://$DOMAIN a vytvořte účet administrátora."
+if curl -fsS http://127.0.0.1:8090/api/stinko/status 2>/dev/null | grep -q '"hasAccounts":true'; then
+  echo "Hotovo. CRM běží na https://$DOMAIN – data i účty zůstaly, stačí v prohlížeči obnovit stránku (F5)."
+else
+  echo "Hotovo. Otevřete https://$DOMAIN a vytvořte účet administrátora."
+fi
