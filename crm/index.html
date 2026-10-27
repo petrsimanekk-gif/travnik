@@ -72,7 +72,7 @@ main{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;paddin
 main>*{flex-shrink:0}
 main>.grid{flex:1 1 0;min-height:160px;overflow:auto}
 main>.sumbar{position:static}
-table.g thead th{position:sticky;top:0;background:var(--surface);z-index:1}
+table.g thead th{position:sticky;top:0;background:var(--bg);z-index:1}
 /* common */
 h1{font-size:24px;font-weight:500;margin:0} h2{font-size:15px;font-weight:700;margin:0;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
 .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:500}
@@ -103,19 +103,32 @@ label.c{display:flex;gap:8px;align-items:center} label.c input{width:auto}
 .empty{text-align:center;padding:40px 16px;color:var(--muted)} .empty strong{display:block;color:var(--fg);font-size:15px;margin-bottom:4px}
 /* list view */
 .lhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.lhead h1{margin-right:8px}
-.lsearch{width:200px}
-.chip{border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:5px 12px;font:500 12.5px var(--f);cursor:pointer;color:var(--fg)}
-.chip[aria-pressed="true"]{background:var(--link-soft);border-color:var(--link);color:var(--link)}
+.lhead h1{margin-right:8px;font-size:28px;font-weight:400}
+.lsearch{width:200px;border-radius:18px;padding-left:32px;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236c7a85' stroke-width='2.4'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-4-4'/%3E%3C/svg%3E") 11px center/14px no-repeat}
+.lhead .vsep{width:1px;align-self:stretch;background:var(--line);margin:4px 2px}
+.btn.ico{width:34px;height:34px;padding:0;justify-content:center;border-radius:50%}
+.chip{border:0;box-shadow:0 0 0 1px var(--line),0 1px 2px rgba(0,0,0,.05);background:var(--surface);border-radius:18px;padding:7px 14px;font:700 12px var(--f);text-transform:uppercase;letter-spacing:.03em;cursor:pointer;color:var(--fg)}
+.chip[aria-pressed="true"]{background:var(--link-soft);box-shadow:0 0 0 1px var(--link);color:var(--link)}
 .lhead .sp{flex:1}
 .grid{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px}
-table.g{width:100%;border-collapse:collapse;min-width:760px;font-size:13.5px}
-table.g th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:500;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+main>.grid:has(>table.g){background:none;border:0;border-radius:0}
+table.g{width:100%;border-collapse:separate;border-spacing:0 3px;min-width:760px;font-size:14px}
+table.g th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;padding:8px 10px;white-space:nowrap;cursor:pointer;user-select:none}
 table.g th.num{text-align:right;font-family:var(--f)} table.g td.num{text-align:right}
 table.g th.s::after{content:" ▾";} table.g th.s.asc::after{content:" ▴";}
-table.g td{padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+table.g td{padding:8px 10px;background:var(--surface);box-shadow:0 1px 0 var(--line);white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+table.g tbody td:first-child{border-radius:4px 0 0 4px} table.g tbody td:last-child{border-radius:0 4px 4px 0}
 table.g tbody tr{cursor:pointer} table.g tbody tr:hover td{background:var(--surface-2)}
-table.g td.star,table.g th.star{width:30px;padding-right:0;cursor:pointer} .star .on{color:var(--accent)} .star .off{color:var(--line)}
+table.g tr.sel td,table.g tr.sel:hover td{background:color-mix(in srgb,var(--link) 9%,var(--surface))}
+table.g td .mono{font-family:var(--f);font-weight:500}
+table.g td.star,table.g th.star{width:30px;padding-right:0;cursor:pointer} .star span{font-size:18px;line-height:1} .star .on{color:var(--accent)} .star .off{color:var(--muted);opacity:.6} .star:hover .off{opacity:1}
+table.g th.chk,table.g td.chk{width:34px;padding:0 0 0 8px;cursor:default} table.g td.chk label{display:grid;place-items:center;height:100%;min-height:34px;cursor:pointer} table.g .chk input{width:16px;height:16px;margin:0;cursor:pointer;accent-color:var(--link)}
+table.g td select.inl-state{appearance:none;-webkit-appearance:none;border:0;background:transparent;color:var(--sc,var(--fg));font-weight:500;padding:3px 20px 3px 6px;margin-left:-6px;cursor:pointer;box-shadow:none;max-width:230px}
+table.g td select.inl-state:hover,table.g td select.inl-state:focus{background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236c7a85' stroke-width='1.6'/%3E%3C/svg%3E") right 6px center/10px no-repeat;box-shadow:0 0 0 1px var(--line)}
+table.g td input.inl-note{border:1px solid transparent;background:transparent;padding:3px 6px;margin-left:-6px;box-shadow:none} table.g td input.inl-note:hover{border-color:var(--line)} table.g td input.inl-note:focus{background:var(--surface);border-color:var(--link)}
+table.g tr:not(:hover) input.inl-note:not(:focus)::placeholder{color:transparent}
+.bulkbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--fg);color:var(--bg);border-radius:24px;padding:6px 8px 6px 18px;box-shadow:0 8px 28px rgba(0,0,0,.28);max-width:calc(100vw - 24px)}
+.bulkbar .btn{border-color:transparent} .bulkbar .bs{display:none} .bulkbar .btn.ghost{color:var(--bg)} .bulkbar .btn.ghost:hover{background:rgba(127,127,127,.25)}
 .sumbar{position:sticky;bottom:0;margin-top:10px;background:var(--surface);border:1px solid var(--line);border-radius:6px;display:flex;gap:24px;align-items:center;padding:8px 14px;font-size:13px;flex-wrap:wrap}
 .sumbar b{font-family:var(--mono);font-weight:500}
 .sumbar .sp{flex:1}
@@ -302,7 +315,7 @@ table.g tr.rc td:first-child{box-shadow:inset 4px 0 0 var(--rc)} table.g tr.rc t
 .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .icard{cursor:pointer} .icard:hover{border-color:var(--link)}
 label.chk{padding:6px 0;border-bottom:1px solid var(--line);font-size:14.5px} label.chk input{width:20px;height:20px;flex:none}
-table.g td select.inl,table.g td input.inl{padding:4px 6px;font-size:13px;width:auto;max-width:230px}
+table.g td select.inl,table.g td input.inl{padding:3px 6px;font-size:14px;width:auto;max-width:230px}
 table.g td input.inl{width:220px}
 table.g td:has(.inl){overflow:visible}
 .stavlbl{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.03em;flex-wrap:nowrap}
@@ -337,6 +350,7 @@ textarea.dnote{min-height:110px}
   .lhead:has(.calfwrap){flex-wrap:wrap;overflow:visible}
   .lhead .plus{width:34px;height:34px;font-size:20px}
   .sumbar{gap:2px 12px;padding:6px 10px;font-size:12px;margin-top:6px} .sumbar .sp{display:none}
+  .bulkbar .bl{display:none} .bulkbar .bs{display:inline} .bulkbar{left:66px;right:10px;bottom:calc(108px + env(safe-area-inset-bottom,0px));transform:none;flex-wrap:nowrap;gap:4px;padding:5px 6px 5px 12px;justify-content:space-between} .bulkbar b{white-space:nowrap;font-size:13px} .bulkbar [data-act="bulk-all"]{display:none} .bulkbar .btn{padding:5px 9px}
 }
 </style>
 
@@ -588,7 +602,7 @@ function rtabsHtml(){
 // ---------- render ----------
 const EDITING = ["settings"];
 const RECORD_VIEWS = ["deal","client","lead","activity","offer","install"];
-function go(view, param=null, sub=null){ if (!RECORD_VIEWS.includes(S.view)) S.backView = S.view; S.dealplus = false; S.view = view; S.param = param; S.sub = sub; S.confirm = null; S.page = 0; S.newmenu = false; render(); $("#main").scrollTop = 0; window.scrollTo({top:0}); }
+function go(view, param=null, sub=null){ if (view!==S.view) S.sel = null; if (!RECORD_VIEWS.includes(S.view)) S.backView = S.view; S.dealplus = false; S.view = view; S.param = param; S.sub = sub; S.confirm = null; S.page = 0; S.newmenu = false; render(); $("#main").scrollTop = 0; window.scrollTo({top:0}); }
 let after = [];
 function render(){
   if (!Object.values(S.loaded).every(Boolean)) return;
@@ -611,6 +625,7 @@ function render(){
   const ro = !["settings","dashboard","search"].includes(S.view) && !canEdit(secOf(S.view)); $("#main").classList.toggle("ro", ro);
   if (ro) $("#main").querySelectorAll("input,select,textarea").forEach(el => { if (!el.matches(RO_KEEP)) el.disabled = true; });
   renderOverlay();
+  after.push(paintBulk);
   after.forEach(fn => { try { fn(); } catch(e){ console.error(e); } }); after = [];
 }
 const stateTag = id => { const p = phaseById(id); return `<span class="state"><span class="dot" style="background:${gColor(p.group)}"></span>${esc(p.name)}</span>`; };
@@ -628,8 +643,9 @@ const catColor = c => { if (!c) return "var(--line)"; const t = c.toLowerCase();
 const catChip = c => c ? `<span class="catchip" style="--cc:${catColor(c)}">${esc(c)}</span>` : "";
 const ownerHtml = o => `<span class="row" style="gap:6px;flex-wrap:nowrap"><span class="av" style="width:22px;height:22px;font-size:10px">${initials(o)}</span>${esc(o||"")}</span>`;
 const phaseOpts = cur => Object.entries(GROUPS).map(([g,[t]])=>`<optgroup label="${t}">${C().phases.filter(x=>x.group===g).map(x=>`<option value="${x.id}" ${x.id===cur?"selected":""}>${esc(x.name)}</option>`).join("")}</optgroup>`).join("");
-const leadStateSel = (l, cls="inl") => `<select class="inl-state ${cls}" data-kind="lead" data-id="${l.id}" aria-label="Stav leadu">${C().leadStates.map(s=>`<option ${s===l.state?"selected":""}>${esc(s)}</option>`).join("")}${C().leadStates.includes(l.state)?"":`<option selected>${esc(l.state||"")}</option>`}<option disabled>──────────</option><option value="__edit">✎ Upravit stavy…</option></select>`;
-const dealStateSel = d => `<select class="inl-state inl" data-kind="deal" data-id="${d.id}" aria-label="Stav obchodu" style="border-left:4px solid ${gColor(phaseById(d.phaseId).group)}">${phaseOpts(d.phaseId)}<option disabled>──────────</option><option value="__edit">✎ Upravit stavy…</option></select>`;
+const leadColor = s => { const t = String(s||"").toLowerCase(); return /nov/.test(t) ? "var(--warn)" : /převed|preved|vyhr/.test(t) ? "var(--good)" : /zamít|zamit|nelze|zruš/.test(t) ? "var(--bad)" : /nebere/.test(t) ? "var(--g-collect)" : /obhlíd|zaměř|naplán/.test(t) ? "var(--g-order)" : /kontakt/.test(t) ? "var(--link)" : "var(--muted)"; };
+const leadStateSel = (l, cls="inl") => `<select class="inl-state ${cls}" data-kind="lead" data-id="${l.id}" aria-label="Stav leadu" style="--sc:${leadColor(l.state)}">${C().leadStates.map(s=>`<option ${s===l.state?"selected":""}>${esc(s)}</option>`).join("")}${C().leadStates.includes(l.state)?"":`<option selected>${esc(l.state||"")}</option>`}<option disabled>──────────</option><option value="__edit">✎ Upravit stavy…</option></select>`;
+const dealStateSel = d => `<select class="inl-state inl" data-kind="deal" data-id="${d.id}" aria-label="Stav obchodu" style="--sc:${gColor(phaseById(d.phaseId).group)}">${phaseOpts(d.phaseId)}<option disabled>──────────</option><option value="__edit">✎ Upravit stavy…</option></select>`;
 const noteInp = (r, kind) => `<input class="inl-note inl" data-kind="${kind}" data-id="${r.id}" value="${esc(r.note||"")}" placeholder="Poznámka…" aria-label="Poznámka">`;
 // type: text | number | money | date | enum (opts) ; val = raw value for sort & filter
 const colDefs = kind => colDefsAll(kind).filter(c => !c.need || see(c.need));
@@ -745,7 +761,7 @@ function colDefsAll(kind){
 }
 const DEFAULT_COLS = {
   deals:["code","openedAt","client","name","cf:model","phase","note","inphase","cf:datum-montaze","value"],
-  leads:["code","receivedAt","name","state","note","phone","zip","owner"],
+  leads:["code","receivedAt","subject","state","owner","zip","phone","name","note"],
   clients:["name","state","role","sold","rating","lastact","owner","city"],
   acts:["type","title","date","status","deal","client","owner","category"],
   offers:["code","name","client","deal","status","issuedOn","validTo","owner","total"],
@@ -787,19 +803,88 @@ function grid(kind, rows, opts={}){
   const slice = sorted.slice(S.page*ps, S.page*ps+ps);
   const cell = (c, r) => { if (c.html) return c.html(r); const v = c.val(r); if (v == null || v === "") return ""; return c.type==="money" ? money(Math.round(v*100)) : esc(v); };
   const summary = typeof opts.summary === "function" ? opts.summary(rows) : (opts.summary||[]);
-  return `${fbar}<div class="grid"><table class="g"><thead><tr><th class="star" aria-label="Oblíbené">★</th>${cols.map(c => `<th data-sort="${kind}:${c.key}" class="${st.key===c.key?"s "+(st.dir==="asc"?"asc":""):""} ${c.num||c.type==="money"?"num":""}">${esc(c.label)}</th>`).join("")}<th style="width:36px;cursor:pointer" data-act="cols" data-kind="${kind}" title="Upravit sloupce" aria-label="Upravit sloupce">⚙</th></tr></thead>
-    <tbody>${slice.map(r => `<tr data-act="${opts.open}" data-id="${r.id}" tabindex="0"${opts.rowColor?` class="rc" style="--rc:${opts.rowColor(r)}"`:""}><td class="star" data-act="fav" data-id="${r.id}"><span class="${favs.has(r.id)?"on":"off"}">★</span></td>${cols.map(c => `<td class="${c.num||c.type==="money"?"num":""}">${cell(c,r)}</td>`).join("")}<td></td></tr>`).join("") || `<tr><td colspan="${cols.length+2}"><div class="empty"><strong>Nic tu není</strong>${prefs.active[kind]?.conds?.length ? "Žádný záznam neodpovídá filtru." : (opts.emptyText||"Zkuste jiný výběr.")}</div></td></tr>`}</tbody></table></div>
+  const B = BULK[kind] && canEdit(BULK[kind].sec) ? BULK[kind] : null, sel = S.sel?.kind===kind ? S.sel.ids : new Set();
+  if (B) S.gridIds = {kind, ids:sorted.map(r=>r.id)};
+  const chkTh = B ? `<th class="chk"><input type="checkbox" class="selall" aria-label="Vybrat vše na stránce" ${slice.length && slice.every(r=>sel.has(r.id))?"checked":""}></th>` : "";
+  const chkTd = r => B ? `<td class="chk" data-act="noop"><label><input type="checkbox" class="rowsel" value="${r.id}" ${sel.has(r.id)?"checked":""} aria-label="Vybrat záznam"></label></td>` : "";
+  return `${fbar}<div class="grid"><table class="g" data-gkind="${kind}"><thead><tr>${chkTh}<th class="star" aria-label="Oblíbené">★</th>${cols.map(c => `<th data-sort="${kind}:${c.key}" class="${st.key===c.key?"s "+(st.dir==="asc"?"asc":""):""} ${c.num||c.type==="money"?"num":""}">${esc(c.label)}</th>`).join("")}<th style="width:36px;cursor:pointer" data-act="cols" data-kind="${kind}" title="Upravit sloupce" aria-label="Upravit sloupce">⚙</th></tr></thead>
+    <tbody>${slice.map(r => `<tr data-act="${opts.open}" data-id="${r.id}" tabindex="0" class="${opts.rowColor?"rc":""} ${sel.has(r.id)?"sel":""}"${opts.rowColor?` style="--rc:${opts.rowColor(r)}"`:""}>${chkTd(r)}<td class="star" data-act="fav" data-id="${r.id}"><span class="${favs.has(r.id)?"on":"off"}">${favs.has(r.id)?"★":"☆"}</span></td>${cols.map(c => `<td class="${c.num||c.type==="money"?"num":""}">${cell(c,r)}</td>`).join("")}<td></td></tr>`).join("") || `<tr><td colspan="${cols.length+(B?3:2)}"><div class="empty"><strong>Nic tu není</strong>${prefs.active[kind]?.conds?.length ? "Žádný záznam neodpovídá filtru." : (opts.emptyText||"Zkuste jiný výběr.")}</div></td></tr>`}</tbody></table></div>
     <div class="sumbar">${summary.map(([l,v]) => `<span>${l} <b>${v}</b></span>`).join("")}<span class="sp"></span>
       <label class="row" style="gap:6px">na stránce <select id="pagesize" style="width:auto">${[20,50,200].map(n=>`<option ${n===ps?"selected":""}>${n}</option>`).join("")}</select></label>
       <span class="row" style="gap:4px"><button class="btn sm ghost" data-act="pg" data-d="-1" ${S.page===0?"disabled":""} aria-label="Předchozí stránka">‹</button>Stránka ${S.page+1} z ${pages}<button class="btn sm ghost" data-act="pg" data-d="1" ${S.page>=pages-1?"disabled":""} aria-label="Další stránka">›</button></span></div>`;
 }
+// ---------- bulk edit: tick rows in a list, then change state, owner … for all of them at once ----------
+const BULK = {
+  leads:{sec:"leads", col:"leads", fields:()=>[["state","Stav",C().leadStates],["owner","Vlastník",C().users],["subject","Předmět",C().types],["source","Zdroj",C().sources]]},
+  deals:{sec:"deals", col:"deals", fields:()=>[["phaseId","Stav",null],["owner","Vlastník",C().users],["category","Kategorie",C().categories],["type","Typ obchodu",C().types],["source","Zdroj",C().sources]]},
+  clients:{sec:"clients", col:"clients", fields:()=>[["state","Stav",CLIENT_STATES],["owner","Vlastník",C().users],["rating","Rating",["A","B","C"]],["role","Vztah",["Odběratel","Partner","Dodavatel","Konkurent"]]]},
+  offers:{sec:"offers", col:"offers", fields:()=>[["status","Stav",OFFER_STATES],["owner","Vlastník",C().users]]},
+  acts:{sec:"activities", col:"activities", fields:()=>[["status","Stav",[["planned","Naplánováno"],["done","Realizováno"],["cancelled","Zrušeno"]]],["owner","Vlastník",C().users],["priority","Priorita",["Normální","Vysoká","Nízká"]],["category","Kategorie",C().activityCategories]]}
+};
+const bulkIds = kind => { const all = S.gridIds?.kind===kind ? S.gridIds.ids : []; const sel = S.sel?.kind===kind ? S.sel.ids : new Set(); return all.filter(id => sel.has(id)); };
+function paintBulk(){
+  const t = document.querySelector("table.g[data-gkind]"); const old = document.getElementById("bulkbar");
+  const kind = t?.dataset.gkind, n = kind && BULK[kind] ? bulkIds(kind).length : 0;
+  if (t){ t.querySelectorAll(".rowsel").forEach(x => { x.checked = !!S.sel?.ids.has(x.value) && S.sel.kind===kind; x.closest("tr").classList.toggle("sel", x.checked); }); const all = [...t.querySelectorAll(".rowsel")]; const sa = t.querySelector(".selall"); if (sa) sa.checked = all.length>0 && all.every(x=>x.checked); }
+  if (!n){ old?.remove(); return; }
+  const total = S.gridIds.ids.length;
+  const html = `<b>Vybráno ${n}</b>${n<total?`<button class="btn sm ghost" data-act="bulk-all">Vybrat všech ${total}</button>`:""}<button class="btn sm blue" data-act="bulk-edit">✎ <span class="bl">Hromadná úprava</span><span class="bs">Upravit</span></button><button class="btn sm bad" data-act="bulk-del">🗑 Smazat</button><button class="btn sm ghost" data-act="bulk-clear" aria-label="Zrušit výběr">✕</button>`;
+  let bar = old; if (!bar){ bar = document.createElement("div"); bar.id = "bulkbar"; bar.className = "bulkbar"; bar.setAttribute("role","toolbar"); bar.setAttribute("aria-label","Hromadné akce"); document.body.appendChild(bar); }
+  bar.innerHTML = html; bar.dataset.kind = kind;
+}
+function bulkModal(){
+  const kind = S.modal.data.kind, B = BULK[kind], n = bulkIds(kind).length;
+  const opts = arr => arr.map(o => Array.isArray(o) ? o : [o,o]).map(([v,t])=>`<option value="${esc(v)}">${esc(t)}</option>`).join("");
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Hromadná úprava"><form class="box" id="modalform" style="width:min(520px,100%)"><div class="mh"><b style="font-size:17px">Hromadná úprava · ${n} ${n===1?"záznam":n<5?"záznamy":"záznamů"}</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="mb"><p class="muted" style="margin:0">Vyplňte jen to, co chcete změnit. Pole s „— neměnit —“ zůstanou, jak jsou.${kind==="deals"?" Změna stavu spustí automatizace stejně jako ruční změna.":""}</p>
+  ${B.fields().map(([k,label,arr])=>`<label class="f"><span>${label}</span><select id="bk-${k}"><option value="">— neměnit —</option>${k==="phaseId" ? phaseOpts("") : opts(arr||[])}</select></label>`).join("")}</div>
+  <div class="mf"><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit">Uložit změny</button></div></form></div>`;
+}
+function bulkDelModal(){
+  const kind = S.modal.data.kind, ids = bulkIds(kind), keep = kind==="clients" ? ids.filter(id => S.deals.some(d=>d.clientId===id)).length : 0;
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Hromadné smazání"><div class="box" style="width:min(460px,100%)"><div class="mh"><b style="font-size:17px">Smazat ${ids.length} ${ids.length===1?"záznam":ids.length<5?"záznamy":"záznamů"}?</b><button class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="mb"><p style="margin:0">Smazání nejde vrátit zpět.</p>${keep?`<p class="muted" style="margin:0">${keep} ${keep===1?"klient má":"klientů má"} obchodní případy, ti se nesmažou.</p>`:""}</div>
+  <div class="mf"><button class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn badfill up" data-act="bulk-del-yes">Smazat</button></div></div></div>`;
+}
+async function bulkApply(){
+  const kind = S.modal.data.kind, B = BULK[kind]; if (!canEdit(B.sec)){ toast("Nemáte oprávnění upravovat."); return; }
+  const labels = Object.fromEntries(B.fields().map(([k,l])=>[k,l])), ch = {};
+  B.fields().forEach(([k]) => { const v = document.getElementById("bk-"+k)?.value; if (v) ch[k] = v; });
+  if (!Object.keys(ch).length){ toast("Vyberte, co se má změnit."); return; }
+  const ids = bulkIds(kind); closeModal(); toast(`Ukládám ${ids.length}…`, 60000);
+  let ok = 0;
+  for (const id of ids){
+    try {
+      const src = S[B.col].find(x=>x.id===id); if (!src) continue;
+      if (kind==="deals" && ch.phaseId && ch.phaseId!==src.phaseId && !await movePhase(src, ch.phaseId, 0, "hromadná úprava")) continue;
+      const x = JSON.parse(JSON.stringify(S[B.col].find(r=>r.id===id) || src)), parts = []; let stateFrom = null;
+      for (const [k,v] of Object.entries(ch)){ if (k==="phaseId" || (x[k]??"")===v) continue;
+        if (k==="state" || k==="status") stateFrom = x[k] ?? "";
+        parts.push(`${labels[k]}: ${(kind==="acts"&&k==="status" ? {planned:"Naplánováno",done:"Realizováno",cancelled:"Zrušeno"}[x[k]] : x[k]) || "–"} → ${kind==="acts"&&k==="status" ? {planned:"Naplánováno",done:"Realizováno",cancelled:"Zrušeno"}[v] : v}`); x[k] = v;
+        if (kind==="acts" && k==="status") x.doneAt = v==="done" ? Date.now() : null; }
+      if (!parts.length){ ok++; continue; }
+      if (kind!=="acts"){ if (stateFrom!==null && (kind==="leads" || kind==="offers")) log(x, `Stav: ${stateFrom||"–"} → ${x[kind==="leads"?"state":"status"]}`, "phase"); const rest = parts.filter(p => !/^Stav:/.test(p)); if (rest.length) log(x, `Hromadná úprava – ${rest.join(", ")}`); }
+      if (!await save(B.col, x)) continue; ok++;
+      if (stateFrom!==null && kind==="leads") await runAuto("lead_state", {lead:x});
+      if (stateFrom!==null && kind==="offers") await runAuto("offer_status", {offer:x, deal:getDeal(x.dealId)});
+    } catch(e){ console.error("bulk", id, e); }
+  }
+  S.sel = null; render(); toast(ok===ids.length ? `Upraveno ${ok} ${ok===1?"záznam":ok<5?"záznamy":"záznamů"}` : `Upraveno ${ok} z ${ids.length}, zbytek se nepovedl`);
+}
+async function bulkDelete(){
+  const kind = S.modal.data.kind, B = BULK[kind]; if (!canEdit(B.sec)){ toast("Nemáte oprávnění."); return; }
+  const ids = bulkIds(kind); let ok = 0, kept = 0; closeModal();
+  for (const id of ids){ if (kind==="clients" && S.deals.some(d=>d.clientId===id)){ kept++; continue; } try { await store.del(B.col, id); ok++; } catch(e){ console.error(e); } }
+  S.sel = null; render(); toast(`Smazáno ${ok}${kept?`, ${kept} klientů s obchody ponecháno`:""}`);
+}
 function filterBar(kind){
   const saved = prefs.filters[kind] || []; const act = prefs.active[kind];
   const label = act?.conds?.length ? (act.name || `Filtr (${act.conds.length})`) : "Moje filtry";
-  return `<select id="savedfilter" data-kind="${kind}" style="width:auto;border-radius:16px" aria-label="Moje filtry"><option value="">${esc(label)}</option>${saved.map(f=>`<option value="${f.id}" ${act?.id===f.id?"selected":""}>${esc(f.name)}</option>`).join("")}${act?.conds?.length?`<option value="__clear">✕ Zrušit filtr</option>`:""}</select>
-  <button class="btn ${act?.conds?.length?"blue":""}" data-act="filter" data-kind="${kind}">⚲ Filtrovat${act?.conds?.length?` (${act.conds.length})`:""}</button>`;
+  return `<select id="savedfilter" data-kind="${kind}" style="width:auto;border-radius:18px" aria-label="Moje filtry"><option value="">${esc(label)}</option>${saved.map(f=>`<option value="${f.id}" ${act?.id===f.id?"selected":""}>${esc(f.name)}</option>`).join("")}${act?.conds?.length?`<option value="__clear">✕ Zrušit filtr</option>`:""}</select>
+`;
 }
-const listHead = (title, chips, plusAct, kind) => `<div class="lhead"><h1>${title}</h1><input id="q" class="lsearch" type="search" placeholder="Hledat…" value="${esc(S.q)}" aria-label="Hledat">${chips}<span class="sp"></span>${kind?filterBar(kind):""}<button class="plus" data-act="${plusAct}" aria-label="Nový záznam">+</button></div>`;
+const filterBtn = kind => { const n = prefs.active[kind]?.conds?.length; return `<button class="btn blue" data-act="filter" data-kind="${kind}">⚲ Filtrování${n?` (${n})`:""}</button>`; };
+const listHead = (title, chips, plusAct, kind, extra="") => `<div class="lhead"><h1>${title}</h1><input id="q" class="lsearch" type="search" placeholder="Hledat…" value="${esc(S.q)}" aria-label="Hledat">${kind?filterBar(kind)+`<span class="vsep"></span>`:""}${chips}${extra}<span class="sp"></span><button class="plus" data-act="${plusAct}" aria-label="Nový záznam">+</button>${kind?filterBtn(kind):""}</div>`;
 const matchQ = (vals) => { const q = S.q.trim().toLowerCase(); return !q || vals.join(" ").toLowerCase().includes(q); };
 
 // ---------- state editor (dropdown "Stav") ----------
@@ -1306,7 +1391,7 @@ function vLeads(){
   const st = C().leadStates; const f = S.filter;
   const rows = S.leads.filter(l => f==="all" ? !["Převeden","Zamítnut"].includes(l.state) : f==="every" ? true : f==="fav" ? favs.has(l.id) : l.state === f).filter(l => matchQ([l.code,l.name,l.phone,l.email,l.zip,l.city,l.subject]));
   const chips = `<button class="chip" data-filter="all" aria-pressed="${f==="all"}">Rozpracované</button>${st.map(s=>`<button class="chip" data-filter="${esc(s)}" aria-pressed="${f===s}">${esc(s)}</button>`).join("")}<button class="chip" data-filter="fav" aria-pressed="${f==="fav"}">Oblíbené</button><button class="chip" data-filter="every" aria-pressed="${f==="every"}">Vše</button>`;
-  return listHead("Leady", chips, "new-lead", "leads") + grid("leads", rows, {open:"open-lead", defaultSort:"code", summary:r=>[["Počet", r.length]]});
+  return listHead("Leady", chips, "new-lead", "leads", canEdit("leads")?`<button class="btn ico" data-act="edit-states" data-kind="lead" title="Upravit stavy" aria-label="Upravit stavy">✎</button>`:"") + grid("leads", rows, {open:"open-lead", defaultSort:"code", summary:r=>[["Počet", r.length]]});
 }
 function vDeals(){
   const g = S.group;
@@ -1314,7 +1399,7 @@ function vDeals(){
     .filter(d => matchQ([d.code,d.name,clientName(d.clientId),d.type,d.category,d.owner]));
   const chips = [["open","Aktivní"],["mine","Moje"],["won","Vyhrané"],["fav","Oblíbené"],["all","Vše"]].map(([k,t])=>`<button class="chip" data-group="${k}" aria-pressed="${g===k}">${t}</button>`).join("")
     + `<select id="groupsel" style="width:auto;border-radius:16px" aria-label="Úsek nebo fáze"><option value="">Úsek / fáze…</option>${Object.entries(GROUPS).map(([k,[t]])=>`<optgroup label="${t}"><option value="${k}" ${g===k?"selected":""}>Celý úsek ${t}</option>${C().phases.filter(p=>p.group===k).map(p=>`<option value="ph:${p.id}" ${g==="ph:"+p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</optgroup>`).join("")}</select>`;
-  return listHead("Obchodní případy", chips, "new-deal", "deals") + grid("deals", rows, {open:"open-deal", defaultSort:"code",
+  return listHead("Obchodní případy", chips, "new-deal", "deals", canEdit("deals")?`<button class="btn ico" data-act="edit-states" data-kind="deal" title="Upravit stavy" aria-label="Upravit stavy">✎</button>`:"") + grid("deals", rows, {open:"open-deal", defaultSort:"code",
     summary:r=>{ const o = r.filter(d=>phaseById(d.phaseId).kind==="open"), w = r.filter(d=>phaseById(d.phaseId).kind==="won"); return [["Počet", r.length],["Rozjednáno za", money(o.reduce((s,d)=>s+(d.value||0),0))+` (${o.length})`],["Prodáno za", money(w.reduce((s,d)=>s+(d.value||0),0))+` (${w.length})`]]; },
     emptyText: S.deals.length ? "Zkuste jiný výběr." : "Založte první obchodní případ tlačítkem +."});
 }
@@ -2109,6 +2194,8 @@ function modalHtml(){
   if (md.kind === "isign") return isignModal();
   if (md.kind === "acc") return accModal();
   if (md.kind === "pwd") return pwModal();
+  if (md.kind === "bulk") return bulkModal();
+  if (md.kind === "bulkdel") return bulkDelModal();
   if (md.kind === "move"){ const pr = S.products.find(x=>x.id===md.id); const inn = md.dir==="in";
     const log = [...(pr?.stockLog||[])].reverse().slice(0,8);
     return `<div class="modal" role="dialog" aria-modal="true" aria-label="Pohyb na skladu"><form class="box" id="modalform"><div class="mh"><b style="font-size:17px">${inn?"Příjem na sklad":"Výdej ze skladu"}: ${esc(pr?.name||"")}</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
@@ -2274,6 +2361,11 @@ document.addEventListener("click", async e => {
   const D = () => getDeal(S.param);
   switch (act){
     case "noop": break;
+    case "bulk-all": { const k = S.gridIds?.kind; if (!k) break; S.sel = {kind:k, ids:new Set(S.gridIds.ids)}; paintBulk(); break; }
+    case "bulk-clear": S.sel = null; paintBulk(); break;
+    case "bulk-edit": { const k = document.getElementById("bulkbar")?.dataset.kind; if (!k || !bulkIds(k).length) break; S.modal = {kind:"bulk", data:{kind:k}}; S._forceModal = true; renderOverlay(); break; }
+    case "bulk-del": { const k = document.getElementById("bulkbar")?.dataset.kind; if (!k || !bulkIds(k).length) break; S.modal = {kind:"bulkdel", data:{kind:k}}; S._forceModal = true; renderOverlay(); break; }
+    case "bulk-del-yes": await bulkDelete(); break;
     case "order-make": { toast("Připravuji objednávku…"); try { await supplierOrder(getDeal(id), "ručně"); S.modal = {kind:"order"}; S._forceModal = true; renderOverlay(); } catch(err){ console.error(err); toast("Objednávku se nepodařilo vytvořit."); } break; }
     case "order-close": S.orderPdf = null; closeModal(); if (S.mailQueue?.length){ S.modal = {kind:"mail"}; S._forceModal = true; renderOverlay(); } break;
     case "order-dl": { const o = S.orderPdf; if (!o) break; try { const dl = (window.claude && window.claude.use) ? await window.claude.use("downloads") : null; if (!dl){ toast("Stahování tady není dostupné, použijte Otevřít."); break; } await dl.save({filename:o.name, data:o.blob}); toast("Objednávka připravena ke stažení"); } catch(err){ toast(err?.code==="declined" ? "Stahování zrušeno." : "Stažení se nepovedlo."); } break; }
@@ -2452,6 +2544,10 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", async e => {
   const t = e.target;
+  if (t.classList.contains("rowsel") || t.classList.contains("selall")){ const kind = t.closest("table.g")?.dataset.gkind; if (!kind) return;
+    if (S.sel?.kind!==kind) S.sel = {kind, ids:new Set()};
+    const ids = t.classList.contains("selall") ? [...t.closest("table.g").querySelectorAll(".rowsel")].map(x=>x.value) : [t.value];
+    ids.forEach(id => t.checked ? S.sel.ids.add(id) : S.sel.ids.delete(id)); paintBulk(); return; }
   if (t.classList.contains("cal-colmode")){ ls.set("stinko-calcolor", t.value); render(); return; }
   if (t.classList.contains("ucol")){ if (!isAdmin()) return; const c = JSON.parse(JSON.stringify(C())); c.userColors = {...(c.userColors||{}), [t.dataset.u]: t.value}; if (await save("config", {id:"main", ...c})){ if (cfgDraft) cfgDraft.userColors = c.userColors; toast("Barva uložena"); } return; }
   if (t.classList.contains("auto-on")){ if (!isAdmin()) return; const list = autos().map(r => r.id===t.dataset.id ? {...r, on:t.checked} : r); if (await saveAutos(list)) toast(t.checked?"Automatizace zapnuta":"Automatizace vypnuta"); return; }
@@ -2532,6 +2628,7 @@ document.addEventListener("submit", async e => {
       closeModal(); toast(isNew?"Montáž naplánována":"Uloženo"); if (isNew && S.view!=="deal" && S.view!=="calendar") go("install", m.id); else render();
       { const F = m.f||{}, st = tmin(F.start) ?? tmin(m.time), en = tmin(F.end); warnConflicts(conflicts(m.techs, m.date, st, en!=null && en>st ? en-st : (toN(m.dur)||240), m.id)); } }
     return; }
+  if (f.id==="modalform" && S.modal?.kind==="bulk"){ await bulkApply(); return; }
   if (f.id==="modalform" && S.modal?.kind==="auto"){ if (!isAdmin()) return; readAuto(); const r = {...S.modal.data}; delete r._new; delete r._open;
     if (!r.name.trim()){ toast("Zadejte název."); return; } if (TRIGGERS[r.trigger]?.[1] && !r.param){ toast("Vyberte stav ve spouštěči."); return; } if (!(r.actions||[]).length){ toast("Přidejte aspoň jednu akci."); return; }
     const list = autos().some(x=>x.id===r.id) ? autos().map(x=>x.id===r.id?r:x) : [...autos(), r];
