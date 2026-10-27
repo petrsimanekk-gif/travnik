@@ -48,7 +48,7 @@
     const f = encodeURIComponent(`col = "${c.replace(/["\\]/g, "\\$&")}"`);
     for (let page = 1; ; page++){
       const j = await api(`/api/collections/docs/records?filter=${f}&perPage=500&page=${page}&skipTotal=1&fields=key,data`);
-      j.items.forEach(r => docs.set(r.key, r.data || {}));
+      j.items.forEach(r => { if (!r.data?._hidden) docs.set(r.key, r.data || {}); }); // _hidden: outside this user's scope
       if (j.items.length < 500) break;
     }
     st.docs = docs; st.loaded = true; emit(st);
@@ -68,8 +68,13 @@
     });
     es.addEventListener("docs/*", ev => {
       const m = JSON.parse(ev.data), r = m.record || {};
+      // own scope changed (e.g. promoted to see everyone's records): records hidden so far must be fetched again
+      if (r.col === "accounts" && SV.account && r.key === SV.account.id && (r.data?.scope || "all") !== (SV.account.scope || "all")){
+        SV.account = {...SV.account, scope: r.data.scope};
+        clearTimeout(resyncT); resyncT = setTimeout(() => cols.forEach((st, c) => st.subs.size && loadCol(c).catch(console.warn)), 300);
+      }
       const st = cols.get(r.col); if (!st || !st.loaded) return;
-      if (m.action === "delete") st.docs.delete(r.key); else st.docs.set(r.key, r.data || {});
+      if (m.action === "delete" || r.data?._hidden) st.docs.delete(r.key); else st.docs.set(r.key, r.data || {});
       emit(st);
     });
   }

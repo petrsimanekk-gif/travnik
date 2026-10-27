@@ -66,6 +66,13 @@ func main() {
 	// Other accounts' password hashes are hidden from non-admins everywhere
 	// (list responses and realtime messages both pass through enrich).
 	app.OnRecordEnrich("docs").BindFunc(func(e *core.RecordEnrichEvent) error {
+		if e.RequestInfo != nil && e.RequestInfo.Auth != nil {
+			col := e.Record.GetString("col")
+			if sc := scopeFor(e.App, e.RequestInfo.Auth.GetString("acc")); sc.own && !sc.visible(col, e.Record.GetString("key"), docData(e.Record)) {
+				e.Record.Set("data", map[string]any{"_hidden": true})
+				return e.Next()
+			}
+		}
 		// who is online is shown to admins only
 		if e.Record.GetString("col") == "presence" {
 			var authAcc string
@@ -269,9 +276,11 @@ func putDoc(app core.App, col, key string, data map[string]any) error {
 		rec.Set("key", key)
 	}
 	rec.Set("data", data)
+	clearScopeCache()
 	if err := app.Save(rec); err != nil {
 		return err
 	}
+	clearScopeCache()
 	if col == "accounts" {
 		return syncUser(app, key, data)
 	}
@@ -563,6 +572,7 @@ func handleDel(e *core.RequestEvent) error {
 		if err := e.App.Delete(rec); err != nil {
 			return err
 		}
+		clearScopeCache()
 	}
 	return e.NoContent(http.StatusNoContent)
 }
