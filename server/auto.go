@@ -75,8 +75,23 @@ func fillAuto(t string, v map[string]string) string {
 
 func leadVars(l map[string]any) map[string]string {
 	name := str(l, "name")
-	return map[string]string{"klient": name, "lead": name, "jmeno": name, "stav": str(l, "state"), "vlastnik": str(l, "owner"),
-		"osloveni": salutation(name, str(l, "salutation"))}
+	return map[string]string{"klient": name, "lead": name, "jmeno": name, "stav": str(l, "state"), "vlastnik": str(l, "owner"), "obchodnik": str(l, "owner"),
+		"predmet": str(l, "subject"), "osloveni": salutation(name, str(l, "salutation"))}
+}
+
+// actionText: the action's own subject/body, or those of the e-mail template it points to
+// (so editing the template changes what the automation sends).
+func actionText(app core.App, a map[string]any) (string, string) {
+	if id := str(a, "tpl"); id != "" {
+		if l, ok := crmConfig(app)["mailTpls"].([]any); ok {
+			for _, x := range l {
+				if t, ok := x.(map[string]any); ok && str(t, "id") == id {
+					return str(t, "subject"), str(t, "body")
+				}
+			}
+		}
+	}
+	return str(a, "subject"), str(a, "body")
 }
 
 // sendAuto sends one automation e-mail and records it in Komunikace.
@@ -93,11 +108,11 @@ func sendAuto(app core.App, rule string, act map[string]any, to, subject, body s
 	if err := putDoc(app, "comms", cid, comm); err != nil {
 		return err
 	}
-	sig := ""
+	sig, logo := "", ""
 	if str(act, "sig") == "box" {
-		sig = cfg.Signature
+		sig, logo = cfg.Signature, cfg.SigLogo
 	}
-	_, err := doSend(app, map[string]any{"name": "Automatizace „" + rule + "“", "role": "admin"}, &sendReq{Box: box, To: to, Subject: subject, Text: body, SigText: sig, CommID: cid})
+	_, err := doSend(app, map[string]any{"name": "Automatizace „" + rule + "“", "role": "admin"}, &sendReq{Box: box, To: to, Subject: subject, Text: body, SigText: sig, SigLogo: logo, CommID: cid})
 	if err != nil {
 		if d, e2 := findDoc(app, "comms", cid); e2 == nil {
 			cm := docData(d)
@@ -172,8 +187,9 @@ func sendLeadAutoMails(app core.App, leadID string, keys []string) {
 				}
 				continue
 			}
-			subject := fillAuto(str(a, "subject"), v)
-			if err := sendAuto(app, name, a, to, subject, fillAuto(str(a, "body"), v), map[string]string{"leadId": leadID}); err != nil {
+			subj, body := actionText(app, a)
+			subject := fillAuto(subj, v)
+			if err := sendAuto(app, name, a, to, subject, fillAuto(body, v), map[string]string{"leadId": leadID}); err != nil {
 				app.Logger().Warn("auto mail", "lead", leadID, "err", err)
 				events = append(events, map[string]any{"at": ms, "by": "Automatizace", "kind": "edit", "text": "✉ E-mail „" + subject + "“ se nepodařilo odeslat: " + clip(err.Error(), 200)})
 			} else {

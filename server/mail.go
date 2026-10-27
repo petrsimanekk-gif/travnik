@@ -18,7 +18,12 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
+	"math"
 	"mime"
 	"net"
 	"net/http"
@@ -63,8 +68,9 @@ type mailCfg struct {
 	Security  string   `json:"security"` // ssl (default) | starttls | none (local tests only)
 	Enabled   bool     `json:"enabled"`
 	Signature string   `json:"signature"`
-	Access    []string `json:"access"` // account ids; empty = everyone with Pošta
-	Owner     string   `json:"owner"`  // account that connected its own mailbox (it may edit it)
+	SigLogo   string   `json:"sigLogo"` // blob key of the logo under the mailbox signature
+	Access    []string `json:"access"`  // account ids; empty = everyone with Pošta
+	Owner     string   `json:"owner"`   // account that connected its own mailbox (it may edit it)
 }
 
 type mailFolderState struct {
@@ -778,7 +784,7 @@ func handleMailBoxes(e *core.RequestEvent) error {
 			continue
 		}
 		unread, _ := e.App.CountRecords("mails", dbx.HashExp{"box": key, "folder": "inbox", "seen": false})
-		m := map[string]any{"id": key, "name": cfg.Name, "email": cfg.Email, "fromName": cfg.FromName, "enabled": cfg.Enabled, "signature": cfg.Signature,
+		m := map[string]any{"id": key, "name": cfg.Name, "email": cfg.Email, "fromName": cfg.FromName, "enabled": cfg.Enabled, "signature": cfg.Signature, "sigLogo": cfg.SigLogo,
 			"lastSync": st.LastSync, "error": st.Error, "unread": unread, "hasSent": st.Folders["sent"] != nil, "queued": queueCount(e.App, key)}
 		m["owner"], m["inPosta"] = cfg.Owner, inPosta(a, cfg)
 		if boxOwned(a, cfg) {
@@ -1464,13 +1470,23 @@ func checkSend(b *sendReq) error {
 	return nil
 }
 
-func sigHTML(text, cid string) string {
+// sigHTML: the logo gets fixed width/height attributes (fitted into 200×80), which
+// Outlook needs; it ignores max-width and would show the image at full size.
+func sigHTML(text, cid string, logo []byte) string {
 	if strings.TrimSpace(text) == "" && cid == "" {
 		return ""
 	}
 	h := `<div style="margin-top:16px">` + textToHTML(text)
 	if cid != "" {
-		h += `<img src="cid:` + cid + `" alt="" style="max-width:240px;max-height:120px;margin-top:6px">`
+		size := ""
+		if c, _, err := image.DecodeConfig(bytes.NewReader(logo)); err == nil && c.Width > 0 && c.Height > 0 {
+			w, hh := float64(c.Width), float64(c.Height)
+			if f := math.Min(1, math.Min(200/w, 80/hh)); f < 1 {
+				w, hh = w*f, hh*f
+			}
+			size = fmt.Sprintf(` width="%d" height="%d"`, int(math.Round(w)), int(math.Round(hh)))
+		}
+		h += `<img src="cid:` + cid + `" alt="Logo"` + size + ` style="display:block;max-width:200px;margin-top:8px;border:0">`
 	}
 	return h + `</div>`
 }
@@ -1494,10 +1510,10 @@ func doSend(app core.App, a map[string]any, b *sendReq) (*core.Record, error) {
 		}
 		atts = append(atts, x)
 	}
-	logoCID := ""
+	logoCID, logoData := "", []byte(nil)
 	if b.SigLogo != "" {
 		if x, err := blobAtt(app, b.SigLogo); err == nil && strings.HasPrefix(x.ctype, "image/") {
-			logoCID = "sig-" + randHex(6) + "@crm"
+			logoCID, logoData = "sig-"+randHex(6)+"@crm", x.data
 			x.cid = logoCID
 			inline = append(inline, x)
 		}
@@ -1522,7 +1538,7 @@ func doSend(app core.App, a map[string]any, b *sendReq) (*core.Record, error) {
 	text, htm := strings.TrimRight(b.Text, " \n"), textToHTML(strings.TrimRight(b.Text, " \n"))
 	if strings.TrimSpace(b.SigText) != "" || logoCID != "" {
 		text += "\n\n-- \n" + b.SigText
-		htm += sigHTML(b.SigText, logoCID)
+		htm += sigHTML(b.SigText, logoCID, logoData)
 	}
 	if strings.TrimSpace(b.Quote) != "" {
 		text += "\n\n" + b.Quote
