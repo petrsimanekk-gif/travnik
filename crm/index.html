@@ -447,7 +447,7 @@ const save = async (col, obj) => { try { await store.set(col, obj); if (db){ con
 const C = () => S.config;
 const me = () => { const A = acc(); if (A) return A.name; const v = ls.get("stinko-me", null); return v && C().users.includes(v) ? v : (C().users[0] || ""); };
 // ---------- accounts & permissions (prototype: real auth comes with own server) ----------
-const SECTIONS = [["dashboard","Nástěnka"],["calendar","Kalendář"],["installs","Montáže"],["leads","Leady"],["clients","Klienti"],["deals","Obchodní případy"],["offers","Nabídky"],["pricelist","Ceník"],["stock","Sklad"],["activities","Aktivity"],["documents","Dokumenty"],["analysis","Analýzy"]];
+const SECTIONS = [["dashboard","Nástěnka"],["calendar","Kalendář"],["installs","Montáže"],["leads","Leady"],["clients","Klienti"],["deals","Obchodní případy"],["offers","Nabídky"],["pricelist","Ceník"],["stock","Sklad"],["activities","Aktivity (kalendář)"]];
 const ROLE_PRESETS = {
   admin:["Admin", null],
   sales:["Obchodník", {dashboard:"view",calendar:"edit",installs:"view",leads:"edit",clients:"edit",deals:"edit",offers:"edit",pricelist:"view",stock:"view",activities:"edit",documents:"edit",analysis:"view"}, {cost:false,profit:false,commission:true}],
@@ -485,7 +485,7 @@ const see = f => { const A = acc(); return !!A && (A.role==="admin" || !!A.field
 const perm = sec => { const A = acc(); if (!A) return "none"; if (A.role==="admin") return "edit"; if (sec==="settings") return "none"; return A.perms?.[sec] || "none"; };
 const canSee = sec => perm(sec) !== "none", canEdit = sec => perm(sec) === "edit";
 const secOf = v => ({install:"installs",deal:"deals",lead:"leads",client:"clients",activity:"activities",offer:"offers",search:"dashboard"})[v] || v;
-const firstAllowed = () => (SECTIONS.find(([k]) => canSee(k)) || ["dashboard"])[0];
+const firstAllowed = () => (SECTIONS.find(([k]) => k!=="activities" && canSee(k)) || [canSee("activities") ? "calendar" : "dashboard"])[0];
 const PW_CHARS = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const genPw = (n=10) => [...crypto.getRandomValues(new Uint32Array(n))].map(x => PW_CHARS[x % PW_CHARS.length]).join("");
 async function hashPw(pw, salt){ const enc = new TextEncoder(); const k = await crypto.subtle.importKey("raw", enc.encode(pw), "PBKDF2", false, ["deriveBits"]); const bits = await crypto.subtle.deriveBits({name:"PBKDF2", salt:enc.encode(salt), iterations:120000, hash:"SHA-256"}, k, 256); return [...new Uint8Array(bits)].map(b=>b.toString(16).padStart(2,"0")).join(""); }
@@ -618,7 +618,7 @@ function navHtml(){
   return it("dashboard","Nástěnka",ICON.dashboard) + it("calendar","Kalendář",ICON.calendar) + it("installs","Montáže",ICON.install)
     + (canSee("leads")||canSee("clients") ? `<button class="it" data-go="${canSee("clients")?"clients":"leads"}" aria-current="${inAdr?"page":"false"}">${ICON.clients}Adresář</button><div class="sub">${it("leads","Leady")}${it("clients","Klienti")}</div>` : "")
     + (["deals","offers","pricelist"].some(canSee) ? `<button class="it" data-go="${["deals","offers","pricelist"].find(canSee)}" aria-current="${inObchod?"page":"false"}">${ICON.deals}Obchod</button><div class="sub">${it("deals","Obchodní případy")}${it("offers","Nabídky")}${it("pricelist","Ceníky")}</div>` : "")
-    + it("stock","Sklad",ICON.stock) + it("activities","Aktivity",ICON.activities) + it("documents","Dokumenty",ICON.documents) + it("analysis","Analýzy",ICON.analysis);
+    + it("stock","Sklad",ICON.stock);
 }
 function pushRecent(view, param, label){ recent = [{view,param,label}, ...recent.filter(r => !(r.view===view && r.param===param))].slice(0,8); ls.set("stinko-recent", recent); }
 function rtabsHtml(){
@@ -638,6 +638,7 @@ function render(){
   if (rs) return;
   const A = acc(); document.body.classList.toggle("nologin", !A); document.body.classList.toggle("notadmin", !!A && !isAdmin());
   if (!A){ $("#nav").innerHTML = ""; $("#main").classList.remove("ro"); $("#main").innerHTML = loginView(); S.modal = null; S.newmenu = false; renderOverlay(); return; }
+  if (["activities","documents","analysis"].includes(S.view)) S.view = canSee("calendar") ? "calendar" : "dashboard"; // these lists were removed
   if (S.view==="settings" ? !isAdmin() : !canSee(secOf(S.view))){ S.view = firstAllowed(); S.param = null; S.sub = null; }
   $("#nav").innerHTML = navHtml();
   const m = me();
@@ -646,7 +647,7 @@ function render(){
   { const n = S.notifs.filter(x=>x.to===m && !x.read).length; const el = $("#side-notif-n"); if (el) el.textContent = n ? `(${n})` : ""; }
   const sbtn = document.querySelector('.side [data-go="settings"]'); if (sbtn) sbtn.hidden = !isAdmin();
   const nbtn = document.querySelector('.side [data-act="newmenu"]'); if (nbtn) nbtn.hidden = !["clients","leads","deals","offers","pricelist","activities"].some(canEdit);
-  const V = {dashboard:vDash, leads:vLeads, lead:vLead, deals:vDeals, deal:vDeal, clients:vClients, client:vClient, calendar:vCal, activities:vActs, activity:vAct, offers:vOffers, offer:vOffer, pricelist:vPricelist, stock:vStock, installs:vInstalls, install:vInstall, documents:vDocs, analysis:vAnalysis, settings:vSettings, search:vSearch}[S.view] || vDash;
+  const V = {dashboard:vDash, leads:vLeads, lead:vLead, deals:vDeals, deal:vDeal, clients:vClients, client:vClient, calendar:vCal, activity:vAct, offers:vOffers, offer:vOffer, pricelist:vPricelist, stock:vStock, installs:vInstalls, install:vInstall, settings:vSettings, search:vSearch}[S.view] || vDash;
   const qf = document.activeElement?.id === "q" ? document.activeElement.selectionStart : null;
   $("#main").innerHTML = (S.offline ? `<div class="banner"><b>Nejste přihlášeni do Claude – nic se neukládá.</b> Klikněte vpravo nahoře na Sign in, přihlaste se a stránku obnovte.</div>` : "") + V();
   $("#rtabs").innerHTML = rtabsHtml();
@@ -1466,12 +1467,6 @@ function vClients(){
   const chips = [["all","Všichni"],["mine","Moji"],["fav","Oblíbení"],...CLIENT_STATES.map(s=>[s,s])].map(([k,t])=>`<button class="chip" data-filter="${esc(k)}" aria-pressed="${f===k}">${t}</button>`).join("");
   return listHead("Klienti", chips, "new-client", "clients") + grid("clients", rows, {open:"open-client", defaultSort:"name", defaultDir:"asc",
     summary:r=>{ const m = r.map(x=>clientMoney(x.id)); return [["Počet", r.length],["Rozjednáno za", money(m.reduce((s,x)=>s+x.open,0))],["Prodáno za", money(m.reduce((s,x)=>s+x.sold,0))]]; }, emptyText:"Klient se založí i při převodu leadu na obchod."});
-}
-function vActs(){
-  const f = S.filter, t = today();
-  const rows = S.activities.filter(a => f==="all" ? a.status==="planned" : f==="mine" ? a.owner===me() && a.status==="planned" : f==="overdue" ? a.status==="planned" && a.date && a.date<t : f==="done" ? a.status==="done" : f==="fav" ? favs.has(a.id) : a.type===f).filter(a => matchQ([a.title,a.note,getDeal(a.dealId)?.name,clientName(a.clientId)]));
-  const chips = [["all","Naplánované"],["mine","Moje"],["overdue","Po termínu"],["done","Realizované"],...Object.entries(ACT).map(([k,[t]])=>[k,t])].map(([k,t])=>`<button class="chip" data-filter="${k}" aria-pressed="${f===k}">${t}</button>`).join("");
-  return listHead("Aktivity", chips, "newact-task", "acts") + grid("acts", rows, {open:"open-act", defaultSort:"date", defaultDir:"asc", summary:r=>[["Počet", r.length]]});
 }
 
 // ---------- offers & price list ----------
@@ -2339,37 +2334,9 @@ function vCal(){
 }
 
 // ---------- documents ----------
-function vDocs(){
-  const rows = [];
-  S.deals.forEach(d => (d.photos||[]).forEach(f => rows.push({...f, id:f.id, src:"deal", rid:d.id, rname:d.code+" "+d.name})));
-  S.installs.forEach(m => (m.photos||[]).forEach(f => rows.push({...f, id:f.id, src:"install", rid:m.id, rname:"Montáž: "+(getDeal(m.dealId)?.code||"")+" "+(getDeal(m.dealId)?.name||"")})));
-  S.activities.forEach(a => (a.photos||[]).forEach(f => rows.push({...f, id:f.id, src:"activity", rid:a.id, rname:ACT[a.type][0]+": "+a.title})));
-  S.deals.forEach(d => (d.signatures||[]).forEach(s => rows.push({id:s.id, name:"Podpis – "+s.doc+" – "+s.signer, type:"image/png", at:s.at, by:s.by, src:"deal", rid:d.id, rname:d.code+" "+d.name})));
-  const f = S.filter; const shown = rows.filter(r => f==="all" ? true : f==="img" ? isImg(r) : !isImg(r)).filter(r => matchQ([r.name, r.rname]));
-  const chips = [["all","Vše"],["img","Fotky"],["doc","Dokumenty"]].map(([k,t])=>`<button class="chip" data-filter="${k}" aria-pressed="${f===k}">${t}</button>`).join("");
-  return `<div class="lhead"><h1>Dokumenty</h1><input id="q" class="lsearch" type="search" placeholder="Hledat…" value="${esc(S.q)}" aria-label="Hledat">${chips}</div>` + docsGrid(shown);
-}
 
-function docsGrid(rows){
-  rows = [...rows].sort((a,b)=>(b.at||0)-(a.at||0));
-  return `<div class="grid"><table class="g"><thead><tr><th>Název</th><th>Záznam</th><th>Nahráno</th><th>Nahrál</th><th class="num">Velikost</th></tr></thead><tbody>${rows.map(r=>`<tr data-act="open-doc" data-id="${r.id}" tabindex="0"><td>${isImg(r)?`<span class="link">🖼 ${esc(r.name)}</span>`:`<a class="link" data-act="noop" href="${blobUrl(r.id)}" target="_blank" rel="noopener">📄 ${esc(r.name)}</a>`}</td><td>${esc(r.rname)}</td><td>${fmtTs(r.at)}</td><td>${esc(r.by||"")}</td><td class="num">${r.size?Math.round(r.size/1024)+" kB":""}</td></tr>`).join("") || `<tr><td colspan="5"><div class="empty"><strong>Zatím žádné soubory</strong>Fotky a soubory nahrané k obchodům a aktivitám se zobrazí tady.</div></td></tr>`}</tbody></table></div><div class="sumbar"><span>Počet <b>${rows.length}</b></span></div>`;
-}
 
 // ---------- analysis ----------
-function vAnalysis(){
-  const yr = today().slice(0,4);
-  const won = S.deals.filter(d=>phaseById(d.phaseId).kind==="won"&&(d.closedAt||"").startsWith(yr));
-  const lost = S.deals.filter(d=>phaseById(d.phaseId).kind==="lost"&&(d.closedAt||"").startsWith(yr));
-  const by = (arr, key) => { const m = {}; arr.forEach(d => { const k = key(d) || "–"; m[k] = m[k] || {n:0,v:0,c:0}; m[k].n++; m[k].v += d.value||0; m[k].c += d.expectedCost||0; }); return Object.entries(m).sort((a,b)=>b[1].v-a[1].v); };
-  const tbl = (title, rows, cols) => `<div class="card"><div class="ch"><h2>${title}</h2></div><div class="cb" style="overflow-x:auto"><table class="lines" style="min-width:420px"><thead><tr>${cols.map(c=>`<th class="${c.n?"num":""}">${c.l}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td class="${c.n?"num":""}">${c.f(r)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${cols.length}" class="muted">Zatím žádná data</td></tr>`}</tbody></table></div></div>`;
-  const sellers = C().users.map(u => { const w = won.filter(d=>d.owner===u), l = lost.filter(d=>d.owner===u); const acts = S.activities.filter(a=>a.owner===u&&a.status==="done"&&(a.date||"").startsWith(yr)).length; return [u, {w:w.length, l:l.length, v:w.reduce((s,d)=>s+(d.value||0),0), rate: (w.length+l.length) ? Math.round(w.length/(w.length+l.length)*100) : null, acts}]; });
-  return `<div class="lhead"><h1>Analýzy</h1><span class="muted">rok ${yr}</span></div><div class="dash">
-  ${tbl("Prodej dle typu obchodu", by(won, d=>d.type), [{l:"Typ",f:r=>esc(r[0])},{l:"Počet",n:1,f:r=>r[1].n},{l:"Prodáno za",n:1,f:r=>money(r[1].v)},...(see("profit")?[{l:"Zisk",n:1,f:r=>money(r[1].v-r[1].c)}]:[])])}
-  ${tbl("Úspěšnost obchodníků", sellers, [{l:"Obchodník",f:r=>esc(r[0])},{l:"Vyhráno",n:1,f:r=>r[1].w},{l:"Prohráno",n:1,f:r=>r[1].l},{l:"Úspěšnost",n:1,f:r=>r[1].rate==null?"–":r[1].rate+" %"},{l:"Prodáno za",n:1,f:r=>money(r[1].v)},{l:"Real. aktivit",n:1,f:r=>r[1].acts}])}
-  ${tbl("Prodej dle zdroje", by(won, d=>d.source), [{l:"Zdroj",f:r=>esc(r[0])},{l:"Počet",n:1,f:r=>r[1].n},{l:"Prodáno za",n:1,f:r=>money(r[1].v)}])}
-  ${!see("profit")?"":tbl("Ziskovost obchodů", won.map(d=>[d.code+" "+d.name, d]).sort((a,b)=>((b[1].value||0)-(b[1].expectedCost||0))-((a[1].value||0)-(a[1].expectedCost||0))).slice(0,15), [{l:"Obchod",f:r=>esc(r[0])},{l:"Cena",n:1,f:r=>money(r[1].value)},{l:"Zisk",n:1,f:r=>money((r[1].value||0)-(r[1].expectedCost||0))},{l:"Marže",n:1,f:r=>r[1].value?Math.round(((r[1].value||0)-(r[1].expectedCost||0))/r[1].value*100)+" %":"–"}])}
-  </div>`;
-}
 
 // ---------- search ----------
 function vSearch(){
@@ -2655,7 +2622,7 @@ document.addEventListener("click", async e => {
     case "fc-remove": { const md = S.modal.data; prefs.filters[md.kind] = (prefs.filters[md.kind]||[]).filter(f=>f.id!==md.id); if (prefs.active[md.kind]?.id===md.id) prefs.active[md.kind] = null; savePrefs(); closeModal(); render(); toast("Filtr smazán"); break; }
     case "newmenu": S.newmenu = !S.newmenu; renderOverlay(); break;
     case "tab": go(a.dataset.v, id); break;
-    case "tabx": e.stopPropagation(); recent = recent.filter(r=>!(r.view===a.dataset.v&&r.param===id)); ls.set("stinko-recent", recent); if (S.view===a.dataset.v && S.param===id) go(S.backView || {deal:"deals",client:"clients",lead:"leads",activity:"activities",offer:"offers",install:"installs"}[a.dataset.v] || "dashboard"); else render(); break;
+    case "tabx": e.stopPropagation(); recent = recent.filter(r=>!(r.view===a.dataset.v&&r.param===id)); ls.set("stinko-recent", recent); if (S.view===a.dataset.v && S.param===id) go(S.backView || {deal:"deals",client:"clients",lead:"leads",activity:"calendar",offer:"offers",install:"installs"}[a.dataset.v] || "dashboard"); else render(); break;
     case "fav": favs.has(id) ? favs.delete(id) : favs.add(id); ls.set("stinko-favs", [...favs]); render(); break;
     case "pg": S.page += Number(a.dataset.d); render(); break;
     case "ask": S.confirm = a.dataset.what; render(); break;
@@ -2694,7 +2661,7 @@ document.addEventListener("click", async e => {
     case "del-deal": await store.del("deals", id).catch(()=>toast("Smazání se nepovedlo.")); toast("Obchod smazán"); go("deals"); break;
     case "del-client": await store.del("clients", id).catch(()=>toast("Smazání se nepovedlo.")); toast("Klient smazán"); go("clients"); break;
     case "del-lead": await store.del("leads", id).catch(()=>toast("Smazání se nepovedlo.")); toast("Lead smazán"); go("leads"); break;
-    case "del-act": { const x = S.activities.find(v=>v.id===id); await store.del("activities", id).catch(()=>toast("Smazání se nepovedlo.")); toast("Aktivita smazána"); x?.dealId ? go("deal", x.dealId, "timeline") : go("activities"); break; }
+    case "del-act": { const x = S.activities.find(v=>v.id===id); await store.del("activities", id).catch(()=>toast("Smazání se nepovedlo.")); toast("Aktivita smazána"); x?.dealId ? go("deal", x.dealId, "timeline") : go("calendar"); break; }
     // lead
     case "lead-state": { const l = JSON.parse(JSON.stringify(S.leads.find(x=>x.id===id))); if (l.state===a.dataset.st) break; log(l, `Stav: ${l.state} → ${a.dataset.st}`); l.state = a.dataset.st; if (await save("leads", l)) await runAuto("lead_state", {lead:l}); break; }
     case "convert-lead": { const l = S.leads.find(x=>x.id===id); if (l && l.state!=="Převeden") openConvert(l); break; }
