@@ -2442,6 +2442,7 @@ function modalHtml(){
     body = `<div class="fgrid"><label class="f"><span>Jméno / firma *</span><input id="l-name" value="${esc(r.name||"")}"></label><label class="f"><span>Telefon</span><input id="l-phone" type="tel" value="${esc(r.phone||"")}"></label><label class="f"><span>E-mail</span><input id="l-email" type="email" value="${esc(r.email||"")}"></label></div>
     <div class="fgrid"><label class="f"><span>Předmět</span><select id="l-subject">${opt(C().types, r.subject)}</select></label><label class="f"><span>Stav</span><select id="l-state">${opt(C().leadStates, r.state)}</select></label><label class="f"><span>Vlastník</span><select id="l-owner">${opt(C().users, r.owner)}</select></label><label class="f"><span>Zdroj</span><select id="l-source">${opt(C().sources, r.source, true)}</select></label></div>
     <div class="fgrid"><label class="f"><span>Ulice</span><input id="l-street" value="${esc(r.street||"")}"></label><label class="f"><span>Město</span><input id="l-city" value="${esc(r.city||"")}"></label><label class="f"><span>PSČ</span><input id="l-zip" value="${esc(r.zip||"")}"></label><label class="f"><span>Přijato</span><input id="l-received" type="date" value="${esc(r.receivedAt||today())}"></label></div>
+    <label class="f"><span>Oslovení v e-mailu</span><input id="l-salut" value="${esc(r.salutation||"")}" placeholder="automaticky: ${esc(salutation(r.name))}"></label>
     <label class="f"><span>Poznámka</span><textarea id="l-note">${esc(r.note||"")}</textarea></label>`;
   } else if (md.kind === "client"){
     title = r.name ? "Upravit klienta" : "Nový klient"; const persons = r.persons?.length ? r.persons : [{}];
@@ -2449,6 +2450,7 @@ function modalHtml(){
     <div class="fgrid"><label class="f"><span>Telefon</span><input id="c-phone" type="tel" value="${esc(r.phone||"")}"></label><label class="f"><span>E-mail</span><input id="c-email" type="email" value="${esc(r.email||"")}"></label><label class="f"><span>Ulice</span><input id="c-street" value="${esc(r.street||"")}"></label><label class="f"><span>Město</span><input id="c-city" value="${esc(r.city||"")}"></label><label class="f"><span>PSČ</span><input id="c-zip" value="${esc(r.zip||"")}"></label></div>
     <div class="fgrid"><label class="f"><span>Stav</span><select id="c-state">${opt(CLIENT_STATES, r.state)}</select></label><label class="f"><span>Vztah</span><select id="c-role">${opt(["Odběratel","Partner","Dodavatel","Konkurent"], r.role)}</select></label><label class="f"><span>Rating</span><select id="c-rating">${opt(["A","B","C"], r.rating, true)}</select></label><label class="f"><span>Vlastník</span><select id="c-owner">${opt(C().users, r.owner)}</select></label><label class="f"><span>Zdroj kontaktu</span><select id="c-source">${opt(C().sources, r.source, true)}</select></label><label class="f"><span>Obchodní teritorium</span><input id="c-territory" value="${esc(r.territory||"")}"></label><label class="f"><span>GDPR titul</span><select id="c-gdpr">${opt(["Plnění smlouvy","Oprávněný zájem","Souhlas se zpracováním"], r.gdpr)}</select></label></div>
     <span class="lbl">Kontaktní osoby</span><div id="persons" style="display:grid;gap:6px">${persons.map(p=>`<div class="fgrid person"><input class="pp-name" placeholder="Jméno" value="${esc(p.name||"")}" aria-label="Jméno osoby"><input class="pp-role" placeholder="Pozice" value="${esc(p.role||"")}" aria-label="Pozice"><input class="pp-phone" placeholder="Telefon" value="${esc(p.phone||"")}" aria-label="Telefon"><input class="pp-email" placeholder="E-mail" value="${esc(p.email||"")}" aria-label="E-mail"></div>`).join("")}</div><button type="button" class="btn sm" data-act="add-person" style="justify-self:start">+ Osoba</button>
+    <label class="f"><span>Oslovení v e-mailu</span><input id="c-salut" value="${esc(r.salutation||"")}" placeholder="automaticky: ${esc(salutation(r.person || r.persons?.[0]?.name || r.name))} (přepište, např. Vážený pane inženýre)"></label>
     <label class="f"><span>Poznámka</span><textarea id="c-note">${esc(r.note||"")}</textarea></label>`;
   } else if (md.kind === "offer"){
     title = r.code ? "Upravit nabídku "+r.code : "Nová nabídka";
@@ -2944,13 +2946,13 @@ document.addEventListener("submit", async e => {
       if (await save("deals", d)){ closeModal(); toast(isNew?`Založen ${d.code}`:"Uloženo"); if (isNew){ await runAuto("deal_created", {deal:d}); } else if (phaseChanged) await runAuto("deal_phase", {deal:d}); if (isNew && openAfter) go("deal", d.id); else if (!isNew) render(); }
     }
     if (md.kind==="lead"){
-      const l = {...r, name:v("l-name"), phone:v("l-phone"), email:v("l-email"), subject:v("l-subject"), state:v("l-state"), owner:v("l-owner"), source:v("l-source"), street:v("l-street"), city:v("l-city"), zip:v("l-zip"), receivedAt:v("l-received")||today(), note:$("#l-note").value};
+      const l = {...r, name:v("l-name"), phone:v("l-phone"), email:v("l-email"), subject:v("l-subject"), state:v("l-state"), owner:v("l-owner"), source:v("l-source"), street:v("l-street"), city:v("l-city"), zip:v("l-zip"), receivedAt:v("l-received")||today(), salutation:v("l-salut"), note:$("#l-note").value};
       if (!l.name){ r._new = isNew; toast("Vyplňte jméno."); return; }
       if (isNew){ l.code = nextCode(S.all.leads||S.leads, C().leadPrefix||"L"); l.createdAt = Date.now(); log(l, "Lead přijat"); } else log(l, "Údaje upraveny");
       if (await save("leads", l)){ closeModal(); toast(isNew?`Lead ${l.code} uložen`:"Uloženo"); if (isNew) await runAuto("lead_created", {lead:l}); if (openAfter) go("lead", l.id); }
     }
     if (md.kind==="client"){
-      const c = {...r, name:v("c-name"), ico:v("c-ico"), dic:v("c-dic"), phone:v("c-phone"), email:v("c-email"), street:v("c-street"), city:v("c-city"), zip:v("c-zip"), state:v("c-state"), role:v("c-role"), rating:v("c-rating"), owner:v("c-owner"), source:v("c-source"), territory:v("c-territory"), gdpr:v("c-gdpr"), note:$("#c-note").value,
+      const c = {...r, name:v("c-name"), ico:v("c-ico"), dic:v("c-dic"), phone:v("c-phone"), email:v("c-email"), street:v("c-street"), city:v("c-city"), zip:v("c-zip"), state:v("c-state"), role:v("c-role"), rating:v("c-rating"), owner:v("c-owner"), source:v("c-source"), territory:v("c-territory"), gdpr:v("c-gdpr"), salutation:v("c-salut"), note:$("#c-note").value,
         persons:[...document.querySelectorAll(".person")].map(p=>({name:p.querySelector(".pp-name").value.trim(), role:p.querySelector(".pp-role").value.trim(), phone:p.querySelector(".pp-phone").value.trim(), email:p.querySelector(".pp-email").value.trim()})).filter(p=>p.name)};
       if (!c.name){ r._new = isNew; toast("Vyplňte název klienta."); return; }
       if (isNew) c.createdAt = Date.now();
@@ -3210,9 +3212,46 @@ async function mailAttach(files){
   for (const f of files){ try { const r = await assets.upload(f); d.att.push({id:r.id, name:f.name, size:r.sizeBytes||f.size}); } catch(e){ console.error(e); toast("Přílohu " + f.name + " se nepodařilo nahrát."); } }
   d.uploading = false; if (S.modal?.data === d){ S._forceModal = true; renderOverlay(); }
 }
+// ---------- oslovení: "Dobrý den, pane Nováku," from a name (Czech vocative of the surname) ----------
+const FEM_FIRST = new Set("eva jana hana anna marie lenka kateřina lucie petra martina veronika tereza michaela monika zuzana jitka alena markéta ivana barbora kristýna simona pavla věra dana helena ludmila jaroslava andrea nikola klára eliška adéla natálie karolína denisa gabriela šárka romana renata olga zdeňka iveta irena milena blanka radka vladimíra dagmar ilona libuše miroslava jiřina hedvika magdaléna aneta silvie sabina vendula daniela kamila stanislava drahomíra božena marcela soňa sandra julie viktorie ema emma sofie ester johana valerie žaneta iva kristina".split(" "));
+const MALE_FIRST = new Set("jan petr pavel jiří josef tomáš martin jaroslav miroslav zdeněk václav michal františek jakub milan karel lukáš david ondřej vladimír ladislav roman stanislav marek radek daniel antonín vojtěch filip adam matěj dominik patrik aleš libor jindřich ivan vít richard robert oldřich vlastimil luboš dušan kamil igor rudolf bohumil štěpán šimon matyáš kryštof hynek přemysl radim viktor otakar jaromír bořivoj zbyněk ivo lubomír emil leoš denis erik oskar sebastián tadeáš vilém eduard bohuslav jonáš samuel alexandr dalibor radovan bohdan lubor miloš lumír vratislav ctibor kvido arnošt evžen zdenek jiri tomas frantisek vaclav lukas ondrej".split(" "));
+const TITLES = /^(ing|mgr|bc|mudr|judr|phdr|rndr|paeddr|mvdr|doc|prof|ph\.?d|csc|mba|dis|arch|ing\.arch)\.?$/i;
+const COMPANY = /\b(s\.?\s?r\.?\s?o|a\.?\s?s|spol|v\.?\s?o\.?\s?s|k\.?\s?s|z\.?\s?s|o\.?\s?p\.?\s?s|z\.?\s?ú|družstvo|group|holding|ltd|gmbh|inc)\b\.?|\d/i;
+const capFirst = w => w ? w[0].toUpperCase() + w.slice(1) : w;
+// vocative of a male surname (Novák → Nováku, Svoboda → Svobodo, Beneš → Beneši, Černý → Černý)
+function vocMale(s){
+  const w = s.toLowerCase(), keep = (base, end) => s.slice(0, base) + end;
+  if (/[ýíoeiuy]$/.test(w) || /ů$/.test(w)) return s;                    // Černý, Jirotka? (-a handled below), Krejčí, Janů
+  if (/a$/.test(w)) return keep(-1, "o");                                // Svoboda, Procházka
+  if (/(n|d|t)ěk$/.test(w)) return keep(-3, {n:"ň", d:"ď", t:"ť"}[w.at(-3)] + "ku"); // Vaněk → Vaňku
+  if (/[^aeiouyáéíóúůý]ek$/.test(w)) return keep(-2, "ku");             // Šimánek → Šimánku, Hájek → Hájku
+  if (/ec$/.test(w) && w.length > 4) return keep(-2, "če");              // Němec → Němče
+  if (/(ch|k|h|g)$/.test(w)) return s + "u";                             // Novák, Dvořák, Vondráček
+  if (/[šžčřjďťňcsxz]$/.test(w)) return s + "i";                         // Beneš, Kolář, Mráz
+  if (/[^aeiouyáéíóúůý]r$/.test(w)) return keep(-1, "ře");               // (Petr)
+  if (/(havel|pavel|karel)$/.test(w)) return keep(-2, "le");             // Havel → Havle
+  if (/[bdfglmnptv]$/.test(w) || /[aeiouáéíóú]r$/.test(w)) return s + "e"; // Zeman, Král, Navrátil, Holub
+  return s;
+}
+// {osloveni}: an explicit salutation wins; a company or an unclear name falls back to "Dobrý den,"
+function salutation(name, own){
+  if (own && own.trim()){ const o = own.trim().replace(/,+$/, ""); return /^(dobrý|vážen|mil[ýá]|ahoj|zdravím|hezký)/i.test(o) ? o + "," : `Dobrý den, ${o},`; }
+  const raw = String(name||"").trim(); if (!raw || COMPANY.test(raw)) return "Dobrý den,";
+  const parts = raw.replace(/,/g, " ").split(/\s+/).filter(p => p && !TITLES.test(p.replace(/\.$/, "")) && !TITLES.test(p));
+  if (!parts.length || parts.length > 3) return "Dobrý den,";
+  let first = "", last = parts.at(-1);
+  if (parts.length >= 2){ first = parts[0]; const a = parts[0].toLowerCase(), b = last.toLowerCase();
+    if ((FEM_FIRST.has(b) || MALE_FIRST.has(b)) && !(FEM_FIRST.has(a) || MALE_FIRST.has(a))){ first = last; last = parts[0]; } }  // "Novák Jan"
+  const f = first.toLowerCase(), l = last.toLowerCase();
+  // only a known first name (or a -ová surname with one) decides; anything else could be a company
+  if (!first) return "Dobrý den,";
+  if (FEM_FIRST.has(f) || (/ová$/.test(l) && !MALE_FIRST.has(f))) return `Dobrý den, paní ${capFirst(last)},`;
+  if (MALE_FIRST.has(f) && !/ová$/.test(l)) return `Dobrý den, pane ${capFirst(vocMale(last))},`;
+  return "Dobrý den,";
+}
 // ---------- e-mailové šablony (společné pro firmu, v config.mailTpls) ----------
 const DEFAULT_TPLS = [
-  {id:"t-nabidka", name:"Zaslání cenové nabídky", subject:"Cenová nabídka {nabidka} – {predmet}", body:`Dobrý den,
+  {id:"t-nabidka", name:"Zaslání cenové nabídky", subject:"Cenová nabídka {nabidka} – {predmet}", body:`{osloveni}
 
 děkujeme za Váš zájem o naše řešení. V příloze Vám posíláme cenovou nabídku {nabidka} – {predmet}.
 
@@ -3224,7 +3263,7 @@ V ceně je doprava, montáž, zprovoznění ovládání i zaškolení. Pergolu v
 Pokud Vám cokoli není jasné nebo chcete nabídku probrat, stačí odpovědět na tento e-mail nebo mi zavolat. Rád se zastavím i osobně.
 
 Těším se na Vaši odpověď.`},
-  {id:"t-obhlidka", name:"Nabídka po obhlídce / zaměření", subject:"Nabídka podle obhlídky – {predmet}", body:`Dobrý den,
+  {id:"t-obhlidka", name:"Nabídka po obhlídce / zaměření", subject:"Nabídka podle obhlídky – {predmet}", body:`{osloveni}
 
 ještě jednou děkuji za čas, který jste mi věnovali při obhlídce. Podle naměřených rozměrů a toho, co jsme spolu probrali, jsem připravil nabídku {nabidka}, kterou najdete v příloze.
 
@@ -3234,7 +3273,7 @@ Platnost nabídky: do {platnost}
 Do nabídky jsem zapracoval vše, na čem jsme se domluvili. Kdybyste chtěli něco upravit nebo porovnat jinou variantu, rád ji připravím.
 
 Po Vašem potvrzení Vám pošlu zálohovou fakturu a domluvíme termín montáže.`},
-  {id:"t-upravena", name:"Upravená nabídka (nová verze)", subject:"Upravená nabídka {nabidka} – {predmet}", body:`Dobrý den,
+  {id:"t-upravena", name:"Upravená nabídka (nová verze)", subject:"Upravená nabídka {nabidka} – {predmet}", body:`{osloveni}
 
 podle Vašich připomínek jsem nabídku upravil. Nová verze {nabidka} je v příloze.
 
@@ -3242,26 +3281,26 @@ Nová celková cena: {cena} vč. DPH
 Platnost nabídky: do {platnost}
 
 Dejte mi prosím vědět, jestli Vám teď vše vyhovuje, případně co ještě doladit.`},
-  {id:"t-pripominka", name:"Připomenutí nabídky (po 3–5 dnech)", subject:"Re: Cenová nabídka {nabidka}", body:`Dobrý den,
+  {id:"t-pripominka", name:"Připomenutí nabídky (po 3–5 dnech)", subject:"Re: Cenová nabídka {nabidka}", body:`{osloveni}
 
 před pár dny jsem Vám posílal cenovou nabídku {nabidka} ({predmet}). Chtěl jsem se zeptat, jestli jste ji měli čas projít a jestli k ní máte nějaké otázky.
 
 Rád Vám vysvětlím jednotlivé položky, připravím jinou variantu nebo se domluvíme na ukázce u nás či u některé z hotových realizací.
 
 Stačí krátká odpověď na tento e-mail.`},
-  {id:"t-pripominka2", name:"Druhé připomenutí – poslední kontakt", subject:"Mám pro Vás ještě nabídku držet? – {predmet}", body:`Dobrý den,
+  {id:"t-pripominka2", name:"Druhé připomenutí – poslední kontakt", subject:"Mám pro Vás ještě nabídku držet? – {predmet}", body:`{osloveni}
 
 zatím jsem od Vás nedostal odpověď na nabídku {nabidka}, tak se ozývám naposledy, abych Vás zbytečně neobtěžoval.
 
 Pokud je pergola pro Vás stále aktuální, rád nabídku podržím nebo upravím. Pokud jste se rozhodli jinak nebo projekt odkládáte, budu rád za krátkou zprávu, ať vím, na čem jsme.
 
 Děkuji a přeji hezký den.`},
-  {id:"t-platnost", name:"Končí platnost nabídky", subject:"Platnost nabídky {nabidka} končí {platnost}", body:`Dobrý den,
+  {id:"t-platnost", name:"Končí platnost nabídky", subject:"Platnost nabídky {nabidka} končí {platnost}", body:`{osloveni}
 
 chci Vás jen upozornit, že platnost cenové nabídky {nabidka} ({predmet}) končí {platnost}.
 
 Do tohoto data Vám garantujeme uvedenou cenu {cena} vč. DPH i aktuální termíny montáže. Pokud budete potřebovat víc času na rozmyšlenou, napište mi a domluvíme se.`},
-  {id:"t-akceptace", name:"Poděkování za objednávku – další kroky", subject:"Děkujeme za objednávku – {predmet}", body:`Dobrý den,
+  {id:"t-akceptace", name:"Poděkování za objednávku – další kroky", subject:"Děkujeme za objednávku – {predmet}", body:`{osloveni}
 
 děkujeme za Vaši objednávku a důvěru. Moc si toho vážíme.
 
@@ -3272,7 +3311,7 @@ Co bude následovat:
 4. Po montáži vše společně předáme a vysvětlíme ovládání.
 
 Kdykoli budete mít dotaz, jsem Vám k dispozici.`},
-  {id:"t-zamitnuta", name:"Odmítnutá nabídka – zpětná vazba", subject:"Děkuji za odpověď – {predmet}", body:`Dobrý den,
+  {id:"t-zamitnuta", name:"Odmítnutá nabídka – zpětná vazba", subject:"Děkuji za odpověď – {predmet}", body:`{osloveni}
 
 děkuji, že jste mi dali vědět. Mrzí mě, že jsme se tentokrát nedohodli.
 
@@ -3282,12 +3321,14 @@ Pokud byste se k projektu v budoucnu vrátili, rád Vám připravím novou nabí
 ];
 const mailTpls = () => C().mailTpls || DEFAULT_TPLS;
 async function saveTpls(list){ const ok = await save("config", {id:"main", ...C(), mailTpls:list}); if (ok && cfgDraft) cfgDraft.mailTpls = list; return ok; }
-const TPL_VARS = [["jmeno","jméno klienta / kontaktní osoby"],["klient","název klienta"],["nabidka","číslo nabídky"],["predmet","předmět nabídky / obchodu"],["cena","cena nabídky vč. DPH"],["cena_bez_dph","cena bez DPH"],["platnost","platnost nabídky do"],["obchod","číslo obchodního případu"],["obchodnik","vaše jméno"]];
+const TPL_VARS = [["osloveni","oslovení, např. Dobrý den, pane Nováku,"],["jmeno","jméno klienta / kontaktní osoby"],["klient","název klienta"],["nabidka","číslo nabídky"],["predmet","předmět nabídky / obchodu"],["cena","cena nabídky vč. DPH"],["cena_bez_dph","cena bez DPH"],["platnost","platnost nabídky do"],["obchod","číslo obchodního případu"],["obchodnik","vaše jméno"]];
 // values for {proměnné} from what the e-mail is about (offer → deal → client, or a lead)
 function tplVars(ctx = {}){
   const o = ctx.offerId ? getOffer(ctx.offerId) : null, deal = getDeal(ctx.dealId || o?.dealId), cl = getClient(ctx.clientId || o?.clientId || deal?.clientId), ld = ctx.leadId ? S.leads.find(l => l.id===ctx.leadId) : null;
   const total = o ? itemsTotal(o.items) : 0;
-  return {jmeno: ctx.person || cl?.person || cl?.persons?.[0]?.name || cl?.name || ld?.name || "", klient: cl?.name || ld?.name || "",
+  const pers = ctx.person ? (cl?.persons||[]).find(p => p.name===ctx.person) : null;
+  const jmeno = ctx.person || cl?.person || cl?.persons?.[0]?.name || cl?.name || ld?.name || "";
+  return {osloveni: salutation(jmeno, pers?.salutation || cl?.salutation || ld?.salutation), jmeno, klient: cl?.name || ld?.name || "",
     nabidka: o?.code || "", predmet: o?.name || deal?.name || ld?.subject || "", cena: o ? money(total + vatSum(o, o.items)) : "", cena_bez_dph: o ? money(total) : "",
     platnost: o?.validTo ? fmtD(o.validTo) : "", obchod: deal?.code || "", obchodnik: me()};
 }
