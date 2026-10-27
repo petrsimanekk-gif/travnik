@@ -23,6 +23,7 @@ import (
 	"net"
 	"net/http"
 	"net/smtp"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -793,6 +794,33 @@ func handleMailBoxes(e *core.RequestEvent) error {
 }
 
 // boxFromBody reads mailbox settings sent by the page; an empty password keeps the stored one.
+// publicMailHost keeps a user's own mailbox to real mail servers: usual ports, public
+// addresses (not this server or the local network) and an encrypted connection.
+func publicMailHost(cfg *mailCfg) error {
+	if os.Getenv("STINKO_MAIL_TEST_LOCAL") == "1" {
+		return nil // local test runs against a fake mail server on 127.0.0.1
+	}
+	ports := map[int]bool{993: true, 143: true, 465: true, 587: true, 25: true, 2525: true}
+	if !ports[cfg.ImapPort] || !ports[cfg.SmtpPort] {
+		return errors.New("Nepovolený port. Použijte porty poštovního serveru (IMAP 993, SMTP 465 nebo 587).")
+	}
+	if cfg.Security == "none" {
+		return errors.New("Spojení se schránkou musí být šifrované (SSL/TLS nebo STARTTLS).")
+	}
+	for _, h := range []string{cfg.ImapHost, cfg.SmtpHost} {
+		ips, err := net.LookupIP(h)
+		if err != nil || len(ips) == 0 {
+			return fmt.Errorf("Server %s se nepodařilo najít.", h)
+		}
+		for _, ip := range ips {
+			if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() || ip.IsMulticast() {
+				return fmt.Errorf("Server %s není veřejný poštovní server.", h)
+			}
+		}
+	}
+	return nil
+}
+
 // boxOwned: admins manage every mailbox, a user only the one they connected.
 func boxOwned(a map[string]any, cfg *mailCfg) bool {
 	return a["role"] == "admin" || (cfg.Owner != "" && cfg.Owner == a["id"])
@@ -832,6 +860,11 @@ func boxFromBody(e *core.RequestEvent, a map[string]any) (string, *mailCfg, erro
 		cfg.Owner = old.Owner
 	} else {
 		cfg.Owner = ""
+	}
+	if a["role"] != "admin" {
+		if err := publicMailHost(&cfg); err != nil {
+			return "", nil, e.BadRequestError(err.Error(), nil)
+		}
 	}
 	if a["role"] != "admin" {
 		// a user's own mailbox: only they (and admins) see it

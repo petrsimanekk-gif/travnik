@@ -8,6 +8,8 @@ package main
 
 import (
 	"fmt"
+
+	"github.com/pocketbase/dbx"
 	"net/http"
 	"regexp"
 	"sort"
@@ -150,6 +152,13 @@ func sendLeadAutoMails(app core.App, leadID string, keys []string) {
 	l := docData(rec)
 	v := leadVars(l)
 	to := strings.TrimSpace(str(l, "email"))
+	// the web form is public: it must not become a way to send our e-mails to anyone, many times
+	if to != "" && str(l, "source") == "Web" {
+		if why := webMailLimit(app, to); why != "" {
+			events = append(events, map[string]any{"at": time.Now().UnixMilli(), "by": "Automatizace", "kind": "edit", "text": "✉ Automatický e-mail neodeslán: " + why})
+			to = ""
+		}
+	}
 	for _, r := range autoRules(app) {
 		for i, a := range ruleActions(r) {
 			if a == nil || !want[fmt.Sprintf("%s:%d", str(r, "id"), i)] {
@@ -158,7 +167,9 @@ func sendLeadAutoMails(app core.App, leadID string, keys []string) {
 			name := str(r, "name")
 			ms := time.Now().UnixMilli()
 			if to == "" {
-				events = append(events, map[string]any{"at": ms, "by": "Automatizace", "kind": "edit", "text": "✉ E-mail neodeslán – lead nemá e-mail (automatizace „" + name + "“)"})
+				if len(events) == 0 {
+					events = append(events, map[string]any{"at": ms, "by": "Automatizace", "kind": "edit", "text": "✉ E-mail neodeslán – lead nemá e-mail (automatizace „" + name + "“)"})
+				}
 				continue
 			}
 			subject := fillAuto(str(a, "subject"), v)
@@ -179,6 +190,35 @@ func sendLeadAutoMails(app core.App, leadID string, keys []string) {
 		l["events"] = append(old, events...)
 		_ = putDoc(app, "leads", leadID, l)
 	}
+}
+
+const (
+	webMailPerHour  = 20             // automatic e-mails to web-form leads, all addresses together
+	webMailSameAddr = 24 * time.Hour // one per address in this window
+)
+
+// webMailLimit says why an automatic e-mail to a web-form lead must not go out ("" = may).
+func webMailLimit(app core.App, to string) string {
+	recs, _ := app.FindAllRecords("docs", dbx.HashExp{"col": "comms"})
+	now := time.Now().UnixMilli()
+	hour := 0
+	for _, r := range recs {
+		c := docData(r)
+		if str(c, "by") != "Automatizace" || str(c, "status") == "neodesláno" {
+			continue
+		}
+		at, _ := c["at"].(float64)
+		if now-int64(at) < time.Hour.Milliseconds() {
+			hour++
+		}
+		if strings.EqualFold(str(c, "to"), to) && now-int64(at) < webMailSameAddr.Milliseconds() {
+			return "na tuto adresu už dnes automatický e-mail odešel (ochrana proti zneužití formuláře)"
+		}
+	}
+	if hour >= webMailPerHour {
+		return "za poslední hodinu odešlo příliš mnoho automatických e-mailů (ochrana proti zneužití formuláře)"
+	}
+	return ""
 }
 
 // handleMailAuto sends an e-mail of an automation the page has just run.
