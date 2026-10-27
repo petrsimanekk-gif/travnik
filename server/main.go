@@ -490,12 +490,17 @@ func canWrite(a map[string]any, col, key string, data map[string]any, app core.A
 		return key == a["id"]
 	}
 	if col == "accounts" {
-		// own password change only: everything but salt/hash must stay as is
+		// own password and phone only: everything else must stay as is
 		if key != a["id"] || data == nil {
 			return false
 		}
+		if p, ok := data["phone"]; ok {
+			if s, isStr := p.(string); !isStr || len(s) > 40 {
+				return false
+			}
+		}
 		for k, v := range data {
-			if k == "salt" || k == "hash" || k == "id" {
+			if k == "salt" || k == "hash" || k == "id" || k == "phone" {
 				continue
 			}
 			old, _ := json.Marshal(a[k])
@@ -505,7 +510,7 @@ func canWrite(a map[string]any, col, key string, data map[string]any, app core.A
 			}
 		}
 		for k := range a {
-			if _, ok := data[k]; !ok && k != "id" {
+			if _, ok := data[k]; !ok && k != "id" && k != "phone" {
 				return false
 			}
 		}
