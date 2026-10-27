@@ -1206,7 +1206,25 @@ const TRIGGERS = {
 const ACTIONS = {order:"Vytvořit PDF objednávku výroby pro výrobce", stock:"Odepsat prodané produkty ze skladu", email:"Poslat e-mail zákazníkovi", task:"Vytvořit aktivitu / úkol", notify:"Upozornit uživatele", phase:"Změnit stav obchodu", category:"Nastavit kategorii obchodu", log:"Zapsat do historie obchodu"};
 const autos = () => C().automations || [];
 const autoSalut = x => { const cl = getClient(x.deal?.clientId || x.offer?.clientId); return x.lead ? salutation(x.lead.name, x.lead.salutation) : cl ? salutation(cl.person || cl.persons?.[0]?.name || cl.name, cl.salutation) : "Dobrý den,"; };
-const fillT = (t, x) => String(t||"").replace(/\{(\w+)\}/g, (all, k) => k==="osloveni" ? autoSalut(x) : ({obchod:x.deal?.name, kod:x.deal?.code, klient:clientName(x.deal?.clientId || x.offer?.clientId) || x.lead?.name, stav:x.deal?phaseById(x.deal.phaseId).name:(x.lead?.state||x.offer?.status), lead:x.lead?.name, jmeno:x.lead?.name || clientName(x.deal?.clientId), nabidka:x.offer?.code, vlastnik:x.deal?.owner||x.lead?.owner})[k] ?? (TPL_VARS.some(v => v[0]===k) ? tplVars({offerId:x.offer?.id, dealId:x.deal?.id, clientId:x.deal?.clientId || x.offer?.clientId, leadId:x.lead?.id})[k] : "") ?? "");
+// {proměnné} → text; {osloveni} right after a written greeting ("Dobrý den, {osloveni},") keeps one greeting and one comma
+function fillVars(t, get){
+  t = String(t||""); let out = "", last = 0;
+  for (const m of t.matchAll(/\{(\w+)\}/g)){
+    out += t.slice(last, m.index); last = m.index + m[0].length;
+    let val = String(get(m[1], m[0]) ?? "");
+    if (m[1]==="osloveni"){
+      const line = out.slice(out.lastIndexOf("\n") + 1), greet = /(dobrý\s+den|dobrý\s+večer|dobré\s+ráno|zdravím)[ \t]*,?[ \t]*$/i;
+      if (greet.test(line)){ val = val.replace(/^(dobrý\s+den|dobrý\s+večer|dobré\s+ráno|zdravím)[ \t]*,?[ \t]*/i, "");
+        if (!val){ out = out.replace(/[ \t]+$/, "").replace(/,$/, "") + (t[last]==="," ? "" : ","); }
+        else if (!/,[ \t]*$/.test(line)) out = out.replace(/[ \t]+$/, "") + ", ";
+        else if (!/ $/.test(line)) out += " "; }
+      if (t[last]==="," ) val = val.replace(/,$/, "");
+    }
+    out += val;
+  }
+  return out + t.slice(last);
+}
+const fillT = (t, x) => fillVars(t, k => k==="osloveni" ? autoSalut(x) : ({obchod:x.deal?.name, kod:x.deal?.code, klient:clientName(x.deal?.clientId || x.offer?.clientId) || x.lead?.name, stav:x.deal?phaseById(x.deal.phaseId).name:(x.lead?.state||x.offer?.status), lead:x.lead?.name, jmeno:x.lead?.name || clientName(x.deal?.clientId), nabidka:x.offer?.code, vlastnik:x.deal?.owner||x.lead?.owner})[k] ?? (TPL_VARS.some(v => v[0]===k) ? tplVars({offerId:x.offer?.id, dealId:x.deal?.id, clientId:x.deal?.clientId || x.offer?.clientId, leadId:x.lead?.id})[k] : "") ?? "");
 const adminNames = () => S.accounts.filter(a=>a.role==="admin" && a.active!==false).map(a=>a.name);
 const resolveWho = (w, x) => w==="owner" ? [x.deal?.owner || x.lead?.owner || x.offer?.owner || me()] : w==="me" ? [me()] : w==="admins" ? (adminNames().length ? adminNames() : [me()]) : w==="techs" ? (x.install?.techs||[]) : [w];
 async function notify(to, text, x){ for (const n of [...new Set(to)].filter(Boolean)) await save("notifs", {id:uid(), to:n, text, at:Date.now(), read:false, dealId:x.deal?.id||"", leadId:x.lead?.id||"", by:me()}); }
@@ -2731,7 +2749,7 @@ document.addEventListener("click", async e => {
     case "pm-lead": { const m = MAIL.msg; if (!m) break; try { const r = await mailApi("tolead", {id:m.id}); m.leadId = r.id; toast(r.existing ? "Lead už existuje" : "Lead založen" + (r.code ? " (" + r.code + ")" : "")); let n = 0; const t = setInterval(() => { if (S.leads.some(l => l.id===r.id)){ clearInterval(t); go("lead", r.id); } else if (++n > 25){ clearInterval(t); render(); } }, 200); } catch(e){ toast(e.message || "Lead se nepodařilo založit."); } break; }
     case "mc-unatt": { const d = readCompose(); d.att.splice(Number(a.dataset.i), 1); S._forceModal = true; renderOverlay(); break; }
     case "mail-send": mailQueueSend(); break;
-    case "mbox-new": if (!mailOn()) break; openModal("mbox", {fromName:isAdmin() ? "" : me(), name:isAdmin() ? "" : me(), preset:"seznam", imapHost:"imap.seznam.cz", imapPort:993, smtpHost:"smtp.seznam.cz", smtpPort:465, security:"ssl", enabled:true}); break;
+    case "mbox-new": if (!mailOn()) break; openModal("mbox", {fromName:isAdmin() ? "Prima Shade" : me(), name:isAdmin() ? "" : me(), preset:"seznam", imapHost:"imap.seznam.cz", imapPort:993, smtpHost:"smtp.seznam.cz", smtpPort:465, security:"ssl", enabled:true}); break;
     case "mbox-edit": { const b = mailBox(id); if (!b?.mine) break; if (!b) break; const pr = Object.keys(MAIL_PRESETS).find(k => MAIL_PRESETS[k][1] && MAIL_PRESETS[k][1]===b.imapHost) || "custom"; openModal("mbox", {...b, preset:pr}); break; }
     case "mbox-ask": S.confirm = "mbox-" + id; render(); break;
     case "mbox-del": { S.confirm = null; if (S.modal?.kind==="mbox"){ if (!confirm("Odpojit schránku? Stažená pošta se z CRM smaže, ve schránce samotné zůstane.")) break; S.modal = null; S._forceModal = true; renderOverlay(); } try { await mailApi("boxdel", {id}); toast("Schránka odpojena"); } catch(e){ toast(e.message); } MAIL.boxes = null; MAIL.items = null; MAIL.sel = null; render(); break; }
@@ -3367,7 +3385,7 @@ function tplVars(ctx = {}){
     platnost: o?.validTo ? fmtD(o.validTo) : "", obchod: deal?.code || "", obchodnik: me()};
 }
 // a variable without a value stays visible as [what is missing], so it is not sent by mistake
-const fillTpl = (s, v) => String(s||"").replace(/\{([a-z_]+)\}/g, (m, k) => v[k] ? v[k] : k in v ? `[${TPL_VARS.find(x => x[0]===k)[1]}]` : m);
+const fillTpl = (s, v) => fillVars(s, (k, m) => v[k] ? v[k] : k in v ? `[${TPL_VARS.find(x => x[0]===k)[1]}]` : m);
 function tplsCard(){
   const L = mailTpls();
   return `<div class="card"><div class="ch"><h2>E-mailové šablony</h2><span class="row" style="gap:6px">${C().mailTpls?"":`<span class="muted" style="font-size:12px">připravené šablony</span>`}${C().mailTpls && DEFAULT_TPLS.some(t => !C().mailTpls.some(x => x.id===t.id)) ? `<button class="btn sm" data-act="tpl-defaults" title="Přidá připravené šablony, které v seznamu chybí">Doplnit připravené</button>` : ""}<button class="btn sm blue" data-act="tpl-new">+ Nová šablona</button></span></div><div class="cb"><table class="lines" style="min-width:0"><tbody>${L.map(t => `<tr><td><b>${esc(t.name)}</b><br><small class="muted">${esc(t.subject)}</small></td><td style="white-space:nowrap;text-align:right"><button class="btn sm" data-act="tpl-edit" data-id="${t.id}">Upravit</button></td></tr>`).join("")}</tbody></table>
@@ -3400,7 +3418,7 @@ function mailBoxesCard(){
   if (!SV) return "";
   if (MAIL.boxes===null){ if (!MAIL.loading) after.push(async () => { MAIL.loading = true; try { await mailLoadBoxes(); } finally { MAIL.loading = false; } if (S.view==="settings") render(); }); }
   const bx = MAIL.all||[];
-  return `<div class="card"><div class="ch"><h2>E-mailové schránky</h2><button class="btn sm blue" data-act="mbox-new">+ Připojit schránku</button></div><div class="cb">${bx.length ? `<table class="lines" style="min-width:0"><thead><tr><th>Schránka</th><th>Adresa</th><th>Stav</th><th></th></tr></thead><tbody>${bx.map(b => { const err = MAIL.st[b.id]?.error ?? b.error; return `<tr><td><b>${esc(b.name)}</b>${b.owner?`<br><small class="muted">osobní · ${esc((S.accounts||[]).find(x => x.id===b.owner)?.name || "")}</small>`:""}</td><td class="mono">${esc(b.email)}</td><td>${!b.enabled ? `<span class="muted">Vypnuto</span>` : err ? `<span style="color:var(--bad)" title="${esc(err)}">⚠ ${esc(err.slice(0,90))}</span>` : b.lastSync ? `<span style="color:var(--good)">✓ Načteno ${fmtTs(b.lastSync)}</span>` : `<span class="muted">Čeká na první načtení…</span>`}</td><td style="white-space:nowrap"><button class="btn sm" data-act="mbox-edit" data-id="${b.id}">Upravit</button> ${S.confirm==="mbox-"+b.id ? `<span class="confirm">Odpojit a smazat staženou poštu z CRM?<button class="btn sm badfill" data-act="mbox-del" data-id="${b.id}">Ano</button><button class="btn sm" data-act="no">Ne</button></span>` : `<button class="btn sm ghost bad" data-act="mbox-ask" data-id="${b.id}">Odpojit</button>`}</td></tr>`; }).join("")}</tbody></table>` : `<p class="muted" style="margin:0">Žádná schránka. Po připojení se v menu objeví Pošta s doručenou a odeslanou poštou.</p>`}
+  return `<div class="card"><div class="ch"><h2>E-mailové schránky</h2><button class="btn sm blue" data-act="mbox-new">+ Připojit schránku</button></div><div class="cb">${bx.length ? `<table class="lines" style="min-width:0"><thead><tr><th>Schránka</th><th>Adresa</th><th>Stav</th><th></th></tr></thead><tbody>${bx.map(b => { const err = MAIL.st[b.id]?.error ?? b.error; return `<tr><td><b>${esc(b.name)}</b>${b.owner?`<br><small class="muted">osobní · ${esc((S.accounts||[]).find(x => x.id===b.owner)?.name || "")}</small>`:""}</td><td class="mono">${esc(b.email)}${b.fromName ? `<br><small class="muted" style="font-family:var(--f,inherit)">odesílatel: ${esc(b.fromName)}</small>` : `<br><small style="color:var(--warn);font-family:var(--f,inherit)">⚠ chybí jméno odesílatele – příjemci uvidí jen adresu</small>`}</td><td>${!b.enabled ? `<span class="muted">Vypnuto</span>` : err ? `<span style="color:var(--bad)" title="${esc(err)}">⚠ ${esc(err.slice(0,90))}</span>` : b.lastSync ? `<span style="color:var(--good)">✓ Načteno ${fmtTs(b.lastSync)}</span>` : `<span class="muted">Čeká na první načtení…</span>`}</td><td style="white-space:nowrap"><button class="btn sm" data-act="mbox-edit" data-id="${b.id}">Upravit</button> ${S.confirm==="mbox-"+b.id ? `<span class="confirm">Odpojit a smazat staženou poštu z CRM?<button class="btn sm badfill" data-act="mbox-del" data-id="${b.id}">Ano</button><button class="btn sm" data-act="no">Ne</button></span>` : `<button class="btn sm ghost bad" data-act="mbox-ask" data-id="${b.id}">Odpojit</button>`}</td></tr>`; }).join("")}</tbody></table>` : `<p class="muted" style="margin:0">Žádná schránka. Po připojení se v menu objeví Pošta s doručenou a odeslanou poštou.</p>`}
   <p class="muted" style="margin:10px 0 0;font-size:12px">Osobní schránky si zaměstnanci připojují sami v Poště a vidí je jen oni (tady je můžete upravit nebo odpojit). Heslo schránky zůstává jen na serveru. CRM načítá novou poštu každé 2 minuty a odeslané e-maily ukládá i do složky Odeslané ve schránce. Na mazání a třídění pošty dál slouží webmail.</p></div></div>`;
 }
 function mboxModal(){

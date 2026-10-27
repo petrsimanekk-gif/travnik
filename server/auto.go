@@ -69,8 +69,47 @@ func autoBox(app core.App, want string) (string, *mailCfg) {
 
 var autoVarRe = regexp.MustCompile(`\{(\w+)\}`)
 
+var (
+	greetEndRe = regexp.MustCompile(`(?i)(dobrý\s+den|dobrý\s+večer|dobré\s+ráno|zdravím)[ \t]*,?[ \t]*$`)
+	greetRe    = regexp.MustCompile(`(?i)^(dobrý\s+den|dobrý\s+večer|dobré\s+ráno|zdravím)[ \t]*,?[ \t]*`)
+)
+
+// fillAuto fills {proměnné}. {osloveni} written after a greeting ("Dobrý den, {osloveni},")
+// keeps a single greeting and a single comma.
 func fillAuto(t string, v map[string]string) string {
-	return autoVarRe.ReplaceAllStringFunc(t, func(m string) string { return v[m[1:len(m)-1]] })
+	var b strings.Builder
+	last := 0
+	for _, l := range autoVarRe.FindAllStringSubmatchIndex(t, -1) {
+		b.WriteString(t[last:l[0]])
+		key, val := t[l[2]:l[3]], v[t[l[2]:l[3]]]
+		if key == "osloveni" {
+			out := b.String()
+			line := out[strings.LastIndex(out, "\n")+1:]
+			if greetEndRe.MatchString(line) {
+				val = greetRe.ReplaceAllString(val, "")
+				if val == "" { // nothing left but the greeting already written
+					trimmed := strings.TrimRight(out, " \t")
+					b.Reset()
+					b.WriteString(strings.TrimSuffix(trimmed, ","))
+					if !strings.HasPrefix(t[l[1]:], ",") {
+						b.WriteString(",")
+					}
+				} else if !strings.HasSuffix(strings.TrimRight(line, " \t"), ",") {
+					b.Reset()
+					b.WriteString(strings.TrimRight(out, " \t") + ", ")
+				} else if !strings.HasSuffix(line, " ") {
+					b.WriteString(" ")
+				}
+			}
+			if strings.HasPrefix(t[l[1]:], ",") {
+				val = strings.TrimSuffix(val, ",")
+			}
+		}
+		b.WriteString(val)
+		last = l[1]
+	}
+	b.WriteString(t[last:])
+	return b.String()
 }
 
 func leadVars(l map[string]any) map[string]string {
