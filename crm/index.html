@@ -127,6 +127,14 @@ table.g td select.inl-state{appearance:none;-webkit-appearance:none;border:0;bac
 table.g td select.inl-state:hover,table.g td select.inl-state:focus{background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236c7a85' stroke-width='1.6'/%3E%3C/svg%3E") right 6px center/10px no-repeat;box-shadow:0 0 0 1px var(--line)}
 table.g td input.inl-note{border:1px solid transparent;background:transparent;padding:3px 6px;margin-left:-6px;box-shadow:none} table.g td input.inl-note:hover{border-color:var(--line)} table.g td input.inl-note:focus{background:var(--surface);border-color:var(--link)}
 table.g tr:not(:hover) input.inl-note:not(:focus)::placeholder{color:transparent}
+table.g th[data-ck]{position:sticky}
+table.g th .colrsz{position:absolute;right:0;top:5px;bottom:5px;width:8px;cursor:col-resize;border-right:2px solid transparent}
+table.g thead:hover .colrsz{border-right-color:var(--line)} table.g th .colrsz:hover,body.colresizing .colrsz{border-right-color:var(--link)!important}
+table.g th.cdragging{opacity:.35}
+table.g.fixed{table-layout:fixed;min-width:0} table.g.fixed th,table.g.fixed td{max-width:none;overflow:hidden;text-overflow:ellipsis} table.g.fixed td input.inl,table.g.fixed td select.inl{max-width:100%}
+.coldrop{position:fixed;width:3px;margin-left:-1px;background:var(--link);z-index:40;pointer-events:none;border-radius:2px}
+.colghost{position:fixed;z-index:41;pointer-events:none;background:var(--surface);color:var(--fg);box-shadow:0 6px 18px rgba(0,0,0,.25);padding:6px 10px;border-radius:4px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+body.colresizing,body.colresizing *{cursor:col-resize!important;user-select:none} body.colmoving,body.colmoving *{cursor:grabbing!important;user-select:none}
 .bulkbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--fg);color:var(--bg);border-radius:24px;padding:6px 8px 6px 18px;box-shadow:0 8px 28px rgba(0,0,0,.28);max-width:calc(100vw - 24px)}
 body.notadmin [data-act="ask"][data-what="del"],body.notadmin [data-act="inst-askdel"],body.notadmin [data-act="ask-delp"]{display:none!important}
 .bulkbar .btn{border-color:transparent} .bulkbar .bs{display:none} .bulkbar .btn.ghost{color:var(--bg)} .bulkbar .btn.ghost:hover{background:rgba(127,127,127,.25)}
@@ -809,7 +817,10 @@ function grid(kind, rows, opts={}){
   if (B) S.gridIds = {kind, ids:sorted.map(r=>r.id)};
   const chkTh = B ? `<th class="chk"><input type="checkbox" class="selall" aria-label="Vybrat vše na stránce" ${slice.length && slice.every(r=>sel.has(r.id))?"checked":""}></th>` : "";
   const chkTd = r => B ? `<td class="chk" data-act="noop"><label><input type="checkbox" class="rowsel" value="${r.id}" ${sel.has(r.id)?"checked":""} aria-label="Vybrat záznam"></label></td>` : "";
-  return `${fbar}<div class="grid"><table class="g" data-gkind="${kind}"><thead><tr>${chkTh}<th class="star" aria-label="Oblíbené">★</th>${cols.map(c => `<th data-sort="${kind}:${c.key}" class="${st.key===c.key?"s "+(st.dir==="asc"?"asc":""):""} ${c.num||c.type==="money"?"num":""}">${esc(c.label)}</th>`).join("")}<th style="width:36px;cursor:pointer" data-act="cols" data-kind="${kind}" title="Upravit sloupce" aria-label="Upravit sloupce">⚙</th></tr></thead>
+  const W = prefs.widths?.[kind], fixed = !!(W && Object.keys(W).length), fw = (k, d) => (W && W[k]) || d;
+  const colKeys = [...(B?[["__chk",34]]:[]), ["__star",30], ...cols.map(c=>[c.key,140]), ["__gear",36]];
+  const colgroup = `<colgroup>${colKeys.map(([k,d])=>`<col data-k="${esc(k)}"${fixed||k.startsWith("__")?` style="width:${fixed?fw(k,d):d}px"`:""}>`).join("")}</colgroup>`;
+  return `${fbar}<div class="grid"><table class="g ${fixed?"fixed":""}" data-gkind="${kind}"${fixed?` style="width:${colKeys.reduce((s,[k,d])=>s+fw(k,d),0)}px"`:""}>${colgroup}<thead><tr>${chkTh}<th class="star" aria-label="Oblíbené">★</th>${cols.map(c => `<th data-sort="${kind}:${c.key}" data-ck="${esc(c.key)}" title="Klik = řazení · tažením přesunete sloupec" class="${st.key===c.key?"s "+(st.dir==="asc"?"asc":""):""} ${c.num||c.type==="money"?"num":""}">${esc(c.label)}<span class="colrsz" data-rk="${esc(c.key)}" title="Táhněte pro šířku sloupce · dvojklik vrátí automatické šířky" aria-hidden="true"></span></th>`).join("")}<th style="width:36px;cursor:pointer" data-act="cols" data-kind="${kind}" title="Upravit sloupce" aria-label="Upravit sloupce">⚙</th></tr></thead>
     <tbody>${slice.map(r => `<tr data-act="${opts.open}" data-id="${r.id}" tabindex="0" class="${opts.rowColor?"rc":""} ${sel.has(r.id)?"sel":""}"${opts.rowColor?` style="--rc:${opts.rowColor(r)}"`:""}>${chkTd(r)}<td class="star" data-act="fav" data-id="${r.id}"><span class="${favs.has(r.id)?"on":"off"}">${favs.has(r.id)?"★":"☆"}</span></td>${cols.map(c => `<td class="${c.num||c.type==="money"?"num":""}">${cell(c,r)}</td>`).join("")}<td></td></tr>`).join("") || `<tr><td colspan="${cols.length+(B?3:2)}"><div class="empty"><strong>Nic tu není</strong>${prefs.active[kind]?.conds?.length ? "Žádný záznam neodpovídá filtru." : (opts.emptyText||"Zkuste jiný výběr.")}</div></td></tr>`}</tbody></table></div>
     <div class="sumbar">${summary.map(([l,v]) => `<span>${l} <b>${v}</b></span>`).join("")}<span class="sp"></span>
       <label class="row" style="gap:6px">na stránce <select id="pagesize" style="width:auto">${[20,50,200].map(n=>`<option ${n===ps?"selected":""}>${n}</option>`).join("")}</select></label>
@@ -1714,6 +1725,48 @@ const endRs = () => {
 };
 document.addEventListener("pointerup", endRs); document.addEventListener("pointercancel", endRs);
 document.addEventListener("dblclick", e => { const h = e.target.closest?.(".rsz"); if (!h) return; const d = {...(prefs.dash||{})}; delete d[h.dataset.rsz]; prefs.dash = d; savePrefs(); render(); });
+// ---------- list columns: drag a header to move the column, drag its right edge to change the width (mouse) ----------
+let colDrag = null, colDragAt = 0, rzLast = {};
+const sumW = w => Object.values(w).reduce((s,x)=>s+x,0);
+function freezeCols(d){ // switch the table to fixed layout with the widths it has right now
+  const cs = [...d.table.querySelectorAll("colgroup col")], ths = [...d.table.querySelectorAll("thead th")]; d.widths = {};
+  cs.forEach((c,i) => { const w = Math.ceil(ths[i].getBoundingClientRect().width) + 1; c.style.width = w+"px"; d.widths[c.dataset.k] = w; });
+  d.table.classList.add("fixed"); d.table.style.width = sumW(d.widths)+"px";
+}
+document.addEventListener("pointerdown", e => {
+  if (e.button!==0 || e.pointerType==="touch") return;
+  const th = e.target.closest?.("table.g th[data-ck]"); if (!th) return;
+  const table = th.closest("table.g"), kind = table.dataset.gkind; if (!kind) return;
+  const rz = e.target.closest(".colrsz");
+  if (rz){ const now = Date.now(), twice = now - (rzLast.at||0) < 450 && rzLast.key === th.dataset.ck; rzLast = {at:twice ? 0 : now, key:th.dataset.ck}; if (twice){ e.preventDefault(); colDragAt = now; resetColWidths(kind); return; } }
+  colDrag = {kind, table, th, key:th.dataset.ck, x0:e.clientX, y0:e.clientY, resize:!!rz, moved:false};
+  if (rz){ e.preventDefault(); freezeCols(colDrag); colDrag.w0 = colDrag.widths[colDrag.key]; document.body.classList.add("colresizing"); }
+});
+document.addEventListener("pointermove", e => {
+  const d = colDrag; if (!d) return; const dx = e.clientX - d.x0;
+  if (d.resize){ if (!d.moved && Math.abs(dx) < 2) return; d.moved = true; const w = Math.max(50, Math.round(d.w0 + dx)); d.widths[d.key] = w; const c = [...d.table.querySelectorAll("colgroup col")].find(c=>c.dataset.k===d.key); if (c) c.style.width = w+"px"; d.table.style.width = sumW(d.widths)+"px"; return; }
+  if (!d.moved){ if (Math.hypot(dx, e.clientY-d.y0) < 6) return; d.moved = true; d.th.classList.add("cdragging"); document.body.classList.add("colmoving");
+    d.ghost = Object.assign(document.createElement("div"), {className:"colghost", textContent:d.th.textContent}); d.line = Object.assign(document.createElement("div"), {className:"coldrop"}); document.body.append(d.ghost, d.line); }
+  d.ghost.style.left = (e.clientX+12)+"px"; d.ghost.style.top = (e.clientY+10)+"px";
+  const ths = [...d.table.querySelectorAll("thead th[data-ck]")]; let idx = ths.length;
+  for (let i = 0; i < ths.length; i++){ const r = ths[i].getBoundingClientRect(); if (e.clientX < r.left + r.width/2){ idx = i; break; } }
+  d.idx = idx; const x = idx < ths.length ? ths[idx].getBoundingClientRect().left : ths[ths.length-1].getBoundingClientRect().right;
+  const g = d.table.closest(".grid"), gr = g.getBoundingClientRect(), tr = d.table.getBoundingClientRect(), top = Math.max(tr.top, gr.top);
+  Object.assign(d.line.style, {left:x+"px", top:top+"px", height:(Math.min(tr.bottom, gr.bottom)-top)+"px"});
+  if (e.clientX > gr.right-40) g.scrollLeft += 14; else if (e.clientX < gr.left+40) g.scrollLeft -= 14;
+});
+const endCol = () => {
+  const d = colDrag; colDrag = null; if (!d) return;
+  document.body.classList.remove("colresizing", "colmoving"); d.ghost?.remove(); d.line?.remove(); d.th.classList.remove("cdragging");
+  if (!d.moved){ if (d.resize && !prefs.widths?.[d.kind]) render(); return; } colDragAt = Date.now();
+  if (d.resize){ prefs.widths = {...(prefs.widths||{}), [d.kind]:d.widths}; savePrefs(); return; }
+  const keys = [...d.table.querySelectorAll("thead th[data-ck]")].map(t=>t.dataset.ck), from = keys.indexOf(d.key); let to = d.idx ?? from; if (to > from) to--;
+  if (to===from) return; keys.splice(from, 1); keys.splice(to, 0, d.key); prefs.cols[d.kind] = keys; savePrefs(); render();
+};
+document.addEventListener("pointerup", endCol); document.addEventListener("pointercancel", endCol);
+// the click that ends a drag must not sort the column
+document.addEventListener("click", e => { if (e.target.closest?.(".colrsz") || (Date.now() - colDragAt < 400 && e.target.closest?.("table.g thead"))){ e.preventDefault(); e.stopPropagation(); } }, true);
+function resetColWidths(kind){ if (!prefs.widths?.[kind]) return; prefs.widths = {...prefs.widths}; delete prefs.widths[kind]; savePrefs(); render(); toast("Šířky sloupců vráceny na automatické"); }
 function barChart(months, vals){
   const W = 560, H = 200, L = 64, B = 24, T = 10;
   const max = Math.max(...vals, 0); const step = nice(max/4 || 100000); const top = step*4; const bw = (W-L-8)/months.length; const y = v => T + (H-T-B)*(1-v/top);
@@ -2468,7 +2521,7 @@ document.addEventListener("click", async e => {
     case "del-product": await store.del("products", id).catch(()=>toast("Smazání se nepovedlo.")); S.confirm = null; closeModal(); toast("Produkt smazán"); break;
     case "cols": { const kind = a.dataset.kind; const all = colDefs(kind).map(c=>c.key); const vis = (prefs.cols[kind]||DEFAULT_COLS[kind]).filter(k=>all.includes(k)); S.modal = {kind:"cols", data:{kind, order:[...vis, ...all.filter(k=>!vis.includes(k))], visible:vis, q:""}}; S._forceModal = true; renderOverlay(); break; }
     case "col-move": { const md = S.modal.data; const vis = md.order.filter(k=>md.visible.includes(k)); const i = vis.indexOf(a.dataset.key), j = i + Number(a.dataset.d); if (j<0||j>=vis.length) break; [vis[i],vis[j]] = [vis[j],vis[i]]; md.order = [...vis, ...md.order.filter(k=>!md.visible.includes(k))]; S._forceModal = true; renderOverlay(); break; }
-    case "cols-reset": { const md = S.modal.data; const all = colDefs(md.kind).map(c=>c.key); md.visible = [...DEFAULT_COLS[md.kind]]; md.order = [...md.visible, ...all.filter(k=>!md.visible.includes(k))]; S._forceModal = true; renderOverlay(); break; }
+    case "cols-reset": { const md = S.modal.data; if (prefs.widths?.[md.kind]){ prefs.widths = {...prefs.widths}; delete prefs.widths[md.kind]; savePrefs(); } const all = colDefs(md.kind).map(c=>c.key); md.visible = [...DEFAULT_COLS[md.kind]]; md.order = [...md.visible, ...all.filter(k=>!md.visible.includes(k))]; S._forceModal = true; renderOverlay(); break; }
     case "cols-save": { const md = S.modal.data; const vis = md.order.filter(k=>md.visible.includes(k)); if (!vis.length){ toast("Vyberte aspoň jeden sloupec."); break; } prefs.cols[md.kind] = vis; savePrefs(); closeModal(); render(); toast("Sloupce uloženy"); break; }
     case "filter": { const kind = a.dataset.kind; const act = prefs.active[kind]; S.modal = {kind:"filter", data:{kind, id:act?.id||"", name:act?.name||"", conds: act?.conds?.length ? JSON.parse(JSON.stringify(act.conds)) : [{f:colDefs(kind)[0].key, op:"", v:""}]}}; S._forceModal = true; renderOverlay(); break; }
     case "fc-add": { readFilterModal(); const md = S.modal.data; md.conds.push({f:colDefs(md.kind)[0].key, op:"", v:""}); S._forceModal = true; renderOverlay(); break; }
