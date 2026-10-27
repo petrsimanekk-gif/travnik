@@ -1414,6 +1414,7 @@ type sendReq struct {
 	AttNames []string `json:"attNames"` // their names, to show a scheduled e-mail
 	CommID   string   `json:"commId"`   // comms record to mark as sent
 	SendAt   int64    `json:"sendAt"`   // ms; later than now = scheduled
+	Offer    string   `json:"offer"`    // online offer token: its card with the "Zobrazit nabídku" button goes under the text
 }
 
 // userErr is shown to the user as is.
@@ -1541,6 +1542,17 @@ func doSend(app core.App, a map[string]any, b *sendReq) (*core.Record, error) {
 		htm = richWrap(b.HTML)
 		if strings.TrimSpace(text) == "" {
 			text = richToText(b.HTML)
+		}
+	}
+	if b.Offer != "" {
+		card, line, img, err := offerCard(app, b.Offer)
+		if err != nil {
+			return nil, err
+		}
+		htm += card
+		text += "\n\n" + line
+		if img != nil {
+			inline = append(inline, img)
 		}
 	}
 	if strings.TrimSpace(b.SigText) != "" || logoCID != "" {

@@ -63,7 +63,10 @@ func main() {
 		if err := ensureSchema(e.App); err != nil {
 			return err
 		}
-		return ensureMailSchema(e.App)
+		if err := ensureMailSchema(e.App); err != nil {
+			return err
+		}
+		return ensureOfferSchema(e.App)
 	})
 
 	// Other accounts' password hashes are hidden from non-admins everywhere
@@ -138,6 +141,7 @@ func main() {
 			return serveBlob(e, "offer/"+e.Request.PathValue("name"))
 		})
 		bindMailRoutes(se)
+		bindOfferRoutes(se)
 		startMailLoop(se.App)
 		r.GET("/{path...}", apis.Static(os.DirFS(publicDir()), true)).Bind(noCacheHTML())
 		return se.Next()
@@ -684,6 +688,11 @@ func serveBlob(e *core.RequestEvent, key string) error {
 	if err != nil || u.Collection().Name != "users" || !u.GetBool("active") {
 		return e.UnauthorizedError("", nil)
 	}
+	return sendBlob(e, key)
+}
+
+// sendBlob serves a stored file; the caller has checked who may have it.
+func sendBlob(e *core.RequestEvent, key string) error {
 	rec, err := e.App.FindFirstRecordByData("blobs", "key", key)
 	if err != nil {
 		return e.NotFoundError("", nil)
