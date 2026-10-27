@@ -217,6 +217,9 @@ table.g td.star,table.g th.star{width:30px;padding-right:0;cursor:pointer} .star
 .tg-times div{height:var(--hh);font-size:11.5px;color:var(--muted);text-align:right;padding-right:6px;line-height:1;transform:translateY(-5px)} .tg-times div:first-child{transform:none}
 .tg-col{position:relative;border-left:1px solid var(--line);background-image:linear-gradient(to bottom,var(--line) 1px,transparent 1px);background-size:100% var(--hh);cursor:pointer}
 .tg-col.today{background-color:color-mix(in srgb,var(--accent) 6%,transparent)}
+.tg-rsz{position:absolute;left:0;right:0;bottom:0;height:7px;cursor:ns-resize} .tg-ev:hover .tg-rsz{background:linear-gradient(transparent 2px,rgba(255,255,255,.55) 2px,rgba(255,255,255,.55) 4px,transparent 4px)}
+.tg-ev.cdragging,.cev.cdragging{opacity:.85;box-shadow:0 6px 18px rgba(0,0,0,.3);z-index:5;transition:none} .cdrop{outline:2px dashed var(--link);outline-offset:-2px;background:var(--link-soft)!important}
+body.cmoving,body.cmoving *{cursor:grabbing!important;user-select:none} body.cresizing,body.cresizing *{cursor:ns-resize!important;user-select:none}
 .tg-ev{position:absolute;min-height:20px;border-radius:5px;padding:4px 7px;color:#fff;font-size:13.5px;line-height:1.3;overflow:hidden;cursor:pointer;box-shadow:0 0 0 1px var(--surface);z-index:1} .tg-ev.done{opacity:.55;text-decoration:line-through} .tg-ev small{display:block;opacity:.9}
 .tg-now{position:absolute;left:0;right:0;height:2px;background:var(--bad);z-index:2;pointer-events:none} .tg-now::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--bad)}
 .calfwrap{position:relative}
@@ -1832,7 +1835,7 @@ function calTimeGrid(dates, acts, users){
   const DN = ["Ne","Po","Út","St","Čt","Pá","So"], t = today();
   const cols = dates.map(s => {
     const ev = acts.filter(a=>a.date===s).map(a => ({a, st:tmin(a.time), dur:Math.max(15, toN(a.duration)||60)}));
-    calInst(s, users).forEach(x => { const F = x.f||{}; const st = tmin(F.start) ?? tmin(x.time), en = tmin(F.end); ev.push({inst:x, st, dur: st!=null && en!=null && en>st ? en-st : 240}); });
+    calInst(s, users).forEach(x => { const F = x.f||{}; const st = tmin(F.start) ?? tmin(x.time), en = tmin(F.end); ev.push({inst:x, st, dur: st!=null && en!=null && en>st ? en-st : (toN(x.dur)||240)}); });
     const timed = ev.filter(e=>e.st!=null).sort((a,b)=>a.st-b.st || b.dur-a.dur);
     // overlapping events share the column width side by side
     let lanes = [], cluster = [], cEnd = -1; const flush = () => { const n = Math.max(...cluster.map(e=>e.lane))+1; cluster.forEach(e=>e.n=n); cluster = []; lanes = []; cEnd = -1; };
@@ -1846,15 +1849,73 @@ function calTimeGrid(dates, acts, users){
     const end = e.st+e.dur, tt = `${pad(Math.floor(e.st/60))}:${pad(e.st%60)}–${pad(Math.floor(end/60)%24)}:${pad(end%60)}`;
     const [act, id, bg, done, title] = inst ? ["open-install", inst.id, "var(--g-install)", inst.status==="done", "🔧 "+(getDeal(inst.dealId)?.name||"Montáž")] : ["open-act", e.a.id, ACT_COLOR[e.a.type], e.a.status==="done", (ACT[e.a.type]?.[1]||"")+" "+e.a.title];
     const sub = inst ? clientName(getDeal(inst.dealId)?.clientId) : (e.a.dealId ? getDeal(e.a.dealId)?.name : clientName(e.a.clientId)) || "";
-    return `<span class="tg-ev ${done?"done":""}" style="top:calc(var(--hh) * ${top});height:calc(var(--hh) * ${h} - 2px);left:calc(${e.lane/e.n*100}% + 2px);width:calc(${100/e.n}% - 4px);background:${bg}" data-act="${act}" data-id="${id}" title="${esc(tt+" "+title)}"><b>${esc(title)}</b><small>${tt}${sub?" · "+esc(sub):""}</small></span>`; };
+    return `<span class="tg-ev ${done?"done":""}" style="top:calc(var(--hh) * ${top});height:calc(var(--hh) * ${h} - 2px);left:calc(${e.lane/e.n*100}% + 2px);width:calc(${100/e.n}% - 4px);background:${bg}" data-act="${act}" data-id="${id}" data-st="${e.st}" data-dur="${e.dur}" title="${esc(tt+" "+title)}"><b>${esc(title)}</b><small>${tt}${sub?" · "+esc(sub):""}</small><i class="tg-rsz" aria-hidden="true"></i></span>`; };
   const now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
   return `<div class="tgw"><div class="tg" data-hours="${h1-h0}" style="--n:${dates.length};min-width:${dates.length>1?720:0}px">
     <div class="tg-c tg-corner"></div>${cols.map(c => { const d = new Date(c.s+"T12:00:00"); return `<div class="tg-c tg-dh ${c.s===t?"today":""}" data-act="cal-goday" data-date="${c.s}" title="Zobrazit den">${DN[d.getDay()]}<b>${d.getDate()}</b></div>`; }).join("")}
-    <div class="tg-c tg-lbl">celý den</div>${cols.map(c => `<div class="tg-c tg-ad">${c.allday.map(calChip).join("")}</div>`).join("")}
+    <div class="tg-c tg-lbl">celý den</div>${cols.map(c => `<div class="tg-c tg-ad" data-date="${c.s}">${c.allday.map(calChip).join("")}</div>`).join("")}
     <div class="tg-times">${Array.from({length:h1-h0}, (_,i) => `<div>${pad(h0+i)}:00</div>`).join("")}</div>
     ${cols.map(c => `<div class="tg-col ${c.s===t?"today":""}" data-act="cal-slot" data-date="${c.s}" data-h0="${h0}" style="height:calc(var(--hh) * ${h1-h0})" title="Klikněte pro novou aktivitu">${c.timed.map(evBox).join("")}${c.s===t && nowM>=h0*60 && nowM<h1*60 ? `<span class="tg-now" style="top:calc(var(--hh) * ${hr(nowM)})"></span>` : ""}</div>`).join("")}
   </div></div>`;
 }
+// ---------- calendar: drag an event with the mouse to move it, drag its bottom edge to change its length ----------
+let cdrag = null, cdragAt = 0;
+const hhmm = m => `${pad(Math.floor(m/60))}:${pad(m%60)}`;
+const snap15 = m => Math.round(m/15)*15;
+document.addEventListener("pointerdown", e => {
+  if (S.view!=="calendar" || e.button!==0 || e.pointerType==="touch") return;
+  const el = e.target.closest && e.target.closest(".tg-ev, .cev"); if (!el) return;
+  const inst = el.dataset.act==="open-install", rec = inst ? S.installs.find(x=>x.id===el.dataset.id) : S.activities.find(x=>x.id===el.dataset.id);
+  if (!rec || !canEdit(inst ? "installs" : "activities")) return;
+  const col = el.closest(".tg-col"), tg = el.closest(".tg");
+  cdrag = {el, inst, rec, x0:e.clientX, y0:e.clientY, moved:false, resize:!!e.target.closest(".tg-rsz"), col, h0: col ? Number(col.dataset.h0) : 0,
+    hh: tg ? (parseFloat(getComputedStyle(tg).getPropertyValue("--hh")) || CAL_H) : CAL_H, st: Number(el.dataset.st), dur: Number(el.dataset.dur), date: rec.date};
+  e.preventDefault();
+});
+document.addEventListener("pointermove", e => {
+  const d = cdrag; if (!d) return;
+  const dx = e.clientX-d.x0, dy = e.clientY-d.y0;
+  if (!d.moved){ if (Math.hypot(dx, dy) < 5) return; d.moved = true; d.el.classList.add("cdragging"); document.body.classList.add(d.resize ? "cresizing" : "cmoving"); }
+  if (d.col){ // time grid: whole minutes from the pointer offset, snapped to 15
+    const dm = dy / d.hh * 60, tgEl = d.col.closest(".tg");
+    if (d.resize){ d.ndur = Math.max(15, snap15(d.dur + dm)); d.nst = d.st; d.ndate = d.date; d.el.style.height = (d.ndur/60*d.hh - 2) + "px"; }
+    else {
+      d.ndur = d.dur; d.nst = Math.min(24*60-15, Math.max(0, snap15(d.st + dm)));
+      const c = [...tgEl.querySelectorAll(".tg-col")].find(c => { const r = c.getBoundingClientRect(); return e.clientX >= r.left && e.clientX < r.right; }) || d.el.parentNode;
+      if (c !== d.el.parentNode) c.appendChild(d.el);
+      d.ndate = c.dataset.date;
+      Object.assign(d.el.style, {top:((d.nst - d.h0*60)/60*d.hh) + "px", left:"2px", width:"calc(100% - 4px)"});
+    }
+    const sm = d.el.querySelector("small"); if (sm) sm.textContent = `${hhmm(d.nst)}–${hhmm((d.nst+d.ndur)%(24*60))}`;
+  } else { // day chip (month view, all-day row): follow the pointer, drop on a day
+    d.el.style.transform = `translate(${dx}px,${dy}px)`; d.el.style.pointerEvents = "none";
+    document.querySelectorAll(".cdrop").forEach(x=>x.classList.remove("cdrop"));
+    const t = document.elementFromPoint(e.clientX, e.clientY)?.closest(".cal .d[data-date], .tg-ad[data-date]");
+    d.ndate = t ? t.dataset.date : null; if (t) t.classList.add("cdrop");
+  }
+});
+document.addEventListener("pointerup", async () => {
+  const d = cdrag; cdrag = null; if (!d || !d.moved) return;
+  cdragAt = Date.now(); document.body.classList.remove("cmoving", "cresizing");
+  document.querySelectorAll(".cdrop").forEach(x=>x.classList.remove("cdrop"));
+  const x = JSON.parse(JSON.stringify(d.rec)), date = d.ndate || d.date;
+  const same = date===d.date && (!d.col || (d.nst===d.st && d.ndur===d.dur));
+  if (same){ render(); return; }
+  x.date = date;
+  if (d.col){
+    if (d.inst){
+      const F = x.f || {}, s0 = tmin(F.start), e0 = tmin(F.end);
+      x.time = hhmm(d.nst);
+      if (s0!=null){ F.start = hhmm(d.nst); if (e0!=null) F.end = hhmm(Math.min(24*60-1, d.nst + d.ndur)); x.f = F; } else x.dur = d.ndur;
+    } else { x.time = hhmm(d.nst); x.duration = String(d.ndur); }
+  }
+  const when = `${fmtD(date)}${d.col ? " "+hhmm(d.nst)+"–"+hhmm((d.nst+d.ndur)%(24*60)) : ""}`;
+  const ok = d.inst ? await saveInst(x, `Přesunuto v kalendáři na ${when}`) : await save("activities", x);
+  if (ok) toast(d.resize ? `Délka změněna: ${when}` : `Přesunuto na ${when}`);
+  render();
+});
+// a drag ends with a click on the event; it must not open the record
+document.addEventListener("click", e => { if (Date.now() - cdragAt < 400 && e.target.closest && e.target.closest(".tg-ev, .cev")){ e.preventDefault(); e.stopPropagation(); } }, true);
 // stretch the calendar to the bottom of the window
 function fitCal(){
   const m = document.querySelector("#main .cal"), tg = document.querySelector("#main .tg");
