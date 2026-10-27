@@ -151,6 +151,17 @@ WantedBy=timers.target
 EOF
 systemctl daemon-reload && systemctl enable -q --now stinko-backup.timer
 
+say "Příkaz stinko-update"
+cat > /usr/local/bin/stinko-update <<EOF
+#!/usr/bin/env bash
+# stáhne poslední verzi z GitHubu a nainstaluje ji (data zůstanou)
+set -euo pipefail
+git -C $BASE/src fetch -q --depth 1 origin "$BRANCH"
+git -C $BASE/src reset -q --hard FETCH_HEAD
+exec bash $BASE/src/server/install.sh "$DOMAIN"
+EOF
+chmod 755 /usr/local/bin/stinko-update
+
 say "Kontrola"
 sleep 2
 systemctl is-active --quiet stinko && echo "CRM server: běží" || { echo "CRM server NEBĚŽÍ:"; journalctl -u stinko -n 30 --no-pager; exit 1; }
