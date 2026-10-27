@@ -219,6 +219,12 @@ table.g td.star,table.g th.star{width:30px;padding-right:0;cursor:pointer} .star
 .tg-col.today{background-color:color-mix(in srgb,var(--accent) 6%,transparent)}
 .cal .d.hol,.tg-dh.hol{background:color-mix(in srgb,var(--bad) 9%,var(--surface))} .cal .d.hol.o{background:color-mix(in srgb,var(--bad) 5%,var(--surface-2))}
 .holn{display:block;font-size:11px;line-height:1.25;color:var(--bad);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:none;letter-spacing:0} .tg-dh .holn{margin-top:2px}
+.clash{box-shadow:0 0 0 2px var(--bad),0 0 0 3px var(--surface)!important}
+.rv{display:grid;grid-template-columns:170px repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:13px}
+.rv-c{border-bottom:1px solid var(--line);border-left:1px solid var(--line);padding:5px 6px;min-width:0} .rv-corner,.rv-name{border-left:0}
+.rv-dh{background:var(--surface-2);text-align:center;color:var(--muted);font-size:12px;cursor:pointer} .rv-dh b{color:var(--fg)} .rv-dh.today b{color:var(--accent-ink);background:var(--accent);border-radius:10px;padding:0 6px} .rv-dh.hol{background:color-mix(in srgb,var(--bad) 9%,var(--surface))}
+.rv-name{display:flex;align-items:center;gap:6px;font-weight:500;background:var(--surface-2)}
+.rv-cell{min-height:58px;display:grid;gap:3px;align-content:start;cursor:pointer} .rv-cell.today{background:color-mix(in srgb,var(--accent) 6%,transparent)} .rv-cell:hover{background:var(--surface-2)}
 .tg-rsz{position:absolute;left:0;right:0;bottom:0;height:7px;cursor:ns-resize} .tg-ev:hover .tg-rsz{background:linear-gradient(transparent 2px,rgba(255,255,255,.55) 2px,rgba(255,255,255,.55) 4px,transparent 4px)}
 .tg-ev.cdragging,.cev.cdragging{opacity:.85;box-shadow:0 6px 18px rgba(0,0,0,.3);z-index:5;transition:none} .cdrop{outline:2px dashed var(--link);outline-offset:-2px;background:var(--link-soft)!important}
 body.cmoving,body.cmoving *{cursor:grabbing!important;user-select:none} body.cresizing,body.cresizing *{cursor:ns-resize!important;user-select:none}
@@ -370,7 +376,7 @@ const money = h => kc.format((h||0)/100);
 const toH = v => { const n = parseFloat(String(v??"").replace(/\s/g,"").replace(",",".")); return isFinite(n) ? Math.round(n*100) : 0; };
 const toN = v => { const n = parseFloat(String(v??"").replace(/\s/g,"").replace(",",".")); return isFinite(n) ? n : 0; };
 const initials = n => String(n||"?").split(/\s+/).map(s=>s[0]).slice(0,2).join("").toUpperCase();
-let tt; const toast = m => { const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(()=>t.hidden=true, 2600); };
+let tt; const toast = (m, ms=2600) => { const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(()=>t.hidden=true, ms); };
 const ls = { get(k,d){ try { const v = localStorage.getItem(k); return v==null?d:JSON.parse(v); } catch { return d; } }, set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
 const GROUPS = {sales:["Prodej","var(--g-sales)"], order:["Záloha a objednávka","var(--g-order)"], install:["Realizace","var(--g-install)"], collect:["Vymáhání","var(--g-collect)"], claim:["Reklamace","var(--g-claim)"], end:["Ukončené","var(--g-end)"]};
@@ -874,7 +880,7 @@ function vInstall(){
   const inp = (k, label, type="text") => `<label class="f"><span>${label}</span>${type==="textarea"?`<textarea data-if="${k}" ${dis}>${esc(F[k]||"")}</textarea>`:`<input data-if="${k}" type="${type}" value="${esc(F[k]||"")}" ${type==="number"?'inputmode="decimal"':""} ${dis}></label>`}${type==="textarea"?"</label>":""}`;
   return `<div class="dhead"><div class="dtop"><div style="min-width:0"><span class="lbl">Montáž</span> <span class="mono muted">${esc(d.code||"")}</span><div class="dtitle">${esc(c.name||d.name||"")}</div><div class="muted">${m.date?fmtD(m.date):"Bez termínu"} ${esc(m.time||"")} · 🔧 ${esc((m.techs||[]).join(", ")||"nepřiřazeno")}</div></div>
     <div class="row">${instState(m)}${canSee("deals")&&d.id?`<button class="btn" data-act="open-deal" data-id="${d.id}">Obchod ${esc(d.code||"")}</button>`:""}${canEdit("installs")&&!done?`<button class="btn" data-act="inst-edit" data-id="${m.id}">Termín a technici</button>`:""}${done&&isAdmin()?`<button class="btn" data-act="inst-reopen" data-id="${m.id}">Znovu otevřít</button>`:""}</div></div>
-    <div class="row" style="margin-top:12px;gap:8px">${addr?`<a class="btn blue" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}" target="_blank" rel="noopener">📍 Navigovat</a>`:""}${c.phone?`<a class="btn" href="tel:${esc(c.phone.replace(/\s/g,""))}">📞 ${esc(c.phone)}</a>`:""}<span class="muted">${esc(addr)}</span></div></div>
+    <div class="row" style="margin-top:12px;gap:8px">${navLinks(addr)}${c.phone?`<a class="btn" href="tel:${esc(c.phone.replace(/\s/g,""))}">📞 ${esc(c.phone)}</a>`:""}<span class="muted">${esc(addr)}</span></div></div>
   <div class="dgrid"><form id="instform" class="grid" style="background:none;border:0;overflow:visible;display:grid;gap:14px" onsubmit="return false">
     <div class="card"><div class="ch"><h2>Předávací protokol – kontrola</h2><span class="muted">${ch.filter(x=>m.items?.[x[0]]).length}/${ch.length}</span></div><div class="cb" style="display:grid;gap:8px">${ch.map(([k,t])=>`<label class="c chk"><input type="checkbox" data-ic="${k}" ${m.items?.[k]?"checked":""} ${dis}> ${t}</label>`).join("")}</div></div>
     <div class="card"><div class="ch"><h2>Údaje o montáži</h2></div><div class="cb" style="display:grid;gap:12px"><div class="fgrid">${inp("start","Začátek montáže","time")}${inp("end","Konec montáže","time")}${inp("hours","Odpracováno celkem (h)","number")}</div>
@@ -1825,11 +1831,48 @@ function vAct(){
   const tabs = [["basic","Základní údaje"],["photos",`Fotky a přílohy (${(a.photos||[]).length})`]];
   return `<div class="dhead"><div class="dtop"><div><span class="lbl" style="color:${ACT_COLOR[a.type]}">${ACT[a.type][1]} ${ACT[a.type][0]}</span><div class="dtitle">${esc(a.title)}</div></div>
     <div class="row">${a.status==="planned"?`<button class="btn good up" data-act="act-status" data-id="${a.id}" data-st="done">Realizováno</button><button class="btn up" data-act="act-status" data-id="${a.id}" data-st="cancelled">Zrušit</button>`:`<button class="btn up" data-act="act-status" data-id="${a.id}" data-st="planned">Vrátit do plánu</button>`}<button class="btn" data-act="edit-act" data-id="${a.id}">Upravit</button>${cf==="del"?`<span class="confirm">Smazat?<button class="btn sm badfill" data-act="del-act" data-id="${a.id}">Ano</button><button class="btn sm" data-act="no">Ne</button></span>`:`<button class="btn ghost bad" data-act="ask" data-what="del">Smazat</button>`}</div></div>
-    <div class="meta" style="margin-top:12px"><div><span class="lbl">Termín</span>${fmtD(a.date)} ${esc(a.time||"")}${a.duration?` · ${esc(a.duration)} min`:""}</div><div><span class="lbl">Stav</span>${({planned:"Naplánováno",done:"Realizováno",cancelled:"Zrušeno"})[a.status]}</div><div><span class="lbl">Priorita</span>${esc(a.priority||"Normální")}</div><div><span class="lbl">Vlastník</span>${esc(a.owner||"–")}</div><div><span class="lbl">Kategorie</span>${esc(a.category||"–")}</div>${a.place?`<div><span class="lbl">Místo</span>${esc(a.place)}</div>`:""}</div></div>
+    <div class="meta" style="margin-top:12px"><div><span class="lbl">Termín</span>${fmtD(a.date)} ${esc(a.time||"")}${a.duration?` · ${esc(a.duration)} min`:""}</div><div><span class="lbl">Stav</span>${({planned:"Naplánováno",done:"Realizováno",cancelled:"Zrušeno"})[a.status]}</div><div><span class="lbl">Priorita</span>${esc(a.priority||"Normální")}</div><div><span class="lbl">Vlastník</span>${esc(a.owner||"–")}</div><div><span class="lbl">Kategorie</span>${esc(a.category||"–")}</div>${a.place?`<div><span class="lbl">Místo</span>${esc(a.place)}</div>`:""}${a.repeat?`<div><span class="lbl">Opakování</span>↻ ${esc(REPEAT[a.repeat]||"")}${a.repeatUntil?` do ${fmtD(a.repeatUntil)}`:""}</div>`:""}</div>
+    ${(() => { const addr = a.place || instAddr(deal) || (() => { const c = getClient(a.clientId); return c ? [c.street,[c.zip,c.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") : ""; })(); return addr ? `<div class="row" style="margin-top:12px;gap:8px">${navLinks(addr)}<span class="muted">${esc(addr)}</span></div>` : ""; })()}</div>
   <div class="dgrid"><div class="card"><div class="dtabs">${tabs.map(([k,t])=>`<button data-tab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div><div class="cb">${tab==="photos"?photosPanel("activity", a):`<dl class="kv"><dt>Popis</dt><dd style="white-space:pre-wrap">${esc(a.note||"–")}</dd>${a.result?`<dt>Výsledek</dt><dd style="white-space:pre-wrap">${esc(a.result)}</dd>`:""}</dl>`}</div></div>
     <div class="rcol"><div class="card"><div class="ch"><span class="lbl">Čeho se to týká</span></div><div class="cb">${deal?`<span class="lbl">Obchodní případ</span><div><span class="link" data-act="open-deal" data-id="${deal.id}">${esc(deal.code)} ${esc(deal.name)}</span></div>`:""}${a.clientId?`<div style="margin-top:6px"><span class="lbl">Klient</span><div><span class="link" data-act="open-client" data-id="${a.clientId}">${esc(clientName(a.clientId))}</span></div></div>`:""}${!deal&&!a.clientId?`<span class="muted">Nepřiřazeno</span>`:""}</div></div></div></div>`;
 }
 const CAL_H = 48;
+// colour per person (Nastavení → Barvy uživatelů); default from a fixed palette by position in the user list
+const PERSON_COLORS = ["#2f7fc1","#d0632b","#2e9a5c","#8b5cb8","#c4398a","#0f9aa8","#b8860b","#5b6ee1","#c0392b","#4d7c0f"];
+const personColor = n => { const c = C().userColors?.[n]; if (c) return c; const i = (C().users||[]).indexOf(n); return n ? PERSON_COLORS[(i<0 ? [...String(n)].reduce((s,ch)=>s+ch.charCodeAt(0),0) : i) % PERSON_COLORS.length] : "var(--g-end)"; };
+const calByPerson = () => ls.get("stinko-calcolor", "type") === "person";
+const actColor = a => calByPerson() ? personColor(a.owner) : ACT_COLOR[a.type];
+const instColor = m => calByPerson() ? personColor((m.techs||[])[0]) : "var(--g-install)";
+// repeating activities: the series is one record; the calendar shows its later dates as copies (_occ)
+const REPEAT = {daily:"Každý den", weekly:"Každý týden", monthly:"Každý měsíc", yearly:"Každý rok"};
+function occDates(a, from, to){
+  const r = a.repeat; if (!REPEAT[r] || !a.date) return [];
+  const out = [], until = a.repeatUntil || "9999", [y,m,d] = a.date.split("-").map(Number);
+  const step = r==="daily" ? 1 : r==="weekly" ? 7 : 0;
+  for (let i = step ? Math.max(1, Math.floor(days(a.date, from)/step)) : 1, n = 0; n < 1500; i++, n++){
+    let s; if (step) s = addDays(a.date, step*i);
+    else { const yy = r==="yearly" ? y+i : y + Math.floor((m-1+i)/12), mm = r==="yearly" ? m : (m-1+i)%12 + 1; s = `${yy}-${pad(mm)}-${pad(Math.min(d, new Date(yy, mm, 0).getDate()))}`; }
+    if (s > to || s > until) break; if (s >= from) out.push(s);
+  }
+  return out;
+}
+const expandActs = (list, from, to) => [...list, ...list.flatMap(a => occDates(a, from, to).map(s => ({...a, date:s, status:"planned", _occ:true})))];
+// collisions: two timed items of one person that overlap
+function busyOf(person, date, exclude){
+  const out = [];
+  expandActs(S.activities.filter(a => a.status!=="cancelled" && a.owner===person && a.id!==exclude), date, date).forEach(a => { const st = tmin(a.time); if (a.date===date && st!=null) out.push({st, en:st+Math.max(15, toN(a.duration)||60), label:`${ACT[a.type]?.[0]||"Aktivita"} „${a.title}“`}); });
+  S.installs.filter(m => m.date===date && m.id!==exclude && (m.techs||[]).includes(person)).forEach(m => { const F = m.f||{}, st = tmin(F.start) ?? tmin(m.time), en = tmin(F.end); if (st!=null) out.push({st, en: en!=null && en>st ? en : st+(toN(m.dur)||240), label:`montáž ${clientName(getDeal(m.dealId)?.clientId)||""}`.trim()}); });
+  return out;
+}
+function conflicts(people, date, st, dur, exclude){
+  if (!date || st==null) return []; const en = st + Math.max(15, dur||60), res = [];
+  for (const p of people||[]) for (const b of busyOf(p, date, exclude)) if (b.st < en && st < b.en) res.push(`${p} má ${hhmm(b.st)}–${hhmm(b.en%1440)} ${b.label}`);
+  return res;
+}
+const warnConflicts = list => { if (list.length) toast("⚠ Kolize: " + list.slice(0,2).join("; ") + (list.length>2 ? ` (+${list.length-2})` : ""), 7000); };
+const actClash = a => conflicts([a.owner], a.date, tmin(a.time), toN(a.duration)||60, a.id).length > 0;
+const instClash = m => { const F = m.f||{}, st = tmin(F.start) ?? tmin(m.time), en = tmin(F.end); return conflicts(m.techs, m.date, st, en!=null && en>st ? en-st : (toN(m.dur)||240), m.id).length > 0; };
+const navLinks = addr => addr ? `<a class="btn blue" href="https://mapy.cz/zakladni?q=${encodeURIComponent(addr)}" target="_blank" rel="noopener">📍 Mapy.cz</a><a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}" target="_blank" rel="noopener">Google Mapy</a>` : "";
 // Czech public holidays; Easter-based ones are computed for every year
 const HOLIDAYS = {"01-01":"Nový rok · Den obnovy českého státu","05-01":"Svátek práce","05-08":"Den vítězství","07-05":"Cyril a Metoděj","07-06":"Mistr Jan Hus","09-28":"Den české státnosti","10-28":"Vznik Československa","11-17":"Den boje za svobodu a demokracii","12-24":"Štědrý den","12-25":"1. svátek vánoční","12-26":"2. svátek vánoční"};
 const easterOf = {};
@@ -1837,7 +1880,7 @@ function easter(y){ const a=y%19, b=Math.floor(y/100), c=y%100, d=Math.floor(b/4
 function holiday(s){ const e = easterOf[s.slice(0,4)] ||= easter(Number(s.slice(0,4))); return s===addDays(e,-2) ? "Velký pátek" : s===addDays(e,1) ? "Velikonoční pondělí" : HOLIDAYS[s.slice(5,10)] || ""; }
 const tmin = t => { const m = /^(\d{1,2}):(\d{2})/.exec(t||""); return m ? Number(m[1])*60 + Number(m[2]) : null; };
 const calInst = (s, users) => canSee("installs") ? S.installs.filter(x=>x.date===s && users.some(u=>(x.techs||[]).includes(u)||!(x.techs||[]).length)) : [];
-const calChip = (e) => e.inst ? `<span class="cev ${e.inst.status==="done"?"done":""}" style="background:var(--g-install)" data-act="open-install" data-id="${e.inst.id}">🔧 ${esc(e.inst.time||"")} ${esc(getDeal(e.inst.dealId)?.name||"Montáž")}</span>` : `<span class="cev ${e.a.status==="done"?"done":""}" style="background:${ACT_COLOR[e.a.type]}" data-act="open-act" data-id="${e.a.id}">${esc(e.a.time||"")} ${esc(e.a.title)}</span>`;
+const calChip = (e, from="") => e.inst ? `<span class="cev ${e.inst.status==="done"?"done":""} ${instClash(e.inst)?"clash":""}" style="background:${instColor(e.inst)}" data-act="open-install" data-id="${e.inst.id}" data-from="${esc(from)}">${instClash(e.inst)?"⚠ ":""}🔧 ${esc(e.inst.time||"")} ${esc(clientName(getDeal(e.inst.dealId)?.clientId) || getDeal(e.inst.dealId)?.name || "Montáž")}</span>` : `<span class="cev ${e.a.status==="done"?"done":""} ${actClash(e.a)?"clash":""}" style="background:${actColor(e.a)}" data-act="open-act" data-id="${e.a.id}" ${e.a._occ?'data-occ="1"':""} data-from="${esc(from)}" title="${e.a.repeat?esc(REPEAT[e.a.repeat]||""):""}">${actClash(e.a)?"⚠ ":""}${e.a.repeat?"↻ ":""}${esc(e.a.time||"")} ${esc(e.a.title)}</span>`;
 function calTimeGrid(dates, acts, users){
   const DN = ["Ne","Po","Út","St","Čt","Pá","So"], t = today();
   const cols = dates.map(s => {
@@ -1854,9 +1897,10 @@ function calTimeGrid(dates, acts, users){
   const hr = m => (m - h0*60) / 60;
   const evBox = e => { const inst = e.inst, top = hr(e.st), h = Math.min(hr(e.st+e.dur), h1-h0) - top;
     const end = e.st+e.dur, tt = `${pad(Math.floor(e.st/60))}:${pad(e.st%60)}–${pad(Math.floor(end/60)%24)}:${pad(end%60)}`;
-    const [act, id, bg, done, title] = inst ? ["open-install", inst.id, "var(--g-install)", inst.status==="done", "🔧 "+(getDeal(inst.dealId)?.name||"Montáž")] : ["open-act", e.a.id, ACT_COLOR[e.a.type], e.a.status==="done", (ACT[e.a.type]?.[1]||"")+" "+e.a.title];
+    const clash = inst ? instClash(inst) : actClash(e.a);
+    const [act, id, bg, done, title] = inst ? ["open-install", inst.id, instColor(inst), inst.status==="done", (clash?"⚠ ":"")+"🔧 "+(getDeal(inst.dealId)?.name||"Montáž")] : ["open-act", e.a.id, actColor(e.a), e.a.status==="done", (clash?"⚠ ":"")+(e.a.repeat?"↻ ":"")+(ACT[e.a.type]?.[1]||"")+" "+e.a.title];
     const sub = inst ? clientName(getDeal(inst.dealId)?.clientId) : (e.a.dealId ? getDeal(e.a.dealId)?.name : clientName(e.a.clientId)) || "";
-    return `<span class="tg-ev ${done?"done":""}" style="top:calc(var(--hh) * ${top});height:calc(var(--hh) * ${h} - 2px);left:calc(${e.lane/e.n*100}% + 2px);width:calc(${100/e.n}% - 4px);background:${bg}" data-act="${act}" data-id="${id}" data-st="${e.st}" data-dur="${e.dur}" title="${esc(tt+" "+title)}"><b>${esc(title)}</b><small>${tt}${sub?" · "+esc(sub):""}</small><i class="tg-rsz" aria-hidden="true"></i></span>`; };
+    return `<span class="tg-ev ${done?"done":""} ${clash?"clash":""}" ${e.a?._occ?'data-occ="1"':""} style="top:calc(var(--hh) * ${top});height:calc(var(--hh) * ${h} - 2px);left:calc(${e.lane/e.n*100}% + 2px);width:calc(${100/e.n}% - 4px);background:${bg}" data-act="${act}" data-id="${id}" data-st="${e.st}" data-dur="${e.dur}" title="${esc(tt+" "+title)}"><b>${esc(title)}</b><small>${tt}${sub?" · "+esc(sub):""}</small><i class="tg-rsz" aria-hidden="true"></i></span>`; };
   const now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
   return `<div class="tgw"><div class="tg" data-hours="${h1-h0}" style="--n:${dates.length};min-width:${dates.length>1?720:0}px">
     <div class="tg-c tg-corner"></div>${cols.map(c => { const d = new Date(c.s+"T12:00:00"); return `<div class="tg-c tg-dh ${c.s===t?"today":""} ${holiday(c.s)?"hol":""}" data-act="cal-goday" data-date="${c.s}" title="${esc(holiday(c.s)||"Zobrazit den")}">${DN[d.getDay()]}<b>${d.getDate()}</b>${holiday(c.s)?`<span class="holn">${esc(holiday(c.s))}</span>`:""}</div>`; }).join("")}
@@ -1871,7 +1915,7 @@ const hhmm = m => `${pad(Math.floor(m/60))}:${pad(m%60)}`;
 const snap15 = m => Math.round(m/15)*15;
 document.addEventListener("pointerdown", e => {
   if (S.view!=="calendar" || e.button!==0 || e.pointerType==="touch") return;
-  const el = e.target.closest && e.target.closest(".tg-ev, .cev"); if (!el) return;
+  const el = e.target.closest && e.target.closest(".tg-ev, .cev"); if (!el || el.dataset.occ) return;
   const inst = el.dataset.act==="open-install", rec = inst ? S.installs.find(x=>x.id===el.dataset.id) : S.activities.find(x=>x.id===el.dataset.id);
   if (!rec || !canEdit(inst ? "installs" : "activities")) return;
   const col = el.closest(".tg-col"), tg = el.closest(".tg");
@@ -1897,8 +1941,8 @@ document.addEventListener("pointermove", e => {
   } else { // day chip (month view, all-day row): follow the pointer, drop on a day
     d.el.style.transform = `translate(${dx}px,${dy}px)`; d.el.style.pointerEvents = "none";
     document.querySelectorAll(".cdrop").forEach(x=>x.classList.remove("cdrop"));
-    const t = document.elementFromPoint(e.clientX, e.clientY)?.closest(".cal .d[data-date], .tg-ad[data-date]");
-    d.ndate = t ? t.dataset.date : null; if (t) t.classList.add("cdrop");
+    const t = document.elementFromPoint(e.clientX, e.clientY)?.closest(".cal .d[data-date], .tg-ad[data-date], .rv-cell[data-date]");
+    d.ndate = t ? t.dataset.date : null; d.nuser = t && t.classList.contains("rv-cell") ? t.dataset.user : undefined; if (t) t.classList.add("cdrop");
   }
 });
 document.addEventListener("pointerup", async () => {
@@ -1906,9 +1950,14 @@ document.addEventListener("pointerup", async () => {
   cdragAt = Date.now(); document.body.classList.remove("cmoving", "cresizing");
   document.querySelectorAll(".cdrop").forEach(x=>x.classList.remove("cdrop"));
   const x = JSON.parse(JSON.stringify(d.rec)), date = d.ndate || d.date;
-  const same = date===d.date && (!d.col || (d.nst===d.st && d.ndur===d.dur));
+  const from = d.el.dataset.from || "", userMove = d.nuser!==undefined && d.nuser!==from;
+  const same = date===d.date && !userMove && (!d.col || (d.nst===d.st && d.ndur===d.dur));
   if (same){ render(); return; }
   x.date = date;
+  if (userMove){ // technicians view: hand the item over to the person of the target row
+    if (d.inst){ x.techs = (x.techs||[]).filter(u => u!==from); if (d.nuser && !x.techs.includes(d.nuser)) x.techs.push(d.nuser); }
+    else if (d.nuser) x.owner = d.nuser;
+  }
   if (d.col){
     if (d.inst){
       const F = x.f || {}, s0 = tmin(F.start), e0 = tmin(F.end);
@@ -1916,13 +1965,24 @@ document.addEventListener("pointerup", async () => {
       if (s0!=null){ F.start = hhmm(d.nst); if (e0!=null) F.end = hhmm(Math.min(24*60-1, d.nst + d.ndur)); x.f = F; } else x.dur = d.ndur;
     } else { x.time = hhmm(d.nst); x.duration = String(d.ndur); }
   }
-  const when = `${fmtD(date)}${d.col ? " "+hhmm(d.nst)+"–"+hhmm((d.nst+d.ndur)%(24*60)) : ""}`;
+  const when = `${fmtD(date)}${d.col ? " "+hhmm(d.nst)+"–"+hhmm((d.nst+d.ndur)%(24*60)) : ""}${userMove ? " · "+(d.inst ? (x.techs.join(", ")||"nepřiřazeno") : x.owner) : ""}`;
   const ok = d.inst ? await saveInst(x, `Přesunuto v kalendáři na ${when}`) : await save("activities", x);
-  if (ok) toast(d.resize ? `Délka změněna: ${when}` : `Přesunuto na ${when}`);
+  if (ok){ toast(d.resize ? `Délka změněna: ${when}` : `Přesunuto na ${when}`); warnConflicts(d.inst ? (() => { const F = x.f||{}, st = tmin(F.start) ?? tmin(x.time), en = tmin(F.end); return conflicts(x.techs, x.date, st, en!=null && en>st ? en-st : (toN(x.dur)||240), x.id); })() : conflicts([x.owner], x.date, tmin(x.time), toN(x.duration)||60, x.id)); }
   render();
 });
 // a drag ends with a click on the event; it must not open the record
-document.addEventListener("click", e => { if (Date.now() - cdragAt < 400 && e.target.closest && e.target.closest(".tg-ev, .cev")){ e.preventDefault(); e.stopPropagation(); } }, true);
+document.addEventListener("click", e => { if (Date.now() - cdragAt < 400 && e.target.closest && e.target.closest(".tg-ev, .cev, .rv-cell")){ e.preventDefault(); e.stopPropagation(); } }, true);
+// technicians view: one row per person, one column per day; installs and the person's activities as chips
+function calTechs(dates, acts, users){
+  const DN = ["Ne","Po","Út","St","Čt","Pá","So"], t = today(), byTime = (a,b) => (a.time||"").localeCompare(b.time||"");
+  const rows = [...users, ""];
+  const head = `<div class="rv-c rv-corner"></div>${dates.map(s => { const d = new Date(s+"T12:00:00"); return `<div class="rv-c rv-dh ${s===t?"today":""} ${holiday(s)?"hol":""}" data-act="cal-goday" data-date="${s}" title="${esc(holiday(s)||"Zobrazit den")}">${DN[d.getDay()]} <b>${d.getDate()}. ${d.getMonth()+1}.</b>${holiday(s)?`<span class="holn">${esc(holiday(s))}</span>`:""}</div>`; }).join("")}`;
+  const body = rows.map(u => `<div class="rv-c rv-name">${u ? `<span class="dot" style="background:${personColor(u)}"></span> ${esc(u)}` : `<span class="muted">Nepřiřazené montáže</span>`}</div>${dates.map(s => {
+      const ins = S.installs.filter(m => m.date===s && (u ? (m.techs||[]).includes(u) : !(m.techs||[]).length)).sort(byTime);
+      const as = u ? acts.filter(a => a.date===s && a.owner===u).sort(byTime) : [];
+      return `<div class="rv-c rv-cell ${s===t?"today":""}" data-act="cal-newinst" data-date="${s}" data-user="${esc(u)}" title="Dvojklikem naplánujete montáž">${ins.map(m=>calChip({inst:m}, u)).join("")}${as.map(a=>calChip({a}, u)).join("")}</div>`; }).join("")}`).join("");
+  return `<div class="tgw"><div class="rv" style="min-width:860px">${head}${body}</div></div><p class="muted" style="font-size:12px;margin:6px 0 0">Prázdné políčko = volno. Montáž přetáhnete na jiný den nebo jinému technikovi, dvojklikem do políčka naplánujete novou.</p>`;
+}
 // stretch the calendar to the bottom of the window
 function fitCal(){
   const m = document.querySelector("#main .cal"), tg = document.querySelector("#main .tg");
@@ -1934,12 +1994,16 @@ window.addEventListener("resize", () => { if (S.view==="calendar") fitCal(); });
 function vCal(){
   after.push(fitCal);
   const MON = ["Leden","Únor","Březen","Duben","Květen","Červen","Červenec","Srpen","Září","Říjen","Listopad","Prosinec"];
-  const view = ["day","week","month"].includes(S.calView) ? S.calView : "month";
+  const view = ["day","week","month","tech"].includes(S.calView) ? S.calView : "month";
   const base = new Date(S.calDate+"T12:00:00"); const y = base.getFullYear(), m = base.getMonth()+1;
   const users = ls.get("stinko-calusers", null) || [me()];
   const types = ls.get("stinko-caltypes", null) || Object.keys(ACT);
   const hideDone = ls.get("stinko-hidedone", false);
-  const acts = S.activities.filter(a => a.date && a.status !== "cancelled" && users.includes(a.owner) && types.includes(a.type) && !(hideDone && a.status==="done"));
+  const tusers = ls.get("stinko-calusers", null) || C().users;
+  const pool = S.activities.filter(a => a.date && a.status !== "cancelled" && (view==="tech" ? tusers : users).includes(a.owner) && types.includes(a.type) && !(hideDone && a.status==="done"));
+  const mon0 = addDays(S.calDate, -((base.getDay()+6)%7)), mfirst = new Date(y,m-1,1), mstart = iso(new Date(y, m-1, 1-((mfirst.getDay()+6)%7)));
+  const [rf, rt] = view==="month" ? [mstart, addDays(mstart, 41)] : view==="day" ? [S.calDate, S.calDate] : [mon0, addDays(mon0, 6)];
+  const acts = expandActs(pool, rf, rt);
   let title = "", main = "";
   if (view === "month"){
     const first = new Date(y,m-1,1); const start = new Date(first); start.setDate(1-((first.getDay()+6)%7));
@@ -1948,6 +2012,10 @@ function vCal(){
       cells += `<div class="d ${d.getMonth()!==m-1?"o":""} ${s===today()?"today":""} ${holiday(s)?"hol":""}" data-act="newact-day" data-date="${s}" title="Dvojklikem založíte novou aktivitu"><b data-act="cal-goday" data-date="${s}" title="Zobrazit den">${d.getDate()}</b>${holiday(s)?`<span class="holn" title="${esc(holiday(s))}">${esc(holiday(s))}</span>`:""}${ins.map(x=>calChip({inst:x})).join("")}${ev.slice(0,6).map(a=>calChip({a})).join("")}${ev.length>6?`<span class="muted">+${ev.length-6} další</span>`:""}</div>`; }
     title = `${MON[m-1]} ${y}`;
     main = `<div style="overflow-x:auto"><div class="cal" style="min-width:620px">${["Po","Út","St","Čt","Pá","So","Ne"].map(d=>`<div class="h">${d}</div>`).join("")}${cells}</div></div>`;
+  } else if (view === "tech"){
+    const dates = Array.from({length:7}, (_,i) => addDays(mon0, i)), a = new Date(dates[0]+"T12:00:00"), b = new Date(dates[6]+"T12:00:00");
+    title = `${a.getDate()}. ${a.getMonth()+1}. – ${b.getDate()}. ${b.getMonth()+1}. ${b.getFullYear()}`;
+    main = calTechs(dates, acts, tusers);
   } else if (view === "week"){
     const mon = addDays(S.calDate, -((base.getDay()+6)%7)); const dates = Array.from({length:7}, (_,i) => addDays(mon, i));
     const a = new Date(dates[0]+"T12:00:00"), b = new Date(dates[6]+"T12:00:00");
@@ -1958,9 +2026,10 @@ function vCal(){
     main = calTimeGrid([S.calDate], acts, users);
   }
   const unplanned = S.activities.filter(a => !a.date && a.status==="planned");
-  const nav = {day:["Předchozí den","Další den"], week:["Předchozí týden","Další týden"], month:["Předchozí měsíc","Další měsíc"]}[view];
-  return `<div class="lhead"><h1>Kalendář</h1><div class="calv" role="group" aria-label="Zobrazení">${[["day","Den"],["week","Týden"],["month","Měsíc"]].map(([k,t])=>`<button data-act="cal-view" data-v="${k}" aria-pressed="${view===k}">${t}</button>`).join("")}</div><button class="btn sm" data-act="cal" data-d="-1" aria-label="${nav[0]}">‹</button><b style="font-size:16px;min-width:150px;text-align:center">${title}</b><button class="btn sm" data-act="cal" data-d="1" aria-label="${nav[1]}">›</button><button class="btn sm" data-act="cal" data-d="0">Dnes</button><span class="sp"></span><span class="calfwrap"><button class="btn ${S.calf?"blue":""}" data-act="cal-filters" aria-expanded="${!!S.calf}">⚲ Filtry${unplanned.length?` · Nenaplánováno ${unplanned.length}`:""}</button>${S.calf?`<div class="calf"><div class="row" style="justify-content:space-between"><span class="lbl">Filtry</span><button class="btn sm ghost" data-act="cal-filters" aria-label="Zavřít">✕</button></div>
-    <div><span class="lbl">Uživatelé</span>${C().users.map(u=>`<label class="c"><input type="checkbox" class="cal-user" value="${esc(u)}" ${users.includes(u)?"checked":""}> ${esc(u)}</label>`).join("")}</div>
+  const nav = {day:["Předchozí den","Další den"], week:["Předchozí týden","Další týden"], tech:["Předchozí týden","Další týden"], month:["Předchozí měsíc","Další měsíc"]}[view];
+  return `<div class="lhead"><h1>Kalendář</h1><div class="calv" role="group" aria-label="Zobrazení">${[["day","Den"],["week","Týden"],["month","Měsíc"],["tech","Technici"]].map(([k,t])=>`<button data-act="cal-view" data-v="${k}" aria-pressed="${view===k}">${t}</button>`).join("")}</div><button class="btn sm" data-act="cal" data-d="-1" aria-label="${nav[0]}">‹</button><b style="font-size:16px;min-width:150px;text-align:center">${title}</b><button class="btn sm" data-act="cal" data-d="1" aria-label="${nav[1]}">›</button><button class="btn sm" data-act="cal" data-d="0">Dnes</button><span class="sp"></span><span class="calfwrap"><button class="btn ${S.calf?"blue":""}" data-act="cal-filters" aria-expanded="${!!S.calf}">⚲ Filtry${unplanned.length?` · Nenaplánováno ${unplanned.length}`:""}</button>${S.calf?`<div class="calf"><div class="row" style="justify-content:space-between"><span class="lbl">Filtry</span><button class="btn sm ghost" data-act="cal-filters" aria-label="Zavřít">✕</button></div>
+    <div><span class="lbl">Barvy událostí</span><label class="c"><input type="radio" name="cal-colmode" class="cal-colmode" value="type" ${calByPerson()?"":"checked"}> podle typu</label><label class="c"><input type="radio" name="cal-colmode" class="cal-colmode" value="person" ${calByPerson()?"checked":""}> podle člověka</label></div>
+    <div><span class="lbl">Uživatelé</span>${C().users.map(u=>`<label class="c"><input type="checkbox" class="cal-user" value="${esc(u)}" ${(view==="tech"?tusers:users).includes(u)?"checked":""}> <span class="dot" style="background:${personColor(u)}"></span> ${esc(u)}</label>`).join("")}</div>
     <div><span class="lbl">Typ aktivity</span>${Object.entries(ACT).map(([k,[t]])=>`<label class="c"><input type="checkbox" class="cal-type" value="${k}" ${types.includes(k)?"checked":""}> <span class="dot" style="background:${ACT_COLOR[k]}"></span> ${t}</label>`).join("")}</div>
     <label class="c"><input type="checkbox" id="cal-hidedone" ${hideDone?"checked":""}> Schovat realizované</label>
     <div><span class="lbl">Nenaplánováno (${unplanned.length})</span>${unplanned.map(a=>`<div><span class="link" data-act="open-act" data-id="${a.id}">${esc(a.title)}</span></div>`).join("")||`<div class="muted">Nic</div>`}</div></div>`:""}</span><button class="plus" data-act="newact-meeting" aria-label="Nová aktivita">+</button></div>
@@ -2085,6 +2154,7 @@ function modalHtml(){
     <label class="f"><span>Předmět *</span><input id="a-title" value="${esc(r.title||"")}"></label>
     <div class="fgrid"><label class="f"><span>Datum</span><input id="a-date" type="date" value="${esc(r.date||"")}"></label><label class="f"><span>Čas</span><input id="a-time" type="time" value="${esc(r.time||"")}"></label><label class="f"><span>Délka (min)</span><input id="a-dur" inputmode="numeric" value="${esc(r.duration||"")}"></label><label class="f"><span>Stav</span><select id="a-status">${[["planned","Naplánováno"],["done","Realizováno"],["cancelled","Zrušeno"]].map(([k,t])=>`<option value="${k}" ${k===r.status?"selected":""}>${t}</option>`).join("")}</select></label></div>
     <div class="fgrid"><label class="f"><span>Obchodní případ</span><select id="a-deal"><option value="">—</option>${deals.map(d=>`<option value="${d.id}" ${d.id===r.dealId?"selected":""}>${esc(d.code+" "+d.name)}</option>`).join("")}</select></label><label class="f"><span>Vlastník</span><select id="a-owner">${opt(C().users, r.owner)}</select></label><label class="f"><span>Kategorie</span><select id="a-cat">${opt(C().activityCategories, r.category, true)}</select></label><label class="f"><span>Priorita</span><select id="a-prio">${opt(["Normální","Vysoká","Nízká"], r.priority)}</select></label></div>
+    <div class="fgrid"><label class="f"><span>Opakovat</span><select id="a-repeat"><option value="">Neopakovat</option>${Object.entries(REPEAT).map(([k,t])=>`<option value="${k}" ${r.repeat===k?"selected":""}>${t}</option>`).join("")}</select></label><label class="f"><span>Opakovat do (nepovinné)</span><input id="a-runtil" type="date" value="${esc(r.repeatUntil||"")}"></label></div>
     <label class="f"><span>Místo</span><input id="a-place" value="${esc(r.place||"")}"></label>
     <label class="f"><span>Popis</span><textarea id="a-note">${esc(r.note||"")}</textarea></label><label class="f"><span>Výsledek</span><textarea id="a-result">${esc(r.result||"")}</textarea></label>`;
   }
@@ -2110,6 +2180,7 @@ function vSettings(){
   <div style="display:grid;gap:14px">
   ${LOGIN_OFF ? "" : usersCard()}
   ${migrCard()}
+  <div class="card"><div class="ch"><h2>Barvy uživatelů v kalendáři</h2></div><div class="cb row" style="gap:14px">${C().users.map(u=>`<label class="c"><input type="color" class="ucol" data-u="${esc(u)}" value="${/^#[0-9a-f]{6}$/i.test(personColor(u))?personColor(u):"#888888"}" style="width:38px;height:30px;padding:2px"> ${esc(u)}</label>`).join("")}<span class="muted" style="font-size:12px">Použijí se, když v kalendáři zvolíte Filtry → Barvy podle člověka.</span></div></div>
   ${autosCard()}
   <div class="card"><div class="ch"><h2>Fáze obchodního případu</h2><button class="btn sm" data-act="ph-add">+ Fáze</button></div><div class="cb" style="display:grid;gap:6px">${c.phases.map((p,i)=>`<div class="cfg-phase"><input class="ph-name" value="${esc(p.name)}" aria-label="Název fáze"><select class="ph-group" aria-label="Úsek">${Object.entries(GROUPS).map(([g,[t]])=>`<option value="${g}" ${g===p.group?"selected":""}>${t}</option>`).join("")}</select><select class="ph-kind" aria-label="Typ">${[["open","Otevřená"],["won","Výhra"],["lost","Prohra"]].map(([k,t])=>`<option value="${k}" ${k===p.kind?"selected":""}>${t}</option>`).join("")}</select><span class="row" style="flex-wrap:nowrap"><button class="btn sm ghost" data-act="ph-up" data-ix="${i}" aria-label="Posunout výš">↑</button><button class="btn sm ghost" data-act="ph-del" data-ix="${i}" aria-label="Odebrat">✕</button></span></div>`).join("")}</div></div>
   <div class="card"><div class="ch"><h2>Číselníky</h2></div><div class="cb fgrid">${list("cfg-users","Uživatelé",c.users)}${list("cfg-types","Typy obchodu",c.types)}${list("cfg-cats","Kategorie",c.categories)}${list("cfg-leadst","Stavy leadu",c.leadStates)}${list("cfg-sources","Zdroje",c.sources)}${list("cfg-actcats","Kategorie aktivit",c.activityCategories)}${list("cfg-signdocs","Dokumenty k podpisu",c.signDocs||DEFAULT_CONFIG.signDocs)}</div></div>
@@ -2332,9 +2403,10 @@ document.addEventListener("click", async e => {
         if (await save("deals", d)){ closeModal(); toast("Podpis uložen"); } } catch(err){ console.error(err); toast("Podpis se nepodařilo uložit."); } break; }
     // activities
     case "act-status": { const x = JSON.parse(JSON.stringify(S.activities.find(v=>v.id===id))); x.status = a.dataset.st; x.doneAt = x.status==="done"?Date.now():null; if (await save("activities", x)) toast(x.status==="done"?"Realizováno":x.status==="cancelled"?"Zrušeno":"Vráceno do plánu"); break; }
-    case "cal": { const dd = Number(a.dataset.d); if (dd===0) S.calDate = today(); else if (S.calView==="day") S.calDate = addDays(S.calDate, dd); else if (S.calView==="week") S.calDate = addDays(S.calDate, 7*dd); else { const [y,m] = S.calDate.split("-").map(Number); S.calDate = iso(new Date(y,m-1+dd,1)); } render(); break; }
+    case "cal": { const dd = Number(a.dataset.d); if (dd===0) S.calDate = today(); else if (S.calView==="day") S.calDate = addDays(S.calDate, dd); else if (S.calView==="week" || S.calView==="tech") S.calDate = addDays(S.calDate, 7*dd); else { const [y,m] = S.calDate.split("-").map(Number); S.calDate = iso(new Date(y,m-1+dd,1)); } render(); break; }
     case "cal-filters": S.calf = !S.calf; render(); break;
     case "cal-view": S.calView = a.dataset.v; ls.set("stinko-calview", S.calView); render(); break;
+    case "cal-newinst": if (e.detail < 2 || !canEdit("installs")) break; S.confirm = null; S.modal = {kind:"inst", data:{_new:true, id:uid(), dealId:"", date:a.dataset.date, time:"08:00", techs:a.dataset.user ? [a.dataset.user] : [], note:""}}; S._forceModal = true; renderOverlay(); break;
     case "cal-goday": S.calView = "day"; S.calDate = a.dataset.date; ls.set("stinko-calview", "day"); render(); break;
     case "cal-slot": { if (e.detail < 2) break; /* double click only */ if (!canEdit("activities")){ toast("Na tuto akci nemáte oprávnění."); break; } const r = a.getBoundingClientRect(); const mins = Math.min(23*60+30, Number(a.dataset.h0)*60 + Math.floor((e.clientY - r.top)/(parseFloat(getComputedStyle(a).getPropertyValue("--hh"))||CAL_H)*2)*30);
       openModal("act", {id:uid(), type:"meeting", title:"", date:a.dataset.date, time:`${pad(Math.floor(mins/60))}:${pad(mins%60)}`, duration:"60", status:"planned", priority:"Normální", owner:me(), dealId:"", clientId:"", _new:true}); break; }
@@ -2360,6 +2432,8 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", async e => {
   const t = e.target;
+  if (t.classList.contains("cal-colmode")){ ls.set("stinko-calcolor", t.value); render(); return; }
+  if (t.classList.contains("ucol")){ if (!isAdmin()) return; const c = JSON.parse(JSON.stringify(C())); c.userColors = {...(c.userColors||{}), [t.dataset.u]: t.value}; if (await save("config", {id:"main", ...c})){ if (cfgDraft) cfgDraft.userColors = c.userColors; toast("Barva uložena"); } return; }
   if (t.classList.contains("auto-on")){ if (!isAdmin()) return; const list = autos().map(r => r.id===t.dataset.id ? {...r, on:t.checked} : r); if (await saveAutos(list)) toast(t.checked?"Automatizace zapnuta":"Automatizace vypnuta"); return; }
   if (t.id==="au-trigger" || t.classList.contains("au-kind")){ readAuto(); S._forceModal = true; renderOverlay(); return; }
   if (t.id==="p-vatall" && t.value!==""){ const vr = toN(t.value); editItems(list => list.forEach(it => it.vat = vr)); return; }
@@ -2414,7 +2488,7 @@ async function movePhase(deal, phaseId, depth=0, why=""){
 }
 function readProducts(){ const cur = (S.view==="offer" ? getOffer(S.param)?.items : getDeal(S.param)?.products) || []; return [...document.querySelectorAll("#prows tr")].map((tr,i)=>({productId:cur[i]?.productId||"", cost:cur[i]?.cost||0, vat:tr.querySelector(".p-vat") ? toN(tr.querySelector(".p-vat").value) : cur[i]?.vat, pdfDesc:cur[i]?.pdfDesc||"", name:tr.querySelector(".p-name").value.trim(), qty:toN(tr.querySelector(".p-qty").value), unit:tr.querySelector(".p-unit").value, price:toH(tr.querySelector(".p-price").value), discount:tr.querySelector(".p-disc").value})); }
 function readModalKeep(){ const r = S.modal?.data; if (!r || S.modal.kind!=="product") return; const v = id => document.getElementById(id)?.value ?? ""; Object.assign(r, {name:v("pr-name"), code:v("pr-code"), category:v("pr-cat"), unit:v("pr-unit"), supplier:v("pr-supplier"), description:v("pr-desc")}); }
-function readModalAct(){ const r = S.modal.data, v = id => document.getElementById(id)?.value ?? ""; Object.assign(r, {title:v("a-title"), date:v("a-date"), time:v("a-time"), duration:v("a-dur"), status:v("a-status"), dealId:v("a-deal"), owner:v("a-owner"), category:v("a-cat"), priority:v("a-prio"), place:v("a-place"), note:v("a-note"), result:v("a-result")}); }
+function readModalAct(){ const r = S.modal.data, v = id => document.getElementById(id)?.value ?? ""; Object.assign(r, {title:v("a-title"), date:v("a-date"), time:v("a-time"), duration:v("a-dur"), status:v("a-status"), dealId:v("a-deal"), owner:v("a-owner"), category:v("a-cat"), priority:v("a-prio"), place:v("a-place"), note:v("a-note"), result:v("a-result"), repeat:v("a-repeat"), repeatUntil:v("a-runtil")}); if (!r.repeat) r.repeatUntil = ""; }
 
 document.addEventListener("submit", async e => {
   e.preventDefault(); const f = e.target; const v = id => (document.getElementById(id)?.value ?? "").trim();
@@ -2435,7 +2509,8 @@ document.addEventListener("submit", async e => {
     if (isNew){ m.status = "planned"; m.items = {}; m.f = {}; m.photos = []; m.createdAt = Date.now(); }
     if (await saveInst(m, isNew ? `Montáž naplánována${m.date?" na "+fmtD(m.date):""}` : "Termín nebo technici upraveni")){
       const d = getDeal(m.dealId); if (d){ const dd = JSON.parse(JSON.stringify(d)); log(dd, `${isNew?"Montáž naplánována":"Montáž upravena"}: ${m.date?fmtD(m.date):"bez termínu"} ${m.time||""} · ${m.techs.join(", ")||"bez technika"}`, "act"); await save("deals", dd); }
-      closeModal(); toast(isNew?"Montáž naplánována":"Uloženo"); if (isNew && S.view!=="deal") go("install", m.id); else render(); }
+      closeModal(); toast(isNew?"Montáž naplánována":"Uloženo"); if (isNew && S.view!=="deal" && S.view!=="calendar") go("install", m.id); else render();
+      { const F = m.f||{}, st = tmin(F.start) ?? tmin(m.time), en = tmin(F.end); warnConflicts(conflicts(m.techs, m.date, st, en!=null && en>st ? en-st : (toN(m.dur)||240), m.id)); } }
     return; }
   if (f.id==="modalform" && S.modal?.kind==="auto"){ if (!isAdmin()) return; readAuto(); const r = {...S.modal.data}; delete r._new; delete r._open;
     if (!r.name.trim()){ toast("Zadejte název."); return; } if (TRIGGERS[r.trigger]?.[1] && !r.param){ toast("Vyberte stav ve spouštěči."); return; } if (!(r.actions||[]).length){ toast("Přidejte aspoň jednu akci."); return; }
@@ -2510,7 +2585,7 @@ document.addEventListener("submit", async e => {
       if (!x.title){ S.modal.data._new = isNew; toast("Vyplňte předmět."); return; }
       if (x.dealId && !x.clientId) x.clientId = getDeal(x.dealId)?.clientId || "";
       if (isNew) x.createdAt = Date.now(); if (x.status==="done" && !x.doneAt) x.doneAt = Date.now();
-      if (await save("activities", x)){ closeModal(); toast("Aktivita uložena"); }
+      if (await save("activities", x)){ closeModal(); toast("Aktivita uložena"); if (x.status==="planned") warnConflicts(conflicts([x.owner], x.date, tmin(x.time), toN(x.duration)||60, x.id)); }
     }
     return;
   }
