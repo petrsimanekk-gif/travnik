@@ -2770,6 +2770,9 @@ document.addEventListener("click", async e => {
     case "mb-logo-company": { const d = readMbox(); try { d.sigLogo = (await companyLogo()).id; } catch(e){ toast("Logo se nepodařilo nahrát."); } if (S.modal?.data===d){ S._forceModal = true; renderOverlay(); } break; }
     case "mb-unlogo": { const d = readMbox(); d.sigLogo = ""; S._forceModal = true; renderOverlay(); break; }
     case "sig-logo-company": { const d = readSigs(); try { const lg = await companyLogo(); const cur = d.list[d.sel]; if (cur) cur.logo = lg; } catch(e){ toast("Logo se nepodařilo nahrát."); } if (S.modal?.data===d){ S._forceModal = true; renderOverlay(); } break; }
+    case "tpl-reset": { const d = S.modal?.data, t = DEFAULT_TPLS.find(x => x.id===d?.id); if (!t) break;
+      if (!confirm("Nahradit předmět a text šablony připraveným zněním? Uloží se až tlačítkem Uložit šablonu.")) break;
+      d.name = $("#tp-name")?.value || d.name; d.subject = t.subject; d.body = t.body; delete d.html; S._forceModal = true; renderOverlay(); toast("Načteno připravené znění – zkontrolujte a uložte"); break; }
     case "tpl-defaults": { if (!isAdmin()) break; const L = mailTpls(), add = DEFAULT_TPLS.filter(t => !L.some(x => x.id===t.id)); if (await saveTpls([...L, ...add])){ toast(`Doplněno šablon: ${add.length}`); render(); } break; }
     case "sig-manage": if (!MAIL.boxes) await mailLoadBoxes(); openSigs(); break;
     case "sig-sel": { const d = readSigs(); d.sel = Number(a.dataset.i); S._forceModal = true; renderOverlay(); break; }
@@ -3413,32 +3416,23 @@ děkujeme za Vaši poptávku. Ozveme se Vám do 24 hodin a domluvíme další po
 Mezitím se můžete podívat na naše realizace na www.primashade.cz. Pokud máte jakýkoli dotaz, stačí odpovědět na tento e-mail.`},
   {id:"t-nabidka", name:"Zaslání cenové nabídky", subject:"Cenová nabídka {nabidka} – {predmet}", body:`{osloveni}
 
-děkujeme za Váš zájem o naše řešení. Posíláme Vám cenovou nabídku {nabidka} – {predmet}.
-
-Celková cena: {cena} vč. DPH
-Platnost nabídky: do {platnost}
+děkujeme za Váš zájem o naše řešení. Připravili jsme pro Vás cenovou nabídku {nabidka} – {predmet}. Kompletní nabídku s cenou a rozpisem si zobrazíte tlačítkem „Zobrazit nabídku“ níže.
 
 V ceně je doprava, montáž, zprovoznění ovládání i zaškolení. Pergolu vyrábíme na míru, proto rádi upravíme rozměry, barvu nebo doplňky (LED osvětlení, screenové rolety, topení) přesně podle Vašich představ.
 
-Pokud Vám cokoli není jasné nebo chcete nabídku probrat, stačí odpovědět na tento e-mail nebo mi zavolat. Rád se zastavím i osobně.
+Nabídka platí do {platnost}. Pokud Vám cokoli není jasné nebo chcete nabídku probrat, stačí odpovědět na tento e-mail nebo mi zavolat. Rád se zastavím i osobně.
 
 Těším se na Vaši odpověď.`},
   {id:"t-obhlidka", name:"Nabídka po obhlídce / zaměření", subject:"Nabídka podle obhlídky – {predmet}", body:`{osloveni}
 
-ještě jednou děkuji za čas, který jste mi věnovali při obhlídce. Podle naměřených rozměrů a toho, co jsme spolu probrali, jsem připravil nabídku {nabidka}, kterou Vám posílám.
+ještě jednou děkuji za čas, který jste mi věnovali při obhlídce. Podle naměřených rozměrů a toho, co jsme spolu probrali, jsem připravil nabídku {nabidka}. Zobrazíte si ji tlačítkem „Zobrazit nabídku“ níže.
 
-Celková cena: {cena} vč. DPH
-Platnost nabídky: do {platnost}
-
-Do nabídky jsem zapracoval vše, na čem jsme se domluvili. Kdybyste chtěli něco upravit nebo porovnat jinou variantu, rád ji připravím.
+Do nabídky jsem zapracoval vše, na čem jsme se domluvili. Nabídka platí do {platnost}. Kdybyste chtěli něco upravit nebo porovnat jinou variantu, rád ji připravím.
 
 Po Vašem potvrzení Vám pošlu zálohovou fakturu a domluvíme termín montáže.`},
   {id:"t-upravena", name:"Upravená nabídka (nová verze)", subject:"Upravená nabídka {nabidka} – {predmet}", body:`{osloveni}
 
-podle Vašich připomínek jsem nabídku upravil. Posílám Vám novou verzi {nabidka}.
-
-Nová celková cena: {cena} vč. DPH
-Platnost nabídky: do {platnost}
+podle Vašich připomínek jsem nabídku upravil. Novou verzi {nabidka} si zobrazíte tlačítkem „Zobrazit nabídku“ níže. Platí do {platnost}.
 
 Dejte mi prosím vědět, jestli Vám teď vše vyhovuje, případně co ještě doladit.`},
   {id:"t-pripominka", name:"Připomenutí nabídky (po 3–5 dnech)", subject:"Re: Cenová nabídka {nabidka}", body:`{osloveni}
@@ -3459,7 +3453,7 @@ Děkuji a přeji hezký den.`},
 
 chci Vás jen upozornit, že platnost cenové nabídky {nabidka} ({predmet}) končí {platnost}.
 
-Do tohoto data Vám garantujeme uvedenou cenu {cena} vč. DPH i aktuální termíny montáže. Pokud budete potřebovat víc času na rozmyšlenou, napište mi a domluvíme se.`},
+Do tohoto data Vám garantujeme cenu z nabídky i aktuální termíny montáže. Pokud budete potřebovat víc času na rozmyšlenou, napište mi a domluvíme se.`},
   {id:"t-akceptace", name:"Poděkování za objednávku – další kroky", subject:"Děkujeme za objednávku – {predmet}", body:`{osloveni}
 
 děkujeme za Vaši objednávku a důvěru. Moc si toho vážíme.
@@ -3512,7 +3506,7 @@ function tplModal(){
   <label class="f"><span>Předmět e-mailu</span><input id="tp-subj" value="${esc(d.subject||"")}"></label>
   <div style="display:grid;gap:3px"><span class="lbl">Text</span>${rteBox("tp-body", tplHtml(d), "Text šablony")}</div>
   <div class="row" style="gap:4px"><span class="lbl" style="margin-right:4px">Vložit proměnnou:</span>${TPL_VARS.map(([k,t]) => `<button type="button" class="chip mlink" data-act="tpl-var" data-v="${k}" title="${esc(t)}">{${k}}</button>`).join("")}</div></div>
-  <div class="mf">${d._new?"":`<button type="button" class="btn ghost bad" data-act="tpl-del" data-id="${d.id}" style="margin-right:auto">Smazat šablonu</button>`}<button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit">Uložit šablonu</button></div></form></div>`;
+  <div class="mf">${d._new?"":`<button type="button" class="btn ghost bad" data-act="tpl-del" data-id="${d.id}" style="margin-right:auto">Smazat šablonu</button>`}${DEFAULT_TPLS.some(t => t.id===d.id) ? `<button type="button" class="btn ghost" data-act="tpl-reset" title="Načte text, který CRM pro tuto šablonu nabízí. Uloží se až tlačítkem Uložit šablonu.">↺ Vrátit připravené znění</button>` : ""}<button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit">Uložit šablonu</button></div></form></div>`;
 }
 // "✉ Odeslat e-mailem" on an offer: the client's address, the offer template and the online offer
 // (a card with a photo and a "Zobrazit nabídku" button; the client's visits are tracked)
