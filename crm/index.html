@@ -2923,7 +2923,7 @@ document.addEventListener("click", async e => {
     case "sig-logo-company": { const d = readSigs(); try { const lg = await companyLogo(); const cur = d.list[d.sel]; if (cur) cur.logo = lg; } catch(e){ toast("Logo se nepodařilo nahrát."); } if (S.modal?.data===d){ S._forceModal = true; renderOverlay(); } break; }
     case "tpl-reset": { const d = S.modal?.data, t = DEFAULT_TPLS.find(x => x.id===d?.id); if (!t) break;
       if (!confirm("Nahradit předmět a text šablony připraveným zněním? Uloží se až tlačítkem Uložit šablonu.")) break;
-      d.name = $("#tp-name")?.value || d.name; d.subject = t.subject; d.body = t.body; delete d.html; S._forceModal = true; renderOverlay(); toast("Načteno připravené znění – zkontrolujte a uložte"); break; }
+      d.name = $("#tp-name")?.value || d.name; d.subject = t.subject; d.body = t.body; if (t.html) d.html = t.html; else delete d.html; S._forceModal = true; renderOverlay(); toast("Načteno připravené znění – zkontrolujte a uložte"); break; }
     case "tpl-defaults": { if (!isAdmin()) break; const L = mailTpls(), add = DEFAULT_TPLS.filter(t => !L.some(x => x.id===t.id)); if (await saveTpls([...L, ...add])){ toast(`Doplněno šablon: ${add.length}`); render(); } break; }
     case "sig-manage": if (!MAIL.boxes) await mailLoadBoxes(); openSigs(); break;
     case "sig-sel": { const d = readSigs(); d.sel = Number(a.dataset.i); S._forceModal = true; renderOverlay(); break; }
