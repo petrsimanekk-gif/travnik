@@ -18,3 +18,16 @@ func TestOwnAccountWrite(t *testing.T) {
 		t.Error("someone else's account must be refused")
 	}
 }
+
+func TestNewsWrite(t *testing.T) {
+	a := map[string]any{"id": "u1", "name": "Jan", "role": "tech", "perms": map[string]any{}}
+	if canWrite(a, "news", "n1", map[string]any{"title": "x"}, nil) {
+		t.Error("only admins write news")
+	}
+	if !canWrite(a, "newsreads", "n1_u1", map[string]any{"news": "n1", "acc": "u1"}, nil) {
+		t.Error("own read mark should be allowed")
+	}
+	if canWrite(a, "newsreads", "n1_u2", map[string]any{"news": "n1", "acc": "u2"}, nil) || canWrite(a, "newsreads", "n1_u1", map[string]any{"news": "n1", "acc": "u2"}, nil) {
+		t.Error("someone else's read mark must be refused")
+	}
+}
