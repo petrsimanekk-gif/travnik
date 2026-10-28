@@ -250,27 +250,44 @@ func (a plainAnyAuth) Start(*smtp.ServerInfo) (string, []byte, error) {
 func (a plainAnyAuth) Next([]byte, bool) ([]byte, error) { return nil, nil }
 
 // folderNames finds the inbox and the sent folder (special-use flag, else by name).
+// mailFolders are synced into the CRM; the IMAP name of each is found by folderNames.
+var mailFolders = []string{"inbox", "sent", "drafts", "trash"}
+
+var folderAliases = map[string][]string{
+	"sent":   {"sent", "sent items", "sent messages", "sent mail", "odeslane", "odeslané", "odeslaná pošta", "odeslana posta"},
+	"drafts": {"drafts", "draft", "koncepty", "rozepsané", "rozepsane"},
+	"trash":  {"trash", "deleted", "deleted items", "deleted messages", "koš", "kos", "smazané", "smazane", "odstraněné", "odstranene"},
+}
+
 func folderNames(c *imapclient.Client) map[string]string {
 	out := map[string]string{"inbox": "INBOX"}
 	list, err := c.List("", "*", &imap.ListOptions{ReturnSpecialUse: true}).Collect()
 	if err != nil {
 		list, _ = c.List("", "*", nil).Collect()
 	}
+	use := map[imap.MailboxAttr]string{imap.MailboxAttrSent: "sent", imap.MailboxAttrDrafts: "drafts", imap.MailboxAttrTrash: "trash"}
 	for _, l := range list {
 		for _, a := range l.Attrs {
-			if a == imap.MailboxAttrSent {
-				out["sent"] = l.Mailbox
+			if f := use[a]; f != "" && out[f] == "" {
+				out[f] = l.Mailbox
 			}
 		}
 	}
-	if out["sent"] == "" {
+	for f, names := range folderAliases {
+		if out[f] != "" {
+			continue
+		}
 		for _, l := range list {
 			n := strings.ToLower(l.Mailbox)
 			if i := strings.LastIndexAny(n, "/."); i >= 0 {
 				n = n[i+1:]
 			}
-			if n == "sent" || n == "sent items" || n == "sent messages" || strings.HasPrefix(n, "odeslan") {
-				out["sent"] = l.Mailbox
+			for _, x := range names {
+				if n == x || (f == "sent" && strings.HasPrefix(n, "odeslan")) {
+					out[f] = l.Mailbox
+				}
+			}
+			if out[f] != "" {
 				break
 			}
 		}
@@ -492,7 +509,7 @@ func syncBox(app core.App, key string) (err error) {
 	}
 	defer c.Close()
 	names := folderNames(c)
-	for _, folder := range []string{"inbox", "sent"} {
+	for _, folder := range mailFolders {
 		name := names[folder]
 		if name == "" {
 			continue
@@ -583,7 +600,7 @@ func syncFolder(app core.App, c *imapclient.Client, box, folder, name string, st
 	var numSet imap.NumSet
 	if fs.Last == 0 {
 		n := uint32(mailFirstInbox)
-		if folder == "sent" {
+		if folder != "inbox" {
 			n = mailFirstSent
 		}
 		from := uint32(1)
@@ -768,6 +785,8 @@ func bindMailRoutes(se *core.ServeEvent) {
 	r.POST("/api/stinko/mail/hold", handleMailHold)
 	r.POST("/api/stinko/mail/auto", handleMailAuto)
 	r.POST("/api/stinko/mail/release", handleMailRelease)
+	r.POST("/api/stinko/mail/del", handleMailDel)
+	r.POST("/api/stinko/mail/draft", handleMailDraft)
 }
 
 func handleMailBoxes(e *core.RequestEvent) error {
@@ -1115,6 +1134,9 @@ func handleMailMsg(e *core.RequestEvent) error {
 	out := mailItem(r)
 	out["text"], out["html"], out["atts"] = p.Text, body, atts
 	out["inReplyTo"], out["references"] = p.InReplyTo, p.References
+	if r.GetString("folder") == "drafts" && raw != nil {
+		out["draft"] = readDraftMeta(raw)
+	}
 	if raw == nil {
 		out["text"] = "(Zpráva je příliš velká, v CRM je jen její hlavička. Otevřete ji ve webmailu.)"
 	}
@@ -1288,7 +1310,7 @@ func blobAtt(app core.App, key string) (*outAtt, error) {
 }
 
 // buildMail writes mixed{ related{ alternative{text, html}, inline images }, attachments }.
-func buildMail(cfg *mailCfg, to, cc []*mail.Address, subject, text, htmlBody, inReplyTo string, refs []string, inline, atts []*outAtt) ([]byte, string, error) {
+func buildMail(cfg *mailCfg, to, cc []*mail.Address, subject, text, htmlBody, inReplyTo string, refs []string, inline, atts []*outAtt, extra ...[2]string) ([]byte, string, error) {
 	var h mail.Header
 	h.SetDate(time.Now())
 	h.SetAddressList("From", []*mail.Address{{Name: cfg.FromName, Address: cfg.Email}})
@@ -1307,6 +1329,9 @@ func buildMail(cfg *mailCfg, to, cc []*mail.Address, subject, text, htmlBody, in
 		h.SetMsgIDList("References", append(refs, inReplyTo))
 	}
 	h.Set("X-Mailer", "Prima Shade CRM")
+	for _, x := range extra {
+		h.Set(x[0], x[1])
+	}
 	h.Set("MIME-Version", "1.0")
 	h.SetContentType("multipart/mixed", nil)
 	var buf bytes.Buffer
@@ -1398,23 +1423,25 @@ func textToHTML(s string) string {
 
 // sendReq is what the compose dialog sends; a scheduled one is stored as is.
 type sendReq struct {
-	Box      string   `json:"box"`
-	To       string   `json:"to"`
-	Cc       string   `json:"cc"`
-	Subject  string   `json:"subject"`
-	Text     string   `json:"text"`
-	HTML     string   `json:"html"`     // formatted text from the editor ("" = plain Text only)
-	SigText  string   `json:"sigText"`  // signature, written under the text
-	SigLogo  string   `json:"sigLogo"`  // blob key of the signature image
-	SigID    string   `json:"sigId"`    // which of the author's signatures (kept for editing a scheduled e-mail)
-	Quote    string   `json:"quote"`    // the answered / forwarded message, under the signature
-	ReplyTo  string   `json:"replyTo"`  // id of the mail answered
-	Fwd      string   `json:"fwd"`      // id of the mail forwarded (its attachments go along)
-	Att      []string `json:"att"`      // uploaded blob keys
-	AttNames []string `json:"attNames"` // their names, to show a scheduled e-mail
-	CommID   string   `json:"commId"`   // comms record to mark as sent
-	SendAt   int64    `json:"sendAt"`   // ms; later than now = scheduled
-	Offer    string   `json:"offer"`    // online offer token: its card with the "Zobrazit nabídku" button goes under the text
+	Box      string          `json:"box"`
+	To       string          `json:"to"`
+	Cc       string          `json:"cc"`
+	Subject  string          `json:"subject"`
+	Text     string          `json:"text"`
+	HTML     string          `json:"html"`     // formatted text from the editor ("" = plain Text only)
+	SigText  string          `json:"sigText"`  // signature, written under the text
+	SigLogo  string          `json:"sigLogo"`  // blob key of the signature image
+	SigID    string          `json:"sigId"`    // which of the author's signatures (kept for editing a scheduled e-mail)
+	Quote    string          `json:"quote"`    // the answered / forwarded message, under the signature
+	ReplyTo  string          `json:"replyTo"`  // id of the mail answered
+	Fwd      string          `json:"fwd"`      // id of the mail forwarded (its attachments go along)
+	Att      []string        `json:"att"`      // uploaded blob keys
+	AttNames []string        `json:"attNames"` // their names, to show a scheduled e-mail
+	CommID   string          `json:"commId"`   // comms record to mark as sent
+	SendAt   int64           `json:"sendAt"`   // ms; later than now = scheduled
+	Offer    string          `json:"offer"`    // online offer token: its card with the "Zobrazit nabídku" button goes under the text
+	Draft    string          `json:"draft"`    // id of the draft this e-mail was written from (removed once it is sent or saved again)
+	Ctx      json.RawMessage `json:"ctx"`      // what the e-mail is about (offer, client), kept with a draft
 }
 
 // userErr is shown to the user as is.
@@ -1493,15 +1520,17 @@ func sigHTML(text, cid string, logo []byte) string {
 	return h + `</div>`
 }
 
-// doSend builds the message, hands it to SMTP and keeps a copy in Sent.
-func doSend(app core.App, a map[string]any, b *sendReq) (*core.Record, error) {
-	_, cfg, st, err := loadBox(app, b.Box)
-	if err != nil {
-		return nil, userErr{err.Error()}
-	}
-	if err := checkSend(b); err != nil {
-		return nil, err
-	}
+// composed is a message ready to send or to keep as a draft.
+type composed struct {
+	raw           []byte
+	msgID, leadID string
+	to, cc        []*mail.Address
+}
+
+// composeMail builds the message from what the compose dialog sent. A draft keeps only
+// the text and the attachments; the signature, the offer card and the quote are added when
+// it is sent (their choice travels in the X-CRM-Draft header).
+func composeMail(app core.App, cfg *mailCfg, b *sendReq, draft bool) (*composed, error) {
 	to, _ := parseAddrs(b.To)
 	cc, _ := parseAddrs(b.Cc)
 	var atts, inline []*outAtt
@@ -1513,7 +1542,7 @@ func doSend(app core.App, a map[string]any, b *sendReq) (*core.Record, error) {
 		atts = append(atts, x)
 	}
 	logoCID, logoData := "", []byte(nil)
-	if b.SigLogo != "" {
+	if b.SigLogo != "" && !draft {
 		if x, err := blobAtt(app, b.SigLogo); err == nil && strings.HasPrefix(x.ctype, "image/") {
 			logoCID, logoData = "sig-"+randHex(6)+"@crm", x.data
 			x.cid = logoCID
@@ -1544,7 +1573,7 @@ func doSend(app core.App, a map[string]any, b *sendReq) (*core.Record, error) {
 			text = richToText(b.HTML)
 		}
 	}
-	if b.Offer != "" {
+	if b.Offer != "" && !draft {
 		card, line, img, err := offerCard(app, b.Offer)
 		if err != nil {
 			return nil, err
@@ -1555,18 +1584,39 @@ func doSend(app core.App, a map[string]any, b *sendReq) (*core.Record, error) {
 			inline = append(inline, img)
 		}
 	}
-	if strings.TrimSpace(b.SigText) != "" || logoCID != "" {
+	if (strings.TrimSpace(b.SigText) != "" || logoCID != "") && !draft {
 		text += "\n\n-- \n" + b.SigText
 		htm += sigHTML(b.SigText, logoCID, logoData)
 	}
-	if strings.TrimSpace(b.Quote) != "" {
+	if strings.TrimSpace(b.Quote) != "" && !draft {
 		text += "\n\n" + b.Quote
 		htm += `<div style="margin-top:16px">` + textToHTML(b.Quote) + `</div>`
 	}
-	raw, msgID, err := buildMail(cfg, to, cc, b.Subject, text, htm, inReplyTo, refs, inline, atts)
+	var extra [][2]string
+	if draft {
+		extra = append(extra, [2]string{"X-CRM-Draft", draftMeta(b)})
+	}
+	raw, msgID, err := buildMail(cfg, to, cc, b.Subject, text, htm, inReplyTo, refs, inline, atts, extra...)
 	if err != nil {
 		return nil, err
 	}
+	return &composed{raw: raw, msgID: msgID, leadID: leadID, to: to, cc: cc}, nil
+}
+
+// doSend builds the message, hands it to SMTP and keeps a copy in Sent.
+func doSend(app core.App, a map[string]any, b *sendReq) (*core.Record, error) {
+	_, cfg, st, err := loadBox(app, b.Box)
+	if err != nil {
+		return nil, userErr{err.Error()}
+	}
+	if err := checkSend(b); err != nil {
+		return nil, err
+	}
+	m, err := composeMail(app, cfg, b, false)
+	if err != nil {
+		return nil, err
+	}
+	raw, msgID, leadID, to, cc := m.raw, m.msgID, m.leadID, m.to, m.cc
 	s, err := smtpDial(cfg)
 	if err != nil {
 		return nil, userErr{err.Error()}
@@ -1647,6 +1697,7 @@ func doSend(app core.App, a map[string]any, b *sendReq) (*core.Record, error) {
 		_ = syncBox(app, box)
 	}()
 	publishMailState(app, box)
+	go dropSentDraft(app, b)
 	app.Logger().Info("mail sent", "box", box, "by", a["name"], "to", b.To, "msgid", msgID)
 	return rec, nil
 }
