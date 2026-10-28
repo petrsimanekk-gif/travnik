@@ -171,23 +171,36 @@ func handleMailDraft(e *core.RequestEvent) error {
 	if err := e.BindBody(&b); err != nil {
 		return e.BadRequestError("", err)
 	}
-	_, cfg, st, err := mailEditor(e, b.Box)
-	if err != nil {
+	if _, _, _, err := mailEditor(e, b.Box); err != nil {
 		return err
 	}
-	if _, err := parseAddrs(b.To); err != nil {
-		return e.BadRequestError(err.Error(), nil)
-	}
-	if _, err := parseAddrs(b.Cc); err != nil {
-		return e.BadRequestError(err.Error(), nil)
-	}
-	m, err := composeMail(e.App, cfg, &b, true)
+	id, err := saveDraft(e.App, &b)
 	if err != nil {
 		var ue userErr
 		if errors.As(err, &ue) {
 			return e.BadRequestError(ue.msg, nil)
 		}
 		return err
+	}
+	return e.JSON(http.StatusOK, map[string]any{"id": id})
+}
+
+// saveDraft appends the e-mail to the mailbox's Drafts folder (made if missing),
+// removes the draft it replaces and gives the id of the stored copy.
+func saveDraft(app core.App, b *sendReq) (string, error) {
+	_, cfg, st, err := loadBox(app, b.Box)
+	if err != nil {
+		return "", userErr{err.Error()}
+	}
+	if _, err := parseAddrs(b.To); err != nil {
+		return "", userErr{err.Error()}
+	}
+	if _, err := parseAddrs(b.Cc); err != nil {
+		return "", userErr{err.Error()}
+	}
+	m, err := composeMail(app, cfg, b, true)
+	if err != nil {
+		return "", err
 	}
 	name := ""
 	if f := st.Folders["drafts"]; f != nil {
@@ -198,7 +211,7 @@ func handleMailDraft(e *core.RequestEvent) error {
 	ic, err := imapDial(cfg)
 	if err != nil {
 		l.Unlock()
-		return e.BadRequestError(err.Error(), nil)
+		return "", userErr{err.Error()}
 	}
 	if name == "" {
 		name = folderNames(ic)["drafts"]
@@ -219,21 +232,21 @@ func handleMailDraft(e *core.RequestEvent) error {
 	ic.Close()
 	l.Unlock()
 	if werr != nil {
-		return e.BadRequestError("Koncept se nepodařilo uložit: "+werr.Error(), nil)
+		return "", userErr{"Koncept se nepodařilo uložit: " + werr.Error()}
 	}
 	// the previous version of this draft goes away
 	if b.Draft != "" {
-		if r, err := e.App.FindRecordById("mails", b.Draft); err == nil && r.GetString("box") == b.Box && r.GetString("folder") == "drafts" {
-			_ = removeMails(e.App, b.Box, []*core.Record{r}, true)
+		if r, err := app.FindRecordById("mails", b.Draft); err == nil && r.GetString("box") == b.Box && r.GetString("folder") == "drafts" {
+			_ = removeMails(app, b.Box, []*core.Record{r}, true)
 		}
 	}
-	_ = syncBox(e.App, b.Box)
+	_ = syncBox(app, b.Box)
 	id := ""
-	if r, err := e.App.FindFirstRecordByFilter("mails", "box = {:b} && folder = 'drafts' && msgid = {:m}", dbx.Params{"b": b.Box, "m": m.msgID}); err == nil {
+	if r, err := app.FindFirstRecordByFilter("mails", "box = {:b} && folder = 'drafts' && msgid = {:m}", dbx.Params{"b": b.Box, "m": m.msgID}); err == nil {
 		id = r.Id
 	}
-	publishMailState(e.App, b.Box)
-	return e.JSON(http.StatusOK, map[string]any{"id": id})
+	publishMailState(app, b.Box)
+	return id, nil
 }
 
 // dropSentDraft removes the draft an e-mail was written from, once it has gone out.

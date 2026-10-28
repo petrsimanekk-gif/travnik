@@ -27,3 +27,11 @@ func TestSalutation(t *testing.T) {
 		}
 	}
 }
+
+func TestCzk(t *testing.T) {
+	for in, want := range map[float64]string{1234567: "1 234 567 Kč", 1210.5: "1 210,50 Kč", -500: "-500 Kč", 0: "0 Kč"} {
+		if got := czk(in); got != want {
+			t.Errorf("czk(%v) = %q, want %q", in, got, want)
+		}
+	}
+}
