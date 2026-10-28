@@ -3589,7 +3589,8 @@ function mboxModal(){
 }
 function readMbox(){
   const d = S.modal.data, v = id => (document.getElementById(id)?.value ?? "").trim();
-  Object.assign(d, {preset:v("mb-preset"), name:v("mb-name"), email:v("mb-email").toLowerCase(), password:$("#mb-pw")?.value || d.password || "", // kept across re-renders of the dialog fromName:v("mb-fromname"), signature:$("#mb-sig")?.value.replace(/\s+$/,"") || "",
+  Object.assign(d, {preset:v("mb-preset"), name:v("mb-name"), email:v("mb-email").toLowerCase(), password:$("#mb-pw")?.value || d.password || "", // kept across re-renders of the dialog
+    fromName:v("mb-fromname"), signature:$("#mb-sig")?.value.replace(/\s+$/,"") || "",
     imapHost:v("mb-ih"), imapPort:Number(v("mb-ip"))||0, smtpHost:v("mb-sh"), smtpPort:Number(v("mb-sp"))||0, security:v("mb-sec")||"ssl", user:v("mb-user"), enabled:!!$("#mb-on")?.checked, access:[...document.querySelectorAll(".mb-acc:checked")].map(x => x.value)});
   return d;
 }
