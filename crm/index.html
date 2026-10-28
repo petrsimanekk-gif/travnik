@@ -243,6 +243,18 @@ body.notadmin [data-act="ask"][data-what="del"],body.notadmin [data-act="inst-as
 .confirm{display:inline-flex;gap:8px;align-items:center;background:var(--bad-soft);padding:5px 10px;border-radius:16px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:6px;font-weight:500;z-index:70}
 .banner{border-radius:6px;padding:10px 14px;margin-bottom:12px;background:var(--warn-soft)}
+.news{margin-bottom:14px}
+.news .nh{display:flex;align-items:center;gap:10px;margin-bottom:8px} .news .nh h2{margin:0;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.nhero{display:grid;grid-template-columns:6px minmax(0,1fr);border-radius:8px;overflow:hidden;background:var(--surface);border:1px solid var(--line)} .nhero>i{background:var(--nc,var(--accent))} .nhero>div{padding:16px 20px;min-width:0}
+.nkick{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--nc,#a8691a)}
+.nhero h3{margin:4px 0 6px;font-size:20px;font-weight:600;cursor:pointer} .nhero h3:hover{color:var(--link)}
+.ntext{margin:0;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere} .nhero .ntext{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.nby{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:var(--muted)} .nby .av{width:24px;height:24px;font-size:10px}
+.nlist{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:12px}
+.nitem{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:3px} .nitem:hover{border-color:var(--link)} .nitem:focus-visible{outline:2px solid var(--link)}
+.nitem b{font-weight:600} .nitem small{color:var(--muted)} .nitem.unread b::before{content:"● ";color:var(--link)}
+.ntag{display:inline-block;justify-self:start;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.04em}
+.nreads{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:13px}
 .dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
 .dashx{grid-template-columns:repeat(12,minmax(0,1fr));grid-auto-flow:row dense;align-items:start}
 .dcard{position:relative;display:flex;flex-direction:column;min-height:110px}
@@ -429,7 +441,7 @@ textarea.dnote{min-height:110px}
 .rte-prev{min-height:0;max-height:260px;border:1px solid var(--line);border-radius:4px}
 .side .it .badge{margin-left:auto}
 .mfhead{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 14px;box-sizing:border-box;width:100%;font-weight:600;font-size:13.5px} .mfhead:hover{background:var(--hover,rgba(0,0,0,.04))} .mfhead .badge{margin-left:auto}
-.mfname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .mdot{width:9px;height:9px;border-radius:50%;flex:none}
+.mfname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .mfcaret{width:10px;color:var(--muted);font-size:11px;flex:none} .mdot{width:9px;height:9px;border-radius:50%;flex:none}
 .mfbox.on{background:var(--bg,rgba(0,0,0,.02))} .mfbox.on .mfi{padding-left:31px} .mfbox{padding:0;border-bottom:1px solid var(--line)} .mfbox:last-child{border-bottom:0}
 .badge.q{background:var(--muted)} .mfadd{color:var(--link);font-size:13px;padding-top:10px;padding-bottom:10px}
 .mbtag{display:inline-block;font-size:10.5px;font-weight:700;color:var(--bc);border:1px solid var(--bc);border-radius:4px;padding:0 4px;margin-right:6px;vertical-align:1px}
@@ -501,9 +513,9 @@ const STATE_COLOR = {"Potenciální":"var(--warn)","Aktuální":"var(--good)","O
 
 // ---------- data ----------
 const S = { view:"dashboard", param:null, sub:null, q:"", filter:"all", group:"open", confirm:null, offline:false, calDate:today(), calView:ls.get("stinko-calview","month"), sort:{}, page:0, pageSize:50, newmenu:false, modal:null, light:null,
-  config:{...DEFAULT_CONFIG}, clients:[], leads:[], deals:[], activities:[], products:[], offers:[], accounts:[], installs:[], notifs:[], comms:[], presence:[], all:{}, loaded:{presence:false,comms:false,notifs:false,installs:false,accounts:false,config:false,clients:false,leads:false,deals:false,activities:false,products:false,offers:false} };
+  config:{...DEFAULT_CONFIG}, clients:[], leads:[], deals:[], activities:[], products:[], offers:[], accounts:[], installs:[], notifs:[], comms:[], presence:[], news:[], newsreads:[], all:{}, loaded:{news:false,newsreads:false,presence:false,comms:false,notifs:false,installs:false,accounts:false,config:false,clients:false,leads:false,deals:false,activities:false,products:false,offers:false} };
 let db = null, assets = null;
-const COLS = ["config","clients","leads","deals","activities","products","offers","accounts","installs","notifs","comms","presence"];
+const COLS = ["config","clients","leads","deals","activities","products","offers","accounts","installs","notifs","comms","presence","news","newsreads"];
 const mem = {}, memSubs = {}; COLS.forEach(c => { mem[c] = new Map(); memSubs[c] = []; });
 const emit = c => memSubs[c].forEach(cb => cb([...mem[c]].map(([id,d]) => ({id,...d}))));
 const store = {
@@ -1800,6 +1812,47 @@ async function makeOfferPdf(mode){
   } catch(e){ console.error(e); say(""); toast(e?.code==="declined" ? "Stahování zrušeno." : "PDF se nepodařilo vytvořit. Zkuste to znovu."); }
 }
 
+// ---------- novinky ve firmě (nástěnka): píše admin, čtou všichni ----------
+const NEWS_TAGS = {dulezite:["Důležité","var(--accent)","#a8691a","var(--warn-soft)"], info:["Info","var(--link)","var(--link)","var(--link-soft)"], uspech:["Úspěch","var(--good)","var(--good)","var(--good-soft)"], akce:["Akce","var(--warn)","var(--warn)","var(--warn-soft)"]};
+const newsTag = n => NEWS_TAGS[n.tag] || NEWS_TAGS.info;
+const newsChip = n => { const t = newsTag(n); return `<span class="ntag" style="background:${t[3]};color:${t[2]}">${t[0].toUpperCase()}</span>`; };
+const newsSorted = () => [...(S.news||[])].sort((a,b) => (!!b.pinned - !!a.pinned) || (b.at||0) - (a.at||0));
+const newsRead = n => (S.newsreads||[]).some(r => r.news===n.id && r.acc===acc()?.id) || n.byId===acc()?.id;
+const newsReaders = n => { const accs = (S.accounts||[]).filter(a => a.active!==false && a.id!==n.byId), rd = new Set((S.newsreads||[]).filter(r => r.news===n.id).map(r => r.acc)); return {accs, rd, n:accs.filter(a => rd.has(a.id)).length}; };
+async function newsMarkRead(n){ const a = acc(); if (!a || !n || newsRead(n)) return; await save("newsreads", {id:`${n.id}_${a.id}`, news:n.id, acc:a.id, at:Date.now()}); }
+function newsSection(){
+  const L = newsSorted(); if (!L.length && !isAdmin()) return "";
+  const add = isAdmin() ? `<button class="btn sm blue" data-act="news-new" style="margin-left:auto">+ Přidat novinku</button>` : `<span style="margin-left:auto"></span>`;
+  const head = `<div class="nh"><h2>📢 Novinky ve firmě</h2>${L.length > 4 ? `<button class="btn sm ghost" data-act="news-all">Všechny novinky (${L.length})</button>` : ""}${add}</div>`;
+  if (!L.length) return `<section class="news">${head}<div class="nhero"><i></i><div><p class="muted" style="margin:0">Zatím žádné novinky. Napište první oznámení pro celou firmu – uvidí ho všichni na nástěnce.</p></div></div></section>`;
+  const h = L[0], t = newsTag(h), rr = newsReaders(h);
+  const by = n => `<span class="av">${initials(n.by||"")}</span> ${esc(n.by||"")} · ${fmtTs(n.at)}`;
+  const hero = `<div class="nhero" style="--nc:${t[1]}"><i></i><div><span class="nkick" style="color:${t[2]}">${h.pinned?"📌 Připnuto · ":""}${t[0]}</span><h3 data-act="news-open" data-id="${h.id}" tabindex="0">${esc(h.title)}</h3><p class="ntext">${linkify(esc(h.text||""))}</p>
+    <div class="nby">${by(h)}${isAdmin() ? ` · <b style="color:var(--good)">✓ přečetli ${rr.n} z ${rr.accs.length}</b>` : ""}${!newsRead(h) ? `<button class="btn sm good" data-act="news-read" data-id="${h.id}" style="margin-left:auto">✓ Přečteno</button>` : ""}</div></div></div>`;
+  const rest = L.slice(1, 4).map(n => `<button class="nitem ${newsRead(n)?"":"unread"}" data-act="news-open" data-id="${n.id}">${newsChip(n)}<b>${esc(n.title)}</b><small>${esc(n.by||"")} · ${fmtD(new Date(n.at||0).toISOString().slice(0,10))}</small></button>`).join("");
+  return `<section class="news" aria-label="Novinky ve firmě">${head}${hero}${rest ? `<div class="nlist">${rest}</div>` : ""}</section>`;
+}
+function newsViewModal(){
+  const n = (S.news||[]).find(x => x.id===S.modal.data.id); if (!n) return `<div class="modal"><div class="box"><div class="mb"><p>Novinka byla smazána.</p></div><div class="mf"><button class="btn" data-act="close-modal">Zavřít</button></div></div></div>`;
+  const rr = newsReaders(n), t = newsTag(n);
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Novinka"><div class="box" style="width:min(640px,100%)"><div class="mh"><span>${newsChip(n)}${n.pinned?` <span class="muted" style="font-size:12px">📌 připnuto</span>`:""}</span><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="mb"><h2 style="margin:0;font-size:22px">${esc(n.title)}</h2><div class="nby" style="margin-top:0"><span class="av">${initials(n.by||"")}</span> ${esc(n.by||"")} · ${fmtTs(n.at)}${n.editedAt?` · upraveno`:""}</div><p class="ntext">${linkify(esc(n.text||""))}</p>
+  ${isAdmin() ? `<div><span class="lbl">Přečetli ${rr.n} z ${rr.accs.length}</span><div class="nreads" style="margin-top:6px">${rr.accs.map(a => `<span>${rr.rd.has(a.id) ? `<span style="color:var(--good)">✓</span>` : `<span class="muted">○</span>`} ${esc(a.name)}</span>`).join("") || `<span class="muted">Žádní další uživatelé.</span>`}</div></div>` : ""}</div>
+  <div class="mf">${isAdmin() ? `<button class="btn ghost bad" data-act="news-del" data-id="${n.id}" style="margin-right:auto">Smazat</button><button class="btn" data-act="news-pin" data-id="${n.id}">${n.pinned?"Odepnout":"📌 Připnout nahoru"}</button><button class="btn" data-act="news-edit" data-id="${n.id}">Upravit</button>` : ""}<button class="btn blue" data-act="close-modal">Zavřít</button></div></div></div>`;
+}
+function newsEditModal(){
+  const d = S.modal.data;
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Novinka"><form class="box" id="newsform" style="width:min(640px,100%)"><div class="mh"><b style="font-size:17px">${d._new?"Nová novinka pro celou firmu":"Upravit novinku"}</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="mb"><label class="f"><span>Nadpis *</span><input id="nw-title" value="${esc(d.title||"")}" maxlength="140" placeholder="např. Od 1. 11. začínají montáže v 8:00"></label>
+  <div class="fgrid"><label class="f"><span>Typ</span><select id="nw-tag">${Object.entries(NEWS_TAGS).map(([k,[t]]) => `<option value="${k}" ${(d.tag||"info")===k?"selected":""}>${t}</option>`).join("")}</select></label><label class="c" style="padding-top:18px"><input type="checkbox" id="nw-pin" ${d.pinned?"checked":""}> 📌 Připnout nahoru</label></div>
+  <label class="f"><span>Text</span><textarea id="nw-text" rows="8" maxlength="5000" placeholder="Co mají všichni vědět…">${esc(d.text||"")}</textarea></label>
+  ${d._new ? `<label class="c"><input type="checkbox" id="nw-notify" checked> Poslat všem upozornění 🔔</label>` : ""}</div>
+  <div class="mf"><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit">${d._new?"Zveřejnit":"Uložit"}</button></div></form></div>`;
+}
+function newsAllModal(){
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Všechny novinky"><div class="box" style="width:min(640px,100%)"><div class="mh"><b style="font-size:17px">📢 Všechny novinky</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="mb" style="gap:8px">${newsSorted().map(n => `<button class="nitem ${newsRead(n)?"":"unread"}" data-act="news-open" data-id="${n.id}">${newsChip(n)}<b>${n.pinned?"📌 ":""}${esc(n.title)}</b><small>${esc(n.by||"")} · ${fmtTs(n.at)}</small></button>`).join("")}</div></div></div>`;
+}
 // ---------- dashboard ----------
 function vDash(){
   const t = today(), mine = me(), yr = t.slice(0,4);
@@ -1818,6 +1871,7 @@ function vDash(){
   const lay = prefs.dash || {};
   const box = (key, inner) => { const L = lay[key] || {}; const span = L.span || DASH_DEFAULT[key]; return `<div class="card dcard" data-card="${key}" style="grid-column:span ${span};${L.h?`height:${L.h}px`:""}">${inner}<span class="rsz" data-rsz="${key}" title="Táhněte pro změnu velikosti · dvojklik vrátí výchozí" aria-hidden="true"></span></div>`; };
   return `<div class="lhead"><h1>Nástěnka</h1><span class="muted">${esc(mine)}</span><span class="sp"></span>${Object.keys(lay).length?`<button class="btn sm" data-act="dash-reset">Výchozí rozložení</button>`:""}<button class="plus" data-act="newmenu" aria-label="Nový záznam">+</button></div>
+  ${newsSection()}
   <div class="dash dashx">
     ${isAdmin() ? box("online", `<div class="ch"><h2>Online uživatelé</h2></div><div class="cb" id="online-cb">${onlineInner()}</div>`) : ""}
     ${box("acts", `<div class="ch"><h2>Přehled aktivit</h2><button class="btn sm" data-go="calendar">Otevřít kalendář</button></div><div class="cb">${overdue.length?`<div class="lbl" style="color:var(--bad);margin-bottom:4px">Po termínu (${overdue.length})</div>${overdue.slice(0,5).map(actRow).join("")}`:""}<div class="lbl" style="margin:8px 0 4px">Naplánované</div>${next.map(actRow).join("") || `<p class="muted" style="margin:0">Nic naplánovaného.</p>`}</div>`)}
@@ -2469,6 +2523,9 @@ function modalHtml(){
   if (md.kind === "calq") return calQuickModal();
   if (md.kind === "auto") return autoModal();
   if (md.kind === "notifs") return notifsModal();
+  if (md.kind === "newsv") return newsViewModal();
+  if (md.kind === "newse") return newsEditModal();
+  if (md.kind === "newsall") return newsAllModal();
   if (md.kind === "mail") return mailModal();
   if (md.kind === "mailc") return mailComposeModal();
   if (md.kind === "mbox") return mboxModal();
@@ -2679,7 +2736,7 @@ document.addEventListener("click", async e => {
     case "auto-act-del": readAuto(); S.modal.data.actions.splice(Number(a.dataset.i),1); S._forceModal = true; renderOverlay(); break;
     case "notifs": S.modal = {kind:"notifs"}; S._forceModal = true; renderOverlay(); break;
     case "notif-allread": for (const n of S.notifs.filter(n=>n.to===me() && !n.read)) await save("notifs", {...n, read:true}); S._forceModal = true; renderOverlay(); render(); break;
-    case "notif-open": { const n = S.notifs.find(v=>v.id===id); if (!n) break; if (!n.read) await save("notifs", {...n, read:true}); closeModal(); if (n.offerId && canSee("offers")){ delete OV[n.offerId]; go("offer", n.offerId); } else if (n.dealId && canSee("deals")) go("deal", n.dealId); else if (n.leadId && canSee("leads")) go("lead", n.leadId); else if (n.mail && mailOn()){ MAIL.box = n.mail; MAIL.folder = "inbox"; MAIL.sel = null; MAIL.items = null; go("mail"); } else render(); break; }
+    case "notif-open": { const n = S.notifs.find(v=>v.id===id); if (!n) break; if (!n.read) await save("notifs", {...n, read:true}); closeModal(); if (n.news){ const x = (S.news||[]).find(y => y.id===n.news); if (x){ openModal("newsv", {id:x.id}); newsMarkRead(x).catch(console.warn); } } else if (n.offerId && canSee("offers")){ delete OV[n.offerId]; go("offer", n.offerId); } else if (n.dealId && canSee("deals")) go("deal", n.dealId); else if (n.leadId && canSee("leads")) go("lead", n.leadId); else if (n.mail && mailOn()){ MAIL.box = n.mail; MAIL.folder = "inbox"; MAIL.sel = null; MAIL.items = null; go("mail"); } else render(); break; }
     case "deal-plus": S.dealplus = !S.dealplus; render(); break;
     case "inst-pdf": await protocolPdf(id, a.dataset.mode); break;
     case "open-install": S.sub = null; go("install", id); break;
@@ -2784,6 +2841,13 @@ document.addEventListener("click", async e => {
     case "mc-sched-toggle": { const d = readCompose(); d.sched = !d.sched; S._forceModal = true; renderOverlay(); break; }
     case "mc-when": mailSend(Number(a.dataset.t)); break;
     case "mc-schedule": { const v = $("#mc-at")?.value; const t = v ? new Date(v).getTime() : 0; if (!t){ toast("Zadejte datum a čas."); break; } mailSend(t); break; }
+    case "news-new": if (!isAdmin()) break; openModal("newse", {_new:true, id:uid(), tag:"info", pinned:false}); break;
+    case "news-open": { const n = (S.news||[]).find(x => x.id===id); if (!n) break; openModal("newsv", {id}); newsMarkRead(n).catch(console.warn); break; }
+    case "news-read": { const n = (S.news||[]).find(x => x.id===id); if (n){ await newsMarkRead(n); render(); } break; }
+    case "news-all": openModal("newsall", {}); break;
+    case "news-edit": { if (!isAdmin()) break; const n = (S.news||[]).find(x => x.id===id); if (n) openModal("newse", JSON.parse(JSON.stringify(n))); break; }
+    case "news-pin": { if (!isAdmin()) break; const n = (S.news||[]).find(x => x.id===id); if (n && await save("news", {...n, pinned:!n.pinned})){ S._forceModal = true; renderOverlay(); } break; }
+    case "news-del": { if (!isAdmin() || !confirm("Smazat novinku?")) break; try { await store.del("news", id); for (const r of (S.newsreads||[]).filter(r => r.news===id)) await store.del("newsreads", r.id).catch(() => {}); closeModal(); toast("Novinka smazána"); } catch(e){ toast("Smazání se nepovedlo."); } break; }
     case "pm-del": { const m = MAIL.msg; if (!m) break; const forever = m.folder==="trash";
       if (forever && !confirm("Smazat zprávu natrvalo? Zmizí i ze schránky na serveru.")) break;
       try { await mailApi("del", {ids:[m.id], forever}); const i = (MAIL.items||[]).findIndex(x => x.id===m.id); MAIL.items = (MAIL.items||[]).filter(x => x.id!==m.id);
@@ -2793,6 +2857,7 @@ document.addEventListener("click", async e => {
     case "mc-draft-del": { const d = readCompose(); if (!d?.draft || !confirm("Zahodit tento koncept?")) break; try { await mailApi("del", {ids:[d.draft], forever:true}); d.done = true; closeModal(); toast("Koncept zahozen"); if (S.view==="mail") mailRefresh(); } catch(e){ toast(e.message); } break; }
     case "notif-del": { const n = S.notifs.find(v => v.id===id); if (n && n.to===me()){ try { await store.del("notifs", id); } catch(e){ toast("Upozornění se nepodařilo smazat."); } } S._forceModal = true; renderOverlay(); break; }
     case "notif-delread": { const L = S.notifs.filter(n => n.to===me() && n.read); if (!L.length || !confirm(`Smazat přečtená upozornění (${L.length})?`)) break; for (const n of L){ try { await store.del("notifs", n.id); } catch(e){ console.warn(e); } } toast("Přečtená upozornění smazána"); S._forceModal = true; renderOverlay(); break; }
+    case "pm-boxhead": if (a.dataset.box===MAIL.box){ MAIL.fold = !MAIL.fold; render(); break; } MAIL.fold = false; MAIL.box = a.dataset.box; MAIL.folder = "inbox"; ls.set("stinko-mailbox", MAIL.box); MAIL.sel = null; MAIL.msg = null; MAIL.items = null; render(); break;
     case "pm-folder": MAIL.box = a.dataset.box; MAIL.folder = a.dataset.f; ls.set("stinko-mailbox", MAIL.box); MAIL.sel = null; MAIL.msg = null; MAIL.items = null; render(); break;
     case "pm-open": mailOpen(id); break;
     case "pm-goto": MAIL.box = a.dataset.box; MAIL.folder = a.dataset.f; MAIL.q = ""; MAIL.items = null; go("mail"); mailOpen(id); break;
@@ -2974,6 +3039,14 @@ function readModalAct(){ const r = S.modal.data, v = id => document.getElementBy
 document.addEventListener("submit", async e => {
   e.preventDefault(); const f = e.target; const v = id => (document.getElementById(id)?.value ?? "").trim();
   if (f.id==="mailform"){ mailSend(); return; }
+  if (f.id==="newsform"){ if (!isAdmin()) return; const d = S.modal.data, title = v("nw-title"); if (!title){ toast("Vyplňte nadpis."); return; }
+    const n = {id:d.id, title, text:$("#nw-text").value.replace(/\s+$/,""), tag:v("nw-tag")||"info", pinned:!!$("#nw-pin")?.checked, at:d.at||Date.now(), by:d.by||me(), byId:d.byId||acc()?.id||""};
+    if (!d._new) n.editedAt = Date.now();
+    const notify_ = d._new && $("#nw-notify")?.checked;
+    if (await save("news", n)){
+      if (notify_) for (const a of (S.accounts||[]).filter(a => a.active!==false && a.id!==acc()?.id)) await save("notifs", {id:uid(), to:a.name, text:"📢 " + title, at:Date.now(), read:false, by:me(), news:n.id}).catch(console.warn);
+      closeModal(); toast(d._new ? "Novinka zveřejněna" : "Novinka uložena"); render(); }
+    return; }
   if (f.id==="tplform"){ const d = S.modal.data, html = cleanHtml($("#tp-body").innerHTML), t = {id:d.id, name:v("tp-name"), subject:v("tp-subj"), body:rteText(html), html}; if (!t.name){ toast("Vyplňte název šablony."); return; }
     const L = mailTpls(), list = d._new ? [...L, t] : L.map(x => x.id===t.id ? t : x); if (await saveTpls(list)){ closeModal(); toast("Šablona uložena"); render(); } return; }
   if (f.id==="mboxform"){ const d = readMbox(); if (!d.email || !d.imapHost || !d.smtpHost){ toast("Vyplňte adresu a servery."); return; } if (!d.id && !d.password){ toast("Zadejte heslo ke schránce."); return; }
@@ -3180,7 +3253,7 @@ function vMail(){
   if (!MAIL.boxes.length) return head() + `<div class="card"><div class="cb"><p style="margin-top:0">Zatím tu nemáte žádnou e-mailovou schránku.</p><button class="btn blue" data-act="mbox-new">+ Připojit moji schránku</button><p class="muted" style="margin-bottom:0;font-size:13px">Svou pracovní schránku si připojí každý sám. Poštu z ní uvidíte jen vy. Společné schránky připojuje administrátor.</p></div></div>`;
   const bx = MAIL.boxes, all = MAIL.box==="*", f = MAIL.folder;
   const fbtn = (id, fo, label, icon, n) => `<button class="mfi" data-act="pm-folder" data-box="${id}" data-f="${fo}" aria-current="${id===MAIL.box && fo===f}">${icon} ${label}${n?`<span class="badge ${fo==="queue"?"q":""}">${n}</span>`:""}</button>`;
-  const group = (id, name, color, unread, queued, err, title) => `<div class="mfbox ${id===MAIL.box?"on":""}"><button class="mfhead" data-act="pm-folder" data-box="${id}" data-f="inbox" title="${esc(title||name)}" aria-expanded="${id===MAIL.box}"><span class="mdot" style="background:${color}"></span><span class="mfname">${esc(name)}</span>${unread?`<span class="badge">${unread}</span>`:""}</button>${id===MAIL.box ? fbtn(id,"inbox","Doručená","📥",unread) + fbtn(id,"drafts","Koncepty","📝",0) + fbtn(id,"sent","Odeslaná","📤",0) + fbtn(id,"queue","Naplánované","⏰",queued) + fbtn(id,"trash","Koš","🗑",0) : ""}${err?`<div class="mferr" title="${esc(err)}">⚠ Spojení se schránkou selhalo</div>`:""}${id===MAIL.box && mailBox(id)?.mine ? `<button class="mfi muted" data-act="mbox-edit" data-id="${id}">⚙ Nastavení schránky</button>` : ""}</div>`;
+  const group = (id, name, color, unread, queued, err, title) => `<div class="mfbox ${id===MAIL.box?"on":""}"><button class="mfhead" data-act="pm-boxhead" data-box="${id}" title="${esc(title||name)}${id===MAIL.box ? (MAIL.fold ? " – kliknutím rozbalíte složky" : " – kliknutím sbalíte složky") : ""}" aria-expanded="${id===MAIL.box && !MAIL.fold}"><span class="mfcaret" aria-hidden="true">${id===MAIL.box && !MAIL.fold ? "▾" : "▸"}</span><span class="mdot" style="background:${color}"></span><span class="mfname">${esc(name)}</span>${unread?`<span class="badge">${unread}</span>`:""}</button>${id===MAIL.box && !MAIL.fold ? fbtn(id,"inbox","Doručená","📥",unread) + fbtn(id,"drafts","Koncepty","📝",0) + fbtn(id,"sent","Odeslaná","📤",0) + fbtn(id,"queue","Naplánované","⏰",queued) + fbtn(id,"trash","Koš","🗑",0) : ""}${err?`<div class="mferr" title="${esc(err)}">⚠ Spojení se schránkou selhalo</div>`:""}${id===MAIL.box && !MAIL.fold && mailBox(id)?.mine ? `<button class="mfi muted" data-act="mbox-edit" data-id="${id}">⚙ Nastavení schránky</button>` : ""}</div>`;
   const own = `<button class="mfi mfadd" data-act="mbox-new">＋ Připojit moji schránku</button>`;
   const folders = (bx.length > 1 ? group("*", "Všechny schránky", "var(--muted)", bx.reduce((s,b) => s+boxUnread(b), 0), bx.reduce((s,b) => s+(b.queued||0), 0), "", "") : "")
     + bx.map(x => group(x.id, x.name||x.email, boxColor(x.id), boxUnread(x), x.queued||0, MAIL.st[x.id]?.error ?? x.error, x.email)).join("");

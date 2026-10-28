@@ -489,6 +489,11 @@ func canWrite(a map[string]any, col, key string, data map[string]any, app core.A
 	if col == "presence" {
 		return key == a["id"]
 	}
+	if col == "newsreads" {
+		// "I have read this news": only one's own mark ({newsId}_{accountId})
+		id, _ := a["id"].(string)
+		return strings.HasSuffix(key, "_"+id) && (data == nil || data["acc"] == id)
+	}
 	if col == "accounts" {
 		// own password and phone only: everything else must stay as is
 		if key != a["id"] || data == nil {
