@@ -1683,7 +1683,7 @@ function vStock(){
   const chips = cats.length ? `<select id="stock-cat" class="catsel" aria-label="Kategorie"><option value="all">Všechny kategorie</option>${cats.map(c=>`<option value="${esc(c)}" ${f===c?"selected":""}>${esc(c)}</option>`).join("")}</select>` : "";
   const tile = (k, n, t, cls) => `<button class="stile ${cls}" data-filter="${k}" aria-pressed="${f===k}"><b>${n}</b><span>${t}</span></button>`;
   const tiles = `<div class="stiles">${tile("all", all.length, "položek celkem", "")}${tile("in", all.length-zero, "skladem", "ok")}${tile("low", low, "pod minimem – doobjednat", low?"warn":"")}${tile("zero", zero, "není skladem", zero?"bad":"")}${see("cost")?`<div class="stile val"><b>${money(all.reduce((s,p)=>s+Math.round(Math.max(0,toN(p.stock))*(p.cost||0)),0))}</b><span>hodnota zásob</span></div>`:""}</div>`;
-  const invBtn = SV && canEdit("stock") ? `<button class="btn" data-act="stock-invoice">📄 Naskladnit z faktury</button>` : "";
+  const invBtn = canEdit("stock") ? `<button class="btn" data-act="stock-invoice">📄 Naskladnit z faktury</button>` : "";
   return listHead("Sklad", chips, "new-product", "stock", invBtn) + tiles + grid("stock", rows, {open:"open-product", defaultSort:"name", defaultDir:"asc",
     summary:r=>[["Položek", r.length],["Kusů skladem", String(r.reduce((s,p)=>s+Math.max(0,toN(p.stock)),0)).replace(".",",")],...(see("cost")?[["Hodnota zásob", money(r.reduce((s,p)=>s+Math.round(Math.max(0,toN(p.stock))*(p.cost||0)),0))]]:[])],
     emptyText:"Skladové položky jsou produkty z ceníku. Přidejte produkt tlačítkem + a zadejte příjem."});
@@ -1974,8 +1974,11 @@ async function invSubmit(){
     toast(`${invKindName(m.kind)} ${r.invoice.number} vystavena. ` + (r.mailError ? `E-mail se nepřipravil: ${r.mailError}` : "E-mail pro klienta čeká v Poště → Koncepty."));
   } catch(e){ m.busy = false; S._forceModal = true; renderOverlay(); toast(e.message || "Fakturu se nepodařilo vystavit."); }
 }
-// Sklad → "📄 Naskladnit z faktury": the server lets Claude read a supplier's invoice, here the lines are paired with products and checked before stocking.
+// Sklad → "📄 Naskladnit z faktury": reads the supplier's e-invoice (ISDOC – the Czech standard most accounting programs export:
+// a .isdoc file, a zipped .isdocx, or one embedded in the invoice PDF) right here in the browser, or the lines are typed in by hand.
+// The lines are then paired with products, checked, and stocked with the invoice file linked from each stock movement.
 const normName = s => String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+const SHIP_RE = /doprav|postovn|baln|preprav|doruceni|zasilk|shipping|freight/;
 function invMatch(l){
   const code = normName(l.code), nm = normName(l.name), P = S.products;
   if (code){ const p = P.find(x => normName(x.code)===code); if (p) return p.id; }
@@ -1984,76 +1987,153 @@ function invMatch(l){
   let best = null, bs = 0; for (const x of P){ const b = tok(x.name); if (!a.size || !b.size) continue; let n = 0; a.forEach(w => b.has(w) && n++); const sc = n / Math.max(a.size, b.size); if (sc > bs){ bs = sc; best = x; } }
   return bs >= .6 ? best.id : "new";
 }
+const inflate = async (bytes, fmt) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream(fmt))).arrayBuffer());
+// the first .isdoc inside a zip (.isdocx)
+async function isdocFromZip(u8){
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength); let e = u8.length - 22;
+  while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--; if (e < 0) return null;
+  let p = dv.getUint32(e + 16, true); const n = dv.getUint16(e + 10, true), td = new TextDecoder();
+  for (let i = 0; i < n && dv.getUint32(p, true) === 0x02014b50; i++){
+    const method = dv.getUint16(p + 10, true), size = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    const name = td.decode(u8.subarray(p + 46, p + 46 + nl)); p += 46 + nl + xl + cl;
+    if (!/\.isdoc$/i.test(name)) continue;
+    const start = off + 30 + dv.getUint16(off + 26, true) + dv.getUint16(off + 28, true), data = u8.subarray(start, start + size);
+    return td.decode(method === 8 ? await inflate(data, "deflate-raw") : data);
+  }
+  return null;
+}
+// an ISDOC attached inside a PDF: look through the PDF's streams for the invoice XML
+async function isdocFromPdf(u8){
+  const s = new TextDecoder("latin1").decode(u8), td = new TextDecoder(); let i = 0;
+  while ((i = s.indexOf("stream", i)) >= 0){
+    let a = i + 6; if (s[a] === "\r") a++; if (s[a] === "\n") a++;
+    const b = s.indexOf("endstream", a); if (b < 0) break; i = b + 9;
+    const dict = s.slice(Math.max(0, s.lastIndexOf(" obj", a)), a), len = /\/Length (\d+)(?! \d+ R)/.exec(dict);
+    let end = len && a + Number(len[1]) <= b ? a + Number(len[1]) : b; while (!len && end > a && /[\r\n]/.test(s[end - 1])) end--;
+    const raw = u8.subarray(a, end);
+    let txt = "";
+    try { txt = /FlateDecode/.test(dict) ? td.decode(await inflate(raw, "deflate")) : td.decode(raw); } catch { continue; }
+    if (/<(\w+:)?Invoice[\s>]/.test(txt) && /isdoc/i.test(txt)) return txt.slice(txt.indexOf("<"));
+  }
+  return null;
+}
+function parseIsdoc(xml){
+  const doc = new DOMParser().parseFromString(xml.replace(/^﻿/, ""), "application/xml");
+  const root = doc.documentElement; if (!root || root.localName !== "Invoice") return null;
+  const kids = (el, n) => [...el.children].filter(c => c.localName === n), kid = (el, n) => el && kids(el, n)[0];
+  const path = (el, ...ns) => ns.reduce((e, n) => kid(e, n), el), txt = el => (el?.textContent || "").trim(), num = el => toN(txt(el));
+  const sup = path(root, "AccountingSupplierParty", "Party");
+  const lines = kids(kid(root, "InvoiceLines") || root, "InvoiceLine").map(l => {
+    const item = kid(l, "Item"), qty = num(kid(l, "InvoicedQuantity")), total = num(kid(l, "LineExtensionAmount"));
+    const name = txt(kid(item, "Description")) || txt(kid(l, "Note")), unitCode = kid(l, "InvoicedQuantity")?.getAttribute("unitCode") || "";
+    const code = txt(path(item, "SellersItemIdentification", "ID")) || txt(path(item, "CatalogueItemIdentification", "ID"));
+    const unitPrice = qty ? Math.round(total / qty * 100) / 100 : num(kid(l, "UnitPrice"));
+    return {name, code, qty, unit:/^(ks|pcs|c62|h87|ea)$/i.test(unitCode) || !unitCode ? "ks" : unitCode.toLowerCase(), unitPrice, total, kind:SHIP_RE.test(normName(name)) ? "shipping" : "goods"};
+  }).filter(l => l.name && l.qty > 0 && l.total >= 0 && !/zaokrouhl|zaloh/.test(normName(l.name)));
+  return {supplier:txt(path(sup, "PartyName", "Name")), number:txt(kid(root, "ID")), date:txt(kid(root, "IssueDate")), currency:"CZK", lines, note:""};
+}
+async function readInvoiceFile(file){
+  const u8 = new Uint8Array(await file.arrayBuffer()), head = new TextDecoder("latin1").decode(u8.subarray(0, 8));
+  if (head.startsWith("%PDF")) return {xml:await isdocFromPdf(u8), pdf:true};
+  if (head.startsWith("PK")) return {xml:await isdocFromZip(u8)};
+  return {xml:new TextDecoder().decode(u8)};
+}
+const siRow = l => ({name:l.name||"", code:l.code||"", qty:l.qty ?? 1, unit:l.unit||"ks", price:l.price ?? "", kind:l.kind||"goods", pid:l.pid || (l.name ? invMatch(l) : "new"), use:l.kind!=="shipping"});
 function readStockInv(){ const m = S.modal?.data; if (!m || S.modal.kind!=="stockinv" || m.step!=="review") return m;
   document.querySelectorAll("#stinvform tr[data-i]").forEach(tr => { const r = m.rows[Number(tr.dataset.i)], q = s => tr.querySelector(s);
-    r.use = q(".si-use").checked; r.qty = q(".si-qty").value; r.price = q(".si-price").value; r.pid = q(".si-pid").value; r.name = q(".si-name")?.value ?? r.name; });
-  const v = id => document.getElementById(id); m.spread = !!v("si-spread")?.checked; m.setCost = !!v("si-cost")?.checked; if (v("si-rate")) m.rate = v("si-rate").value; if (v("si-cat")) m.cat = v("si-cat").value;
+    r.use = q(".si-use").checked; r.qty = q(".si-qty").value; r.price = q(".si-price").value; r.pid = q(".si-pid").value; if (q(".si-name")) r.name = q(".si-name").value; if (q(".si-unit")) r.unit = q(".si-unit").value;
+    if (q(".si-ship")) r.kind = q(".si-ship").checked ? "shipping" : "goods"; });
+  const v = id => document.getElementById(id); if (v("si-spread")) m.spread = v("si-spread").checked; m.setCost = !!v("si-cost")?.checked; if (v("si-cat")) m.cat = v("si-cat").value;
+  if (m.manual) ["supplier","number","date"].forEach(k => { if (v("si-" + k)) m.inv[k] = v("si-" + k).value; });
   return m; }
-// unit cost in Kč per row (shipping spread over the stocked goods by value when asked)
+// unit cost in haléře per row (shipping spread over the stocked goods by value when asked)
 function stockInvCalc(m){
-  const rate = m.cur && m.cur!=="CZK" ? toN(m.rate) : 1, goods = m.rows.filter(r => r.kind!=="shipping");
   const ship = m.rows.filter(r => r.kind==="shipping").reduce((s,r) => s + toN(r.qty)*toN(r.price), 0);
-  const used = goods.filter(r => r.use && r.pid!=="skip"), base = used.reduce((s,r) => s + toN(r.qty)*toN(r.price), 0);
-  const unit = r => { const p = toN(r.price); return Math.round((m.spread && base ? p * (1 + ship/base) : p) * rate * 100); };
-  return {rate, ship, used, unit, total:used.reduce((s,r) => s + unit(r)*toN(r.qty), 0), pcs:used.reduce((s,r) => s + toN(r.qty), 0)};
+  const used = m.rows.filter(r => r.kind!=="shipping" && r.use && r.pid!=="skip" && toN(r.qty) > 0 && (r.pid!=="new" || r.name.trim())), base = used.reduce((s,r) => s + toN(r.qty)*toN(r.price), 0);
+  const unit = r => { const p = toN(r.price); return Math.round((m.spread && base ? p * (1 + ship/base) : p) * 100); };
+  return {ship, used, unit, total:used.reduce((s,r) => s + unit(r)*toN(r.qty), 0), pcs:used.reduce((s,r) => s + toN(r.qty), 0)};
 }
 function stockInvModal(){
   const m = S.modal.data, head = `<div class="mh"><b style="font-size:17px">📄 Naskladnit z faktury</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>`;
-  if (m.step!=="review") return `<div class="modal" role="dialog" aria-modal="true" aria-label="Naskladnit z faktury"><form class="box" id="stinvform" style="width:min(560px,100%)">${head}<div class="mb">
-    ${m.step==="busy" ? `<div class="empty"><strong>Čtu fakturu…</strong>${esc(m.fileName||"")}<br>Umělá inteligence přepisuje položky, obvykle to trvá 20–60 sekund.</div>`
-    : `<p style="margin:0">Nahrajte fakturu od dodavatele jako <b>PDF</b> nebo <b>fotku</b>. Položky, množství a nákupní ceny bez DPH se přečtou samy – před naskladněním je ještě zkontrolujete.</p>
-    <label class="drop" style="cursor:pointer;display:block;margin:0"><input type="file" id="si-file" accept="application/pdf,image/*" hidden><b>Vybrat soubor s fakturou</b><br><small>PDF, JPG nebo PNG</small></label>${m.err?`<p style="margin:0;color:var(--bad)">${esc(m.err)}</p>`:""}`}
+  if (m.step!=="review") return `<div class="modal" role="dialog" aria-modal="true" aria-label="Naskladnit z faktury"><form class="box" id="stinvform" style="width:min(600px,100%)">${head}<div class="mb">
+    ${m.step==="busy" ? `<div class="empty"><strong>Načítám fakturu…</strong>${esc(m.fileName||"")}</div>`
+    : `<p style="margin:0">Nahrajte elektronickou fakturu od dodavatele ve formátu <b>ISDOC</b> – soubor <span class="mono">.isdoc</span> / <span class="mono">.isdocx</span>, nebo PDF faktury, ve kterém je ISDOC vložený (umí to Pohoda, Money, iDoklad, Fakturoid a další). Položky, množství a ceny bez DPH se načtou samy a před naskladněním je zkontrolujete.</p>
+    <label class="drop" style="cursor:pointer;display:block;margin:0"><input type="file" id="si-file" accept=".isdoc,.isdocx,.xml,application/pdf" hidden><b>Vybrat soubor faktury</b><br><small>ISDOC nebo PDF s ISDOC</small></label>
+    ${m.err?`<p style="margin:0;color:var(--bad)">${esc(m.err)}</p>`:""}
+    <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><span class="muted">Dodavatel ISDOC neposílá?</span><button type="button" class="btn" data-act="si-manual">✍ Zadat položky ručně</button></div>`}
     </div></form></div>`;
-  const c = stockInvCalc(m), inv = m.inv, foreign = m.cur && m.cur!=="CZK";
-  const opts = r => `<option value="new" ${r.pid==="new"?"selected":""}>➕ Nový produkt</option><option value="skip" ${r.pid==="skip"?"selected":""}>— nenaskladňovat</option>${[...S.products].sort((a,b)=>(a.name||"").localeCompare(b.name||"","cs")).map(p => `<option value="${p.id}" ${r.pid===p.id?"selected":""}>${esc(p.name)}${p.code?` · ${esc(p.code)}`:""}</option>`).join("")}`;
-  const row = (r, i) => r.kind==="shipping" ? "" : `<tr data-i="${i}" class="${r.use && r.pid!=="skip" ? "" : "off"}"><td><input type="checkbox" class="si-use" ${r.use?"checked":""} aria-label="Naskladnit"></td>
-    <td>${r.pid==="new" ? `<input class="si-name" value="${esc(r.name)}" aria-label="Název nového produktu">` : `<div>${esc(r.name)}</div>`}${r.code?`<small class="muted">${esc(r.code)}</small>`:""}${r.kind==="other"?`<small class="muted"> · služba</small>`:""}</td>
-    <td><div class="row" style="flex-wrap:nowrap;gap:4px"><input class="si-qty" inputmode="decimal" value="${esc(String(r.qty).replace(".",","))}" style="width:70px"><span class="muted">${esc(r.unit||"ks")}</span></div></td>
-    <td><input class="si-price" inputmode="decimal" value="${esc(String(r.price).replace(".",","))}" style="width:100px" aria-label="Cena za MJ bez DPH v ${esc(m.cur||"Kč")}"></td>
-    <td class="num">${r.use && r.pid!=="skip" ? money(c.unit(r)) : "–"}</td>
-    <td><select class="si-pid" aria-label="Naskladnit jako">${opts(r)}</select></td></tr>`;
-  const news = c.used.filter(r => r.pid==="new").length, cats = [...new Set(S.products.map(p=>p.category).filter(Boolean))];
-  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Naskladnit z faktury"><form class="box" id="stinvform" style="width:min(1060px,100%)">${head}<div class="mb">
-  <div class="row" style="gap:24px"><div><span class="lbl">Dodavatel</span><div><b>${esc(inv.supplier||"–")}</b></div></div><div><span class="lbl">Číslo faktury</span><div>${esc(inv.number||"–")}</div></div><div><span class="lbl">Datum</span><div>${inv.date?fmtD(inv.date):"–"}</div></div><div><span class="lbl">Měna</span><div>${esc(m.cur||"CZK")}</div></div><span class="sp" style="flex:1"></span><a class="btn sm" href="${blobUrl(m.fileId)}" target="_blank" rel="noopener">Otevřít fakturu</a></div>
-  ${inv.note?`<div class="banner" style="display:block;margin:0">⚠ ${esc(inv.note)}</div>`:""}
-  ${foreign?`<label class="f" style="max-width:260px"><span>Kurz: 1 ${esc(m.cur)} = ? Kč *</span><input id="si-rate" inputmode="decimal" value="${esc(m.rate||"")}" placeholder="např. 24,30"></label>`:""}
-  <div style="overflow-x:auto"><table class="lines sitab"><thead><tr><th></th><th>Položka z faktury</th><th>Množství</th><th>Cena/MJ bez DPH${foreign?` (${esc(m.cur)})`:""}</th><th class="num">Nákupní cena/MJ</th><th>Naskladnit jako</th></tr></thead><tbody>${m.rows.map(row).join("")}</tbody></table></div>
-  ${c.ship ? `<label class="c"><input type="checkbox" id="si-spread" ${m.spread?"checked":""}> Rozpočítat dopravné ${money(Math.round(c.ship*c.rate*100))} do nákupních cen položek (podle hodnoty)</label>` : ""}
-  <label class="c"><input type="checkbox" id="si-cost" ${m.setCost?"checked":""}> Zapsat nákupní cenu do produktů (přepíše „Náklady celkem“ u spárovaných produktů)</label>
-  ${news ? `<label class="f" style="max-width:320px"><span>Kategorie nových produktů (${news})</span><input id="si-cat" list="si-cats" value="${esc(m.cat||"")}" placeholder="např. Náhradní díly"><datalist id="si-cats">${cats.map(x=>`<option value="${esc(x)}">`).join("")}</datalist></label>` : ""}
-  </div><div class="mf"><span class="muted" style="margin-right:auto;align-self:center">Naskladní se ${c.used.length} položek · ${String(c.pcs).replace(".",",")} MJ · ${money(c.total)} bez DPH</span><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit" ${m.busy || !c.used.length || (foreign && !toN(m.rate)) ? "disabled" : ""}>${m.busy?"Naskladňuji…":"Naskladnit"}</button></div></form></div>`;
+  const c = stockInvCalc(m), inv = m.inv, P = [...S.products].sort((a,b)=>(a.name||"").localeCompare(b.name||"","cs"));
+  const opts = r => `<option value="new" ${r.pid==="new"?"selected":""}>➕ Nový produkt</option><option value="skip" ${r.pid==="skip"?"selected":""}>— nenaskladňovat</option>${P.map(p => `<option value="${p.id}" ${r.pid===p.id?"selected":""}>${esc(p.name)}${p.code?` · ${esc(p.code)}`:""}</option>`).join("")}`;
+  const on = r => r.kind!=="shipping" && r.use && r.pid!=="skip";
+  const row = (r, i) => `<tr data-i="${i}" class="${on(r) || r.kind==="shipping" ? "" : "off"}${r.kind==="shipping" ? " ship" : ""}"><td><input type="checkbox" class="si-use" ${r.use?"checked":""} ${r.kind==="shipping"?"hidden":""} aria-label="Naskladnit"></td>
+    <td>${m.manual || r.pid==="new" ? `<input class="si-name" value="${esc(r.name)}" placeholder="${r.pid==="new" ? "Název nového produktu" : esc(S.products.find(p=>p.id===r.pid)?.name || "Položka z faktury")}" aria-label="Název">` : `<div>${esc(r.name)}</div>`}${r.code?`<small class="muted">${esc(r.code)}</small>`:""}
+      ${m.manual ? `<label class="c" style="font-size:12px;margin-top:2px"><input type="checkbox" class="si-ship" ${r.kind==="shipping"?"checked":""}> dopravné</label>` : r.kind==="shipping" ? `<small class="muted">dopravné – nenaskladňuje se</small>` : ""}</td>
+    <td><div class="row" style="flex-wrap:nowrap;gap:4px"><input class="si-qty" inputmode="decimal" value="${esc(String(r.qty).replace(".",","))}" style="width:70px" aria-label="Množství">${m.manual && r.pid==="new" ? `<input class="si-unit" value="${esc(r.unit)}" style="width:56px" aria-label="Jednotka">` : `<span class="muted">${esc(r.pid!=="new" && r.pid!=="skip" ? (S.products.find(p=>p.id===r.pid)?.unit || r.unit) : r.unit)}</span>`}</div></td>
+    <td><input class="si-price" inputmode="decimal" value="${esc(String(r.price).replace(".",","))}" style="width:100px" aria-label="Cena za MJ bez DPH"></td>
+    <td class="num">${on(r) && toN(r.qty) > 0 ? money(c.unit(r)) : "–"}</td>
+    <td>${r.kind==="shipping" ? "" : `<select class="si-pid" aria-label="Naskladnit jako">${opts(r)}</select>`}${r.kind==="shipping" ? `<select class="si-pid" hidden><option value="skip" selected></option></select>` : ""}</td>
+    <td>${m.manual ? `<button type="button" class="btn sm ghost" data-act="si-del" data-i="${i}" aria-label="Odebrat řádek">✕</button>` : ""}</td></tr>`;
+  const news = m.rows.some(r => r.pid==="new" && r.kind!=="shipping" && r.use), cats = [...new Set(S.products.map(p=>p.category).filter(Boolean))];
+  const fileBtn = m.fileId ? `<a class="btn sm" href="${blobUrl(m.fileId)}" target="_blank" rel="noopener">Otevřít fakturu</a>` : SV ? `<label class="btn sm" style="cursor:pointer"><input type="file" id="si-attach" hidden>${m.attaching?"Nahrávám…":"📎 Přiložit fakturu"}</label>` : "";
+  const hdr = m.manual
+    ? `<div class="fgrid" style="grid-template-columns:2fr 1fr 1fr"><label class="f"><span>Dodavatel</span><input id="si-supplier" value="${esc(inv.supplier)}"></label><label class="f"><span>Číslo faktury</span><input id="si-number" value="${esc(inv.number)}"></label><label class="f"><span>Datum</span><input id="si-date" type="date" value="${esc(inv.date)}"></label></div>`
+    : `<div class="row" style="gap:24px"><div><span class="lbl">Dodavatel</span><div><b>${esc(inv.supplier||"–")}</b></div></div><div><span class="lbl">Číslo faktury</span><div>${esc(inv.number||"–")}</div></div><div><span class="lbl">Datum</span><div>${inv.date?fmtD(inv.date):"–"}</div></div></div>`;
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Naskladnit z faktury"><form class="box" id="stinvform" style="width:min(1080px,100%)">${head}<div class="mb">
+  <div class="row" style="align-items:flex-end"><div style="flex:1">${hdr}</div>${fileBtn}</div>
+  ${m.note?`<div class="banner" style="display:block;margin:0">${esc(m.note)}</div>`:""}
+  <div style="overflow-x:auto"><table class="lines sitab"><thead><tr><th></th><th>Položka z faktury</th><th>Množství</th><th>Cena/MJ bez DPH</th><th class="num">Nákupní cena/MJ</th><th>Naskladnit jako</th><th></th></tr></thead><tbody>${m.rows.map(row).join("")}</tbody></table></div>
+  ${m.manual ? `<div><button type="button" class="btn sm" data-act="si-add">+ Přidat řádek</button></div>` : ""}
+  ${c.ship || m.rows.some(r => r.kind==="shipping") ? `<label class="c"><input type="checkbox" id="si-spread" ${m.spread?"checked":""}> Rozpočítat dopravné <span id="si-shipamt">${money(Math.round(c.ship*100))}</span> do nákupních cen položek (podle hodnoty)</label>` : ""}
+  <label class="c"><input type="checkbox" id="si-cost" ${m.setCost?"checked":""}> Zapsat nákupní cenu do produktů (přepíše „Náklady celkem“ u vybraných produktů)</label>
+  ${news ? `<label class="f" style="max-width:320px"><span>Kategorie nových produktů</span><input id="si-cat" list="si-cats" value="${esc(m.cat||"")}" placeholder="např. Náhradní díly"><datalist id="si-cats">${cats.map(x=>`<option value="${esc(x)}">`).join("")}</datalist></label>` : ""}
+  </div><div class="mf"><span class="muted" id="si-sum" style="margin-right:auto;align-self:center">Naskladní se ${c.used.length} položek · ${String(c.pcs).replace(".",",")} MJ · ${money(c.total)} bez DPH</span><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit" ${m.busy || !c.used.length ? "disabled" : ""}>${m.busy?"Naskladňuji…":"Naskladnit"}</button></div></form></div>`;
+}
+// typing only recalculates the amounts – a full redraw would lose the field being typed into
+function stockInvRefresh(){
+  const m = S.modal?.data; if (!m || m.step!=="review") return; const c = stockInvCalc(m), used = new Set(c.used);
+  document.querySelectorAll("#stinvform tr[data-i]").forEach(tr => { const r = m.rows[Number(tr.dataset.i)], td = tr.querySelector("td.num"); if (td) td.textContent = used.has(r) ? money(c.unit(r)) : "–"; });
+  const sum = $("#si-sum"); if (sum) sum.textContent = `Naskladní se ${c.used.length} položek · ${String(c.pcs).replace(".",",")} MJ · ${money(c.total)} bez DPH`;
+  const sh = $("#si-shipamt"); if (sh) sh.textContent = money(Math.round(c.ship*100));
+  const btn = $("#stinvform button[type=submit]"); if (btn) btn.disabled = !!m.busy || !c.used.length;
 }
 async function stockInvUpload(file){
+  if (!SV || !file) return "";
+  try { const fd = new FormData(); fd.append("file", file, file.name); return (await SV.api("/api/stinko/upload", {body:fd})).id; } catch(e){ console.error(e); toast("Soubor faktury se nepodařilo uložit."); return ""; }
+}
+function stockInvManual(m, note){ Object.assign(m, {step:"review", manual:true, inv:{supplier:"", number:"", date:today()}, rows:[siRow({})], spread:true, setCost:true, cat:"", note:note||""}); }
+async function stockInvFile(file){
   const m = S.modal?.data; if (!m || !file) return;
   Object.assign(m, {step:"busy", fileName:file.name, err:""}); S._forceModal = true; renderOverlay();
-  try {
-    const fd = new FormData(); fd.append("file", file, file.name);
-    const r = await SV.api("/api/stinko/stock/invoice", {body:fd});
-    if (S.modal?.data !== m) return;
-    const inv = r.invoice, cur = (inv.currency||"CZK").toUpperCase().replace("KČ","CZK");
-    Object.assign(m, {step:"review", inv, cur, fileId:r.fileId, spread:true, setCost:true, rate:"", cat:"",
-      rows:(inv.lines||[]).filter(l => toN(l.qty)).map(l => { const pid = l.kind==="goods" ? invMatch(l) : "skip"; return {name:l.name, code:l.code, qty:l.qty, unit:l.unit||"ks", price:Math.round((toN(l.unitPrice) || toN(l.total)/toN(l.qty))*100)/100, kind:l.kind, pid, use:l.kind==="goods"}; })});
-    if (!m.rows.length){ Object.assign(m, {step:"pick", err:"Na faktuře se nenašly žádné položky."}); }
-  } catch(e){ if (S.modal?.data !== m) return; Object.assign(m, {step:"pick", err:e.message || "Fakturu se nepodařilo přečíst."}); }
+  let inv = null, r = {};
+  try { r = await readInvoiceFile(file); inv = r.xml ? parseIsdoc(r.xml) : null; } catch(e){ console.error(e); }
+  if (S.modal?.data !== m) return;
+  if (!inv && !r.pdf){ Object.assign(m, {step:"pick", err:"Soubor není faktura ve formátu ISDOC."}); S._forceModal = true; renderOverlay(); return; }
+  m.fileId = await stockInvUpload(file);
+  if (S.modal?.data !== m) return;
+  if (!inv) stockInvManual(m, "V tomto PDF není vložený ISDOC, položky proto zadejte ručně. Faktura je přiložená, otevřete si ji vedle.");
+  else if (!inv.lines.length) stockInvManual(m, "Ve faktuře se nenašly žádné položky, zadejte je ručně.");
+  else Object.assign(m, {step:"review", manual:false, inv, spread:true, setCost:true, cat:"", note:"",
+    rows:inv.lines.map(l => siRow({...l, price:l.unitPrice, pid:l.kind==="shipping" ? "skip" : ""}))});
+  if (m.manual && inv){ m.inv = {supplier:inv.supplier, number:inv.number, date:inv.date || today()}; }
   S._forceModal = true; renderOverlay();
 }
 async function stockInvSubmit(){
   const m = readStockInv(); if (!m || m.busy) return; const c = stockInvCalc(m), inv = m.inv;
-  if (m.cur!=="CZK" && !c.rate){ toast("Zadejte kurz měny."); return; }
+  if (!c.used.length){ toast("Není co naskladnit."); return; }
   m.busy = true; S._forceModal = true; renderOverlay();
-  const note = ["Faktura", inv.supplier, inv.number].filter(Boolean).join(" "), at = Date.now(); let n = 0, fail = 0;
+  const note = ["Faktura", inv.supplier, inv.number].filter(Boolean).join(" ") || "Příjem z faktury", at = Date.now(); let n = 0, fail = 0;
   // several lines can land on one product: add them up first
   const per = new Map(); for (const r of c.used){ const k = r.pid==="new" ? "new:" + normName(r.name) : r.pid, x = per.get(k) || {r, qty:0, val:0}; x.qty += toN(r.qty); x.val += c.unit(r) * toN(r.qty); per.set(k, x); }
   for (const [k, x] of per){
     const qty = Math.round(x.qty*1000)/1000, cost = Math.round(x.val / (x.qty || 1));
-    const p = k.startsWith("new:") ? {id:uid(), name:x.r.name.trim(), code:x.r.code||"", unit:x.r.unit||"ks", category:(m.cat||"").trim(), supplier:inv.supplier||"", price:0, vat:21, stock:0, minStock:0, cost, createdAt:at}
+    const p = k.startsWith("new:") ? {id:uid(), name:x.r.name.trim(), code:x.r.code||"", unit:(x.r.unit||"ks").trim(), category:(m.cat||"").trim(), supplier:(inv.supplier||"").trim(), price:0, vat:21, stock:0, minStock:0, cost, createdAt:at}
       : JSON.parse(JSON.stringify(S.products.find(p => p.id===k) || {}));
-    if (!p.id) { fail++; continue; }
-    p.stock = Math.round((toN(p.stock) + qty)*1000)/1000; if (m.setCost) p.cost = cost; if (!p.supplier && inv.supplier) p.supplier = inv.supplier;
-    p.stockLog = [...(p.stockLog||[]), {at, by:me(), qty, note, fileId:m.fileId, cost, after:p.stock}].slice(-200);
+    if (!p.id){ fail++; continue; }
+    p.stock = Math.round((toN(p.stock) + qty)*1000)/1000; if (m.setCost) p.cost = cost; if (!p.supplier && inv.supplier) p.supplier = inv.supplier.trim();
+    p.stockLog = [...(p.stockLog||[]), {at, by:me(), qty, note, fileId:m.fileId||"", cost, after:p.stock}].slice(-200);
     if (await save("products", p)) n++; else fail++;
   }
-  closeModal(); toast(fail ? `Naskladněno ${n} položek, ${fail} se nepovedlo uložit.` : `Naskladněno ${n} položek z faktury ${inv.number||""}`.trim());
+  closeModal(); toast(fail ? `Naskladněno ${n} položek, ${fail} se nepovedlo uložit.` : `Naskladněno ${n} položek${inv.number?` z faktury ${inv.number}`:""}`);
 }
 // Nastavení → Fakturoid
 let FAKS = null;
@@ -2070,16 +2150,6 @@ function fakCard(){
   <label class="c" style="padding-top:18px"><input type="checkbox" id="fk-vat" ${f.vatPayer?"checked":""}> Jsme plátci DPH (faktury s DPH podle sazeb v nabídce)</label></div>
   <div class="row"><button class="btn blue" data-act="fak-save" ${f.busy?"disabled":""}>${f.busy?"Ověřuji…":"Uložit a vyzkoušet spojení"}</button>${f.msg?`<span style="color:${f.ok?"var(--good)":"var(--bad)"}">${esc(f.msg)}</span>`:""}</div>
   <p class="muted" style="margin:0;font-size:12px">CRM se každých 15 minut zeptá Fakturoidu, které faktury jsou uhrazené (Fakturoid je pozná po spárování platby z banky nebo když je označíte ručně). Uhrazená záloha posune obchod do stavu „ZF uhrazena“ a vlastník dostane upozornění.</p></div></div>`;
-}
-// Nastavení → Umělá inteligence (reads supplier invoices in Sklad)
-let AIS = null;
-function aiCard(){
-  if (!SV || !isAdmin()) return "";
-  if (!AIS){ AIS = {loading:true}; after.push(async () => { try { AIS = await SV.api("/api/stinko/ai/cfg"); } catch(e){ AIS = {err:e.message}; } if (S.view==="settings") render(); }); }
-  const a = AIS;
-  return `<div class="card"><div class="ch"><h2>✨ Umělá inteligence (Claude)</h2>${a.ready ? `<span class="tpill good">✓ Zapnuto</span>` : `<span class="muted" style="font-size:12px">vypnuto</span>`}</div><div class="cb" style="display:grid;gap:12px">
-  <p class="muted" style="margin:0;font-size:13px">Čte faktury od dodavatelů ve Skladu (📄 Naskladnit z faktury). Potřebuje API klíč z <b>platform.claude.com</b> → API Keys; platí se podle spotřeby (jedna faktura řádově koruny). Klíč zůstává uložený jen na serveru.</p>
-  <div class="row"><label class="f" style="flex:1;min-width:240px"><span>API klíč</span><input id="ai-key" type="password" autocomplete="new-password" placeholder="${a.ready?"uložený – vložte nový pro změnu":"sk-ant-…"}"></label><button class="btn blue" data-act="ai-save" style="align-self:end" ${a.busy?"disabled":""}>${a.busy?"Ověřuji…":"Uložit a vyzkoušet"}</button></div>${a.msg?`<span style="color:${a.ok?"var(--good)":"var(--bad)"}">${esc(a.msg)}</span>`:""}</div></div>`;
 }
 // ---------- dashboard ----------
 function vDash(){
@@ -2866,7 +2936,6 @@ function vSettings(){
   ${LOGIN_OFF ? "" : usersCard()}
   ${mailBoxesCard()}
   ${fakCard()}
-  ${aiCard()}
   ${SV ? tplsCard() : ""}
   ${migrCard()}
   <div class="card"><div class="ch"><h2>Barvy uživatelů v kalendáři</h2></div><div class="cb row" style="gap:14px">${C().users.map(u=>`<label class="c"><input type="color" class="ucol" data-u="${esc(u)}" value="${/^#[0-9a-f]{6}$/i.test(personColor(u))?personColor(u):"#888888"}" style="width:38px;height:30px;padding:2px"> ${esc(u)}</label>`).join("")}<span class="muted" style="font-size:12px">Použijí se, když v kalendáři zvolíte Filtry → Barvy podle člověka.</span></div></div>
@@ -3004,6 +3073,9 @@ document.addEventListener("click", async e => {
     case "acc-genpw": readAccModal(); S.modal.data.newPw = genPw(); S._forceModal = true; renderOverlay(); break;
     case "stock-move": S.modal = {kind:"move", id, dir:a.dataset.dir}; S._forceModal = true; renderOverlay(); $("#mv-qty")?.select(); break;
     case "stock-invoice": S.modal = {kind:"stockinv", data:{step:"pick"}}; S._forceModal = true; renderOverlay(); break;
+    case "si-manual": { const m = S.modal?.data; if (!m) break; stockInvManual(m); S._forceModal = true; renderOverlay(); document.querySelector("#stinvform .si-name")?.focus(); break; }
+    case "si-add": { const m = readStockInv(); if (!m) break; m.rows.push(siRow({})); S._forceModal = true; renderOverlay(); [...document.querySelectorAll("#stinvform .si-name")].at(-1)?.focus(); break; }
+    case "si-del": { const m = readStockInv(); if (!m) break; m.rows.splice(Number(a.dataset.i), 1); if (!m.rows.length) m.rows.push(siRow({})); S._forceModal = true; renderOverlay(); break; }
     case "edit-states": openStates(a.dataset.kind); break;
     case "st-add": { readStates(); const md = S.modal.data; md.items.push(md.kind==="lead" ? {name:"", orig:""} : {name:"", orig:"", group:"sales", kind:"open"}); S._forceModal = true; renderOverlay(); const ins = document.querySelectorAll("#strows .st-name"); ins[ins.length-1]?.focus(); break; }
     case "st-del": { readStates(); const md = S.modal.data; const it = md.items[Number(a.dataset.i)]; const n = stateUse(md.kind, it); if (n){ toast(`Ve stavu „${it.orig||it.name}“ je ${n} ${md.kind==="lead"?"leadů":"obchodů"}, nejdřív je přesuňte.`); break; } md.items.splice(Number(a.dataset.i),1); S._forceModal = true; renderOverlay(); break; }
@@ -3088,8 +3160,6 @@ document.addEventListener("click", async e => {
     case "inv-kind": { const m = readInv(); m.kind = a.dataset.k; m.tplId = ""; S._forceModal = true; renderOverlay(); break; }
     case "inv-mode": { const m = readInv(); m.mode = a.dataset.m; S._forceModal = true; renderOverlay(); break; }
     case "inv-check": { try { const r = await SV.api("/api/stinko/fak/check", {body:{}}); toast(r.changed ? "Stav faktur aktualizován" : "Beze změny – žádná nová úhrada"); } catch(e){ toast(e.message); } break; }
-    case "ai-save": { const key = ($("#ai-key")?.value || "").trim(); if (!key){ toast("Vložte API klíč."); break; } AIS = {...AIS, busy:true, msg:""}; render();
-      try { await SV.api("/api/stinko/ai/cfg", {body:{key}}); AIS = {ready:true, ok:true, msg:"Klíč funguje a je uložený."}; } catch(e){ AIS = {...AIS, busy:false, ok:false, msg:e.message}; } render(); break; }
     case "fak-save": { const v = x => (document.getElementById(x)?.value ?? "").trim(); const body = {slug:v("fk-slug"), email:v("fk-email"), clientId:v("fk-id"), secret:v("fk-secret"), dueDeposit:Number(v("fk-dd"))||7, dueFinal:Number(v("fk-df"))||14, box:v("fk-box"), vatPayer:!!$("#fk-vat")?.checked};
       if (!body.slug || !body.clientId || (!body.secret && !FAKS?.hasSecret)){ toast("Vyplňte název účtu, Client ID a Client Secret."); break; }
       FAKS = {...FAKS, ...body, busy:true, msg:""}; render();
@@ -3210,8 +3280,9 @@ document.addEventListener("input", e => {
 document.addEventListener("change", async e => {
   const t = e.target;
   if (t.id==="stock-cat"){ S.filter = t.value; S.page = 0; render(); return; }
-  if (t.id==="si-file"){ stockInvUpload(t.files?.[0]); return; }
-  if (t.closest?.("#stinvform") && S.modal?.data?.step==="review"){ readStockInv(); S._forceModal = true; renderOverlay(); return; }
+  if (t.id==="si-file"){ stockInvFile(t.files?.[0]); return; }
+  if (t.id==="si-attach"){ const m = readStockInv(); if (!m || !t.files?.[0]) return; m.attaching = true; S._forceModal = true; renderOverlay(); m.fileId = await stockInvUpload(t.files[0]); m.attaching = false; S._forceModal = true; renderOverlay(); return; }
+  if (t.closest?.("#stinvform") && S.modal?.data?.step==="review"){ readStockInv(); if (t.matches("select,[type=checkbox]")){ S._forceModal = true; renderOverlay(); } else stockInvRefresh(); return; }
   if (t.id==="mc-tpl"){ const d = readCompose(), tp = mailTpls().find(x => x.id===t.value); if (!tp){ d.tplId = ""; return; }
     if (d.text.trim() && d.html !== d.tplHtml && !confirm("Nahradit napsaný text e-mailu šablonou?")){ t.value = d.tplId; return; }
     const v = tplVars(composeCtx(d)); d.tplId = tp.id; d.subject = fillTpl(tp.subject, v); d.html = d.tplHtml = cleanHtml(fillTpl(tplHtml(tp), v, true)); d.text = rteText(d.html); S._forceModal = true; renderOverlay(); return; }
