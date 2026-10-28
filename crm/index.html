@@ -449,6 +449,7 @@ textarea.dnote{min-height:110px}
 .mcsig{display:flex;align-items:center;gap:8px;flex-wrap:wrap} .mcsig select{max-width:260px}
 .ocard{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;color:#1f2b33;max-width:560px} .ocard img{width:120px;height:80px;object-fit:cover;border-radius:6px;flex:none}
 .ocard b{display:block;font-size:15px} .ocard small{display:block;color:#6c7a85;font-size:12px} .ocard .obtn{display:inline-block;margin-top:6px;background:#f0a23b;color:#2b1a04;font-weight:700;font-size:13px;padding:5px 12px;border-radius:5px}
+.ovt{display:grid;grid-template-columns:auto minmax(40px,1fr) auto;gap:5px 8px;align-items:center;font-size:13px;margin-top:4px} .ovt i{display:block;height:8px;border-radius:4px;background:var(--accent);width:var(--w)} .ovt b{font-weight:600;font-variant-numeric:tabular-nums}
 .ovrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px} .ovrow:last-child{border-bottom:0} .ovrow small{grid-column:1/-1;color:var(--muted)}
 .msig{border-left:3px solid var(--line);padding:4px 10px;font-size:13px;white-space:pre-wrap;color:var(--muted)} .msig img{display:block;max-width:240px;max-height:120px;margin-top:6px}
 .mquote{border:1px solid var(--line);border-radius:6px;padding:6px 10px} .mquote pre{white-space:pre-wrap;font-family:inherit;font-size:12.5px;line-height:1.4;color:var(--muted);max-height:220px;overflow:auto;margin:6px 0 0}
@@ -3783,7 +3784,9 @@ function offerCardPreview(d){
 // ---------- online nabídka: kdy a jak dlouho se na ni klient díval ----------
 const OV = {};
 const fmtSecs = s => s < 60 ? `${s} s` : s < 3600 ? `${Math.floor(s/60)} min${s%60 ? " " + (s%60) + " s" : ""}` : `${Math.floor(s/3600)} h ${Math.floor(s%3600/60)} min`;
-const OV_SEC = {konfigurace:"konfigurace", doplnky:"doplňky", sluzby:"služby", cena:"cena", proc:"proč my", kontakt:"kontakt"};
+const OV_SEC = {hero:"úvodní fotka", uvod:"úvodní text", konfigurace:"parametry", polozky:"položky", doplnky:"doplňky", sluzby:"služby", cena:"cena", proc:"proč my", kontakt:"kontakt"};
+// where the client spent the time: all visits together, longest first
+function ovTimes(list){ const t = {}; list.forEach(x => Object.entries(x.times||{}).forEach(([k, v]) => { if (OV_SEC[k]) t[k] = (t[k]||0) + v; })); return Object.entries(t).sort((a,b) => b[1]-a[1]); }
 function offerViewsCard(o){
   if (!SV) return "";
   const st = OV[o.id];
@@ -3793,7 +3796,8 @@ function offerViewsCard(o){
   const total = list.reduce((s, x) => s + (x.secs||0), 0), devs = new Set(list.map(x => x.vid || x.started)).size;
   const inner = !v.url && !list.length ? `<p class="muted" style="margin:0;font-size:13px">${v.loading && !v.at ? "Načítám…" : "Nabídka zatím nebyla odeslána jako online nabídka. Pošlete ji tlačítkem ✉ Odeslat e-mailem."}</p>`
     : `${list.length ? `<div style="font-size:15px;font-weight:600">👀 Otevřeno ${list.length}× · ${fmtSecs(total)}</div><div class="muted" style="font-size:12px;margin-bottom:6px">naposledy ${fmtTs(list[0].last || list[0].started)}${devs > 1 ? ` · ${devs} různá zařízení` : ""}${list.some(x => x.pdf) ? " · PDF stažené" : ""}</div>
-      ${list.slice(0, 8).map(x => `<div class="ovrow"><span>${fmtTs(x.started)}</span><b>${fmtSecs(x.secs||0)}</b><small>${esc(x.device||"")}${x.pdf ? " · ⬇ stáhl PDF" : ""}${x.seen ? " · viděl: " + esc(x.seen.split(",").map(k => OV_SEC[k]).filter(Boolean).join(", ")) : ""}</small></div>`).join("")}${list.length > 8 ? `<small class="muted">… a ${list.length - 8} dalších</small>` : ""}`
+      ${(() => { const T = ovTimes(list), mx = T[0]?.[1] || 1; return T.length ? `<div style="margin:6px 0 10px"><span class="lbl">Kde strávil nejvíc času</span><div class="ovt">${T.map(([k, v]) => `<span>${esc(OV_SEC[k])}</span><i style="--w:${Math.max(4, Math.round(v/mx*100))}%"></i><b>${fmtSecs(v)}</b>`).join("")}</div></div>` : ""; })()}
+      ${list.slice(0, 8).map(x => `<div class="ovrow"><span>${fmtTs(x.started)}</span><b>${fmtSecs(x.secs||0)}</b><small>${esc(x.device||"")}${x.pdf ? " · ⬇ stáhl PDF" : ""}${ovTimes([x]).length ? " · nejdéle: " + esc(ovTimes([x]).slice(0, 2).map(([k, v]) => `${OV_SEC[k]} ${fmtSecs(v)}`).join(", ")) : x.seen ? " · viděl: " + esc(x.seen.split(",").map(k => OV_SEC[k]).filter(Boolean).join(", ")) : ""}</small></div>`).join("")}${list.length > 8 ? `<small class="muted">… a ${list.length - 8} dalších</small>` : ""}`
       : `<p class="muted" style="margin:0 0 6px;font-size:13px">Klient nabídku zatím neotevřel.</p>`}
     ${v.url ? `<div class="row" style="gap:6px;margin-top:8px"><a class="btn sm" href="${esc(v.url)}" target="_blank" rel="noopener">Otevřít stránku</a><button class="btn sm ghost" data-act="copy" data-text="${esc(v.url)}">Kopírovat odkaz</button></div>` : ""}`;
   return `<div class="card"><div class="ch"><span class="lbl">Online nabídka</span></div><div class="cb">${inner}</div></div>`;

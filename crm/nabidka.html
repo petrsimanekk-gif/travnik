@@ -78,14 +78,16 @@ footer{padding:40px 0;color:var(--muted);font-size:13px;text-align:center}
 
   // ---------- visit tracking: one visit per page load, time counted while the page is visible ----------
   let view = "", secs = 0, staff = false, pdf = false, dirty = false;
-  const seen = new Set();
+  const seen = new Set(), times = {};
+  // the part of the offer on screen now: the section taking most of the window
+  const onScreen = () => { let best = "", most = 0; document.querySelectorAll("[data-sec]").forEach(el => { const r = el.getBoundingClientRect(), vis = Math.min(r.bottom, innerHeight) - Math.max(r.top, 0); if (vis > most){ most = vis; best = el.dataset.sec; } }); return best; };
   const vid = (() => { try { let v = localStorage.getItem("ps-vid"); if (!v){ v = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem("ps-vid", v); } return v; } catch { return ""; } })();
   const device = /iPad|Tablet/i.test(navigator.userAgent) ? "tablet" : /Mobi|Android|iPhone/i.test(navigator.userAgent) ? "mobil" : "počítač";
   const hit = (body, keep) => fetch(api + "/hit", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body), keepalive:!!keep, credentials:"same-origin"}).then(r => r.json()).catch(() => ({}));
-  const report = keep => { if (!view || staff) return; dirty = false; hit({view, secs, pdf, seen:[...seen].join(",")}, keep); };
+  const report = keep => { if (!view || staff) return; dirty = false; hit({view, secs, pdf, seen:[...seen].join(","), times}, keep); };
   async function startVisit(){
     const r = await hit({vid, device}); if (r.staff){ staff = true; return; } view = r.view || "";
-    setInterval(() => { if (document.visibilityState === "visible"){ secs += 5; dirty = true; } }, 5000);
+    setInterval(() => { if (document.visibilityState === "visible"){ secs += 5; const k = onScreen(); if (k) times[k] = (times[k]||0) + 5; dirty = true; } }, 5000);
     setInterval(() => { if (dirty) report(); }, 15000);
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") report(true); });
     addEventListener("pagehide", () => report(true));
@@ -98,7 +100,7 @@ footer{padding:40px 0;color:var(--muted);font-size:13px;text-align:center}
     const sec = (key, kick, title, inner) => `<section data-sec="${key}"><div class="wrap"><h2><small>${esc(kick)}</small>${esc(title)}</h2>${inner}</div></section>`;
     const items = (list) => `<div class="items">${list.map(it => `<div class="item"><img src="/offer/${esc(it.thumb || "pergola")}.png" alt="" loading="lazy"><div><b>${esc(it.title)}</b>${it.desc ? `<p>${esc(it.desc)}</p>` : ""}</div></div>`).join("")}</div>`;
     const c = d.contact || {};
-    let h = `<div class="hero" style="background-image:url(/offer/mail-hero.jpg)"><div class="wrap"><div class="kick">Cenová nabídka ${esc(d.code)}</div><h1>${esc(d.title || "Bioklimatická pergola")}</h1>${d.client ? `<div class="for">Připraveno pro: <b>${esc(d.client)}</b></div>` : ""}</div></div>`;
+    let h = `<div class="hero" data-sec="hero" style="background-image:url(/offer/mail-hero.jpg)"><div class="wrap"><div class="kick">Cenová nabídka ${esc(d.code)}</div><h1>${esc(d.title || "Bioklimatická pergola")}</h1>${d.client ? `<div class="for">Připraveno pro: <b>${esc(d.client)}</b></div>` : ""}</div></div>`;
     if (staff) h = `<div class="banner"><div class="wrap">Náhled pro Prima Shade – vaše návštěva se do statistiky nezapočítává.</div></div>` + h;
     if (d.intro) h += sec("uvod", "Úvodem", "Dobrý den,", `<div class="text">${esc(d.intro)}</div>`);
     if ((d.params || []).length) h += sec("konfigurace", "Vaše pergola", "Parametry na míru", `<div class="params">${d.params.map(([k, v]) => `<div class="param"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}</div>`);

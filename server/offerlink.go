@@ -13,6 +13,7 @@ import (
 	"html"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -50,10 +51,16 @@ func ensureOfferSchema(app core.App) error {
 			&core.NumberField{Name: "secs", OnlyInt: true},
 			&core.BoolField{Name: "pdf"},
 			&core.TextField{Name: "device", Max: 40},
-			&core.TextField{Name: "seen", Max: 300}, // sections scrolled to
+			&core.TextField{Name: "seen", Max: 300},       // sections scrolled to
+			&core.JSONField{Name: "times", MaxSize: 4000}, // seconds spent on each section
 		)
 		c.AddIndex("idx_offerviews_token", false, "`token`,`started`", "")
 		c.AddIndex("idx_offerviews_offer", false, "`offer`", "")
+		if err := app.Save(c); err != nil {
+			return err
+		}
+	} else if c, _ := app.FindCollectionByNameOrId("offerviews"); c != nil && c.Fields.GetByName("times") == nil {
+		c.Fields.Add(&core.JSONField{Name: "times", MaxSize: 4000})
 		if err := app.Save(c); err != nil {
 			return err
 		}
@@ -171,7 +178,7 @@ func handleOfferViews(e *core.RequestEvent) error {
 	views := []any{}
 	for _, r := range recs {
 		views = append(views, map[string]any{"started": r.GetInt("started"), "last": r.GetInt("last"), "secs": r.GetInt("secs"), "pdf": r.GetBool("pdf"),
-			"device": r.GetString("device"), "vid": r.GetString("vid"), "seen": r.GetString("seen")})
+			"device": r.GetString("device"), "vid": r.GetString("vid"), "seen": r.GetString("seen"), "times": r.Get("times")})
 	}
 	out["views"] = views
 	return e.JSON(http.StatusOK, out)
@@ -219,12 +226,13 @@ func handleOfferHit(e *core.RequestEvent) error {
 		return e.JSON(http.StatusOK, map[string]any{"staff": true})
 	}
 	var b struct {
-		View   string `json:"view"`
-		Vid    string `json:"vid"`
-		Secs   int64  `json:"secs"`
-		Pdf    bool   `json:"pdf"`
-		Device string `json:"device"`
-		Seen   string `json:"seen"`
+		View   string           `json:"view"`
+		Vid    string           `json:"vid"`
+		Secs   int64            `json:"secs"`
+		Pdf    bool             `json:"pdf"`
+		Device string           `json:"device"`
+		Seen   string           `json:"seen"`
+		Times  map[string]int64 `json:"times"`
 	}
 	if err := e.BindBody(&b); err != nil {
 		return e.BadRequestError("", err)
@@ -244,6 +252,9 @@ func handleOfferHit(e *core.RequestEvent) error {
 		}
 		if b.Pdf {
 			r.Set("pdf", true)
+		}
+		if len(b.Times) > 0 {
+			r.Set("times", sectionTimes(b.Times, b.Secs))
 		}
 		if b.Seen != "" {
 			r.Set("seen", clip(b.Seen, 300))
@@ -407,4 +418,21 @@ func offerCard(app core.App, token string) (htm, text string, img *outAtt, err e
 	}
 	b.WriteString(`</td></tr></table>`)
 	return b.String(), "Zobrazit nabídku " + str(d, "code") + ": " + url, img, nil
+}
+
+var sectionKeyRe = regexp.MustCompile(`^[a-z]{1,20}$`)
+
+// sectionTimes keeps sane values only: known-looking keys, none above the visit's time.
+func sectionTimes(in map[string]int64, total int64) map[string]int64 {
+	out := map[string]int64{}
+	for k, v := range in {
+		if len(out) >= 15 || !sectionKeyRe.MatchString(k) || v <= 0 {
+			continue
+		}
+		if v > total {
+			v = total
+		}
+		out[k] = v
+	}
+	return out
 }
