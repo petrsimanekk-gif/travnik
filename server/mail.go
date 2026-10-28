@@ -1573,20 +1573,32 @@ func composeMail(app core.App, cfg *mailCfg, b *sendReq, draft bool) (*composed,
 			text = richToText(b.HTML)
 		}
 	}
+	card := ""
 	if b.Offer != "" && !draft {
-		card, line, img, err := offerCard(app, b.Offer)
+		c, line, img, err := offerCard(app, b.Offer)
 		if err != nil {
 			return nil, err
 		}
-		htm += card
+		card = c
 		text += "\n\n" + line
 		if img != nil {
 			inline = append(inline, img)
 		}
 	}
+	sig := ""
 	if (strings.TrimSpace(b.SigText) != "" || logoCID != "") && !draft {
 		text += "\n\n-- \n" + b.SigText
-		htm += sigHTML(b.SigText, logoCID, logoData)
+		sig = sigHTML(b.SigText, logoCID, logoData)
+	}
+	if card != "" {
+		// an offer e-mail gets the designed layout: logo, heading, text, the offer with its button, signature
+		lay, logo := offerLayout(htm, card, sig)
+		htm = lay
+		if logo != nil {
+			inline = append(inline, logo)
+		}
+	} else {
+		htm += sig
 	}
 	if strings.TrimSpace(b.Quote) != "" && !draft {
 		text += "\n\n" + b.Quote

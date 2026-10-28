@@ -2921,6 +2921,9 @@ document.addEventListener("click", async e => {
     case "mb-logo-company": { const d = readMbox(); try { d.sigLogo = (await companyLogo()).id; } catch(e){ toast("Logo se nepodařilo nahrát."); } if (S.modal?.data===d){ S._forceModal = true; renderOverlay(); } break; }
     case "mb-unlogo": { const d = readMbox(); d.sigLogo = ""; S._forceModal = true; renderOverlay(); break; }
     case "sig-logo-company": { const d = readSigs(); try { const lg = await companyLogo(); const cur = d.list[d.sel]; if (cur) cur.logo = lg; } catch(e){ toast("Logo se nepodařilo nahrát."); } if (S.modal?.data===d){ S._forceModal = true; renderOverlay(); } break; }
+    case "tpl-reset": { const d = S.modal?.data, t = DEFAULT_TPLS.find(x => x.id===d?.id); if (!t) break;
+      if (!confirm("Nahradit předmět a text šablony připraveným zněním? Uloží se až tlačítkem Uložit šablonu.")) break;
+      d.name = $("#tp-name")?.value || d.name; d.subject = t.subject; d.body = t.body; delete d.html; S._forceModal = true; renderOverlay(); toast("Načteno připravené znění – zkontrolujte a uložte"); break; }
     case "tpl-defaults": { if (!isAdmin()) break; const L = mailTpls(), add = DEFAULT_TPLS.filter(t => !L.some(x => x.id===t.id)); if (await saveTpls([...L, ...add])){ toast(`Doplněno šablon: ${add.length}`); render(); } break; }
     case "sig-manage": if (!MAIL.boxes) await mailLoadBoxes(); openSigs(); break;
     case "sig-sel": { const d = readSigs(); d.sel = Number(a.dataset.i); S._forceModal = true; renderOverlay(); break; }
@@ -3630,32 +3633,32 @@ děkujeme za Vaši poptávku. Ozveme se Vám do 24 hodin a domluvíme další po
 Mezitím se můžete podívat na naše realizace na www.primashade.cz. Pokud máte jakýkoli dotaz, stačí odpovědět na tento e-mail.`},
   {id:"t-nabidka", name:"Zaslání cenové nabídky", subject:"Cenová nabídka {nabidka} – {predmet}", body:`{osloveni}
 
-děkujeme za Váš zájem o naše řešení. Posíláme Vám cenovou nabídku {nabidka} – {predmet}.
+děkujeme za Váš zájem o naše bioklimatické pergoly a za důvěru, kterou nám dáváte. Na základě Vašich požadavků jsme pro Vás připravili cenovou nabídku {nabidka} – {predmet}.
 
-Celková cena: {cena} vč. DPH
-Platnost nabídky: do {platnost}
+Proč Prima Shade
+Za sebou máme už více než 200 realizací po celé České republice. Každou pergolu navrhujeme na míru a postaráme se o vše od zaměření až po předání – včetně dopravy, montáže, zprovoznění ovládání a zaškolení.
 
-V ceně je doprava, montáž, zprovoznění ovládání i zaškolení. Pergolu vyrábíme na míru, proto rádi upravíme rozměry, barvu nebo doplňky (LED osvětlení, screenové rolety, topení) přesně podle Vašich představ.
+Na co se můžete těšit
+• Ochrana před sluncem i deštěm – uzavřené lamely vytvoří vodotěsnou střechu a voda odtéká skrytě konstrukcí.
+• Stín přesně podle Vás – natáčením lamel regulujete světlo i proudění vzduchu.
+• Dlouhé večery venku – integrované LED osvětlení vytvoří příjemnou atmosféru.
+• Robustní konstrukce – sloupky 150 × 150 mm a nosnost 120 kg/m² (odpovídá zhruba 80 cm sněhu).
+• Hliníková konstrukce s elektrickým pohonem – odolná a nenáročná na údržbu.
 
-Pokud Vám cokoli není jasné nebo chcete nabídku probrat, stačí odpovědět na tento e-mail nebo mi zavolat. Rád se zastavím i osobně.
+Kompletní nabídku s cenou, rozpisem a fotkami si zobrazíte tlačítkem „Zobrazit nabídku“ níže. Nabídka platí do {platnost}.
 
-Těším se na Vaši odpověď.`},
+Pokud Vám cokoli není jasné nebo chcete nabídku probrat, stačí odpovědět na tento e-mail nebo mi zavolat. Rád se zastavím i osobně.`,
+    html:`<div>{osloveni}</div><div><br></div><div>děkujeme za Váš zájem o naše bioklimatické pergoly a za důvěru, kterou nám dáváte. Na základě Vašich požadavků jsme pro Vás připravili cenovou nabídku <b>{nabidka}</b> – {predmet}.</div><div><br></div><div><b><span style="font-size:18px">Proč Prima Shade</span></b></div><div>Za sebou máme už <b>více než 200 realizací po celé České republice</b>. Každou pergolu navrhujeme na míru a postaráme se o vše od zaměření až po předání – včetně dopravy, montáže, zprovoznění ovládání a zaškolení.</div><div><br></div><div><b><span style="font-size:18px">Na co se můžete těšit</span></b></div><ul><li><b>Ochrana před sluncem i deštěm</b> – uzavřené lamely vytvoří vodotěsnou střechu a voda odtéká skrytě konstrukcí.</li><li><b>Stín přesně podle Vás</b> – natáčením lamel regulujete světlo i proudění vzduchu.</li><li><b>Dlouhé večery venku</b> – integrované LED osvětlení vytvoří příjemnou atmosféru.</li><li><b>Robustní konstrukce</b> – sloupky 150 × 150 mm a nosnost 120 kg/m² (odpovídá zhruba 80 cm sněhu).</li><li><b>Hliníková konstrukce s elektrickým pohonem</b> – odolná a nenáročná na údržbu.</li></ul><div>Kompletní nabídku s cenou, rozpisem a fotkami si zobrazíte tlačítkem <b>„Zobrazit nabídku“</b> níže. Nabídka platí do {platnost}.</div><div><br></div><div>Pokud Vám cokoli není jasné nebo chcete nabídku probrat, stačí odpovědět na tento e-mail nebo mi zavolat. Rád se zastavím i osobně.</div>`},
   {id:"t-obhlidka", name:"Nabídka po obhlídce / zaměření", subject:"Nabídka podle obhlídky – {predmet}", body:`{osloveni}
 
-ještě jednou děkuji za čas, který jste mi věnovali při obhlídce. Podle naměřených rozměrů a toho, co jsme spolu probrali, jsem připravil nabídku {nabidka}, kterou Vám posílám.
+ještě jednou děkuji za čas, který jste mi věnovali při obhlídce. Podle naměřených rozměrů a toho, co jsme spolu probrali, jsem připravil nabídku {nabidka}. Zobrazíte si ji tlačítkem „Zobrazit nabídku“ níže.
 
-Celková cena: {cena} vč. DPH
-Platnost nabídky: do {platnost}
-
-Do nabídky jsem zapracoval vše, na čem jsme se domluvili. Kdybyste chtěli něco upravit nebo porovnat jinou variantu, rád ji připravím.
+Do nabídky jsem zapracoval vše, na čem jsme se domluvili. Nabídka platí do {platnost}. Kdybyste chtěli něco upravit nebo porovnat jinou variantu, rád ji připravím.
 
 Po Vašem potvrzení Vám pošlu zálohovou fakturu a domluvíme termín montáže.`},
   {id:"t-upravena", name:"Upravená nabídka (nová verze)", subject:"Upravená nabídka {nabidka} – {predmet}", body:`{osloveni}
 
-podle Vašich připomínek jsem nabídku upravil. Posílám Vám novou verzi {nabidka}.
-
-Nová celková cena: {cena} vč. DPH
-Platnost nabídky: do {platnost}
+podle Vašich připomínek jsem nabídku upravil. Novou verzi {nabidka} si zobrazíte tlačítkem „Zobrazit nabídku“ níže. Platí do {platnost}.
 
 Dejte mi prosím vědět, jestli Vám teď vše vyhovuje, případně co ještě doladit.`},
   {id:"t-pripominka", name:"Připomenutí nabídky (po 3–5 dnech)", subject:"Re: Cenová nabídka {nabidka}", body:`{osloveni}
@@ -3676,7 +3679,7 @@ Děkuji a přeji hezký den.`},
 
 chci Vás jen upozornit, že platnost cenové nabídky {nabidka} ({predmet}) končí {platnost}.
 
-Do tohoto data Vám garantujeme uvedenou cenu {cena} vč. DPH i aktuální termíny montáže. Pokud budete potřebovat víc času na rozmyšlenou, napište mi a domluvíme se.`},
+Do tohoto data Vám garantujeme cenu z nabídky i aktuální termíny montáže. Pokud budete potřebovat víc času na rozmyšlenou, napište mi a domluvíme se.`},
   {id:"t-akceptace", name:"Poděkování za objednávku – další kroky", subject:"Děkujeme za objednávku – {predmet}", body:`{osloveni}
 
 děkujeme za Vaši objednávku a důvěru. Moc si toho vážíme.
@@ -3744,7 +3747,7 @@ function tplModal(){
   <label class="f"><span>Předmět e-mailu</span><input id="tp-subj" value="${esc(d.subject||"")}"></label>
   <div style="display:grid;gap:3px"><span class="lbl">Text</span>${rteBox("tp-body", tplHtml(d), "Text šablony")}</div>
   <div class="row" style="gap:4px"><span class="lbl" style="margin-right:4px">Vložit proměnnou:</span>${[...TPL_VARS, ...(/^t-(zf|df)$/.test(d.id) ? TPL_VARS_FAK : [])].map(([k,t]) => `<button type="button" class="chip mlink" data-act="tpl-var" data-v="${k}" title="${esc(t)}">{${k}}</button>`).join("")}</div></div>
-  <div class="mf">${d._new?"":`<button type="button" class="btn ghost bad" data-act="tpl-del" data-id="${d.id}" style="margin-right:auto">Smazat šablonu</button>`}<button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit">Uložit šablonu</button></div></form></div>`;
+  <div class="mf">${d._new?"":`<button type="button" class="btn ghost bad" data-act="tpl-del" data-id="${d.id}" style="margin-right:auto">Smazat šablonu</button>`}${DEFAULT_TPLS.some(t => t.id===d.id) ? `<button type="button" class="btn ghost" data-act="tpl-reset" title="Načte text, který CRM pro tuto šablonu nabízí. Uloží se až tlačítkem Uložit šablonu.">↺ Vrátit připravené znění</button>` : ""}<button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit">Uložit šablonu</button></div></form></div>`;
 }
 // "✉ Odeslat e-mailem" on an offer: the client's address, the offer template and the online offer
 // (a card with a photo and a "Zobrazit nabídku" button; the client's visits are tracked)
