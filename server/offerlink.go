@@ -333,6 +333,31 @@ func anyStrings(v any) []string {
 	return out
 }
 
+// offerLayout wraps an offer e-mail: the company logo, a heading, the text in a larger
+// font, the offer card with its button at the bottom and the signature. Tables and inline
+// styles only, which is what mail apps show reliably.
+func offerLayout(body, card, sig string) (string, *outAtt) {
+	var logo *outAtt
+	top := ""
+	if data, err := os.ReadFile(publicDir() + "/logo-email.png"); err == nil {
+		logo = &outAtt{name: "logo.png", ctype: "image/png", data: data, cid: "logo-" + randHex(6) + "@crm"}
+		top = `<tr><td align="center" style="padding:26px 0 22px;border-bottom:1px solid #e6e9ec"><img src="cid:` + logo.cid + `" width="200" height="45" alt="Prima Shade" style="display:block;border:0;width:200px;height:auto"></td></tr>`
+	}
+	body = strings.Replace(body, "font-size:14px;line-height:1.45", "font-size:16px;line-height:1.6;color:#1f2b33", 1)
+	var b strings.Builder
+	b.WriteString(`<div style="margin:0;padding:0;background:#ffffff"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 14px">`)
+	b.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;font-family:Arial,Helvetica,sans-serif;color:#1f2b33">`)
+	b.WriteString(top)
+	b.WriteString(`<tr><td style="padding:34px 0 0"><h1 style="margin:0 0 22px;font-family:Arial,Helvetica,sans-serif;font-size:30px;line-height:1.25;font-weight:bold;color:#1f2b33">Vaše cenová nabídka je připravená</h1>`)
+	b.WriteString(body)
+	b.WriteString(card)
+	if sig != "" {
+		b.WriteString(`<div style="font-size:15px;line-height:1.55">` + sig + `</div>`)
+	}
+	b.WriteString(`<div style="height:30px"></div></td></tr></table></td></tr></table></div>`)
+	return b.String(), logo
+}
+
 // offerCard gives the HTML card (table layout and inline styles: what mail apps show
 // reliably), its plain-text line and the photo as an inline image.
 func offerCard(app core.App, token string) (htm, text string, img *outAtt, err error) {
@@ -347,10 +372,10 @@ func offerCard(app core.App, token string) (htm, text string, img *outAtt, err e
 	url := shareURL(share)
 	esc := html.EscapeString
 	var b bytes.Buffer
-	b.WriteString(`<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:560px;margin:20px 0;border:1px solid #e3e7ea;border-radius:10px;border-collapse:separate;font-family:Arial,Helvetica,sans-serif;background:#ffffff">`)
+	b.WriteString(`<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px;margin:28px 0 8px;border:1px solid #e3e7ea;border-radius:12px;border-collapse:separate;font-family:Arial,Helvetica,sans-serif;background:#ffffff">`)
 	if photo, e := os.ReadFile(publicDir() + "/offer/mail-hero.jpg"); e == nil {
 		img = &outAtt{name: "pergola.jpg", ctype: "image/jpeg", data: photo, cid: "offer-" + randHex(6) + "@crm"}
-		b.WriteString(`<tr><td style="padding:0"><a href="` + esc(url) + `" target="_blank"><img src="cid:` + img.cid + `" width="560" height="373" alt="Pergola Prima Shade" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:10px 10px 0 0"></a></td></tr>`)
+		b.WriteString(`<tr><td style="padding:0"><a href="` + esc(url) + `" target="_blank"><img src="cid:` + img.cid + `" width="600" height="400" alt="Pergola Prima Shade" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:12px 12px 0 0"></a></td></tr>`)
 	}
 	b.WriteString(`<tr><td style="padding:20px 22px 22px">`)
 	b.WriteString(`<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8a6a3a">Cenová nabídka ` + esc(str(d, "code")) + `</div>`)
@@ -376,9 +401,9 @@ func offerCard(app core.App, token string) (htm, text string, img *outAtt, err e
 		}
 		b.WriteString(`</div>`)
 	}
-	b.WriteString(`<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px"><tr><td style="border-radius:6px;background:#f0a23b"><a href="` + esc(url) + `" target="_blank" style="display:inline-block;padding:14px 30px;font-size:16px;font-weight:bold;color:#2b1a04;text-decoration:none;border-radius:6px">Zobrazit nabídku</a></td></tr></table>`)
+	b.WriteString(`<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:22px"><tr><td align="center" style="border-radius:8px;background:#f0a23b"><a href="` + esc(url) + `" target="_blank" style="display:block;padding:17px 24px;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;color:#2b1a04;text-decoration:none;border-radius:8px;text-align:center">Zobrazit nabídku</a></td></tr></table>`)
 	if v := str(d, "validTo"); v != "" {
-		b.WriteString(`<div style="font-size:12px;color:#6c7a85;margin-top:12px">Cena a kompletní rozpis jsou v nabídce · platnost do ` + esc(v) + `</div>`)
+		b.WriteString(`<div style="font-size:13px;color:#6c7a85;margin-top:12px;text-align:center">Cena, kompletní rozpis a fotky jsou v nabídce · platnost do ` + esc(v) + `</div>`)
 	}
 	b.WriteString(`</td></tr></table>`)
 	return b.String(), "Zobrazit nabídku " + str(d, "code") + ": " + url, img, nil
