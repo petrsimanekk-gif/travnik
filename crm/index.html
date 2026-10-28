@@ -352,7 +352,7 @@ table.g tr.rc td:first-child{box-shadow:inset 4px 0 0 var(--rc)} table.g tr.rc t
 .aufields{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;align-items:center}
 @media (max-width:640px){.auact{grid-template-columns:minmax(0,1fr) 32px}.auact .aufields{grid-column:1/-1}}
 .bell{position:relative} .badge{background:var(--bad);color:#fff;border-radius:9px;font-size:10.5px;padding:0 5px;margin-left:2px;font-weight:700}
-.notif{padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer} .notif:hover{background:var(--surface-2)} .notif.unread{font-weight:500} .notif.unread::before{content:"● ";color:var(--link)}
+.notif{display:flex;gap:8px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer} .notif .nt{flex:1;min-width:0} .notif .nx{opacity:.45} .notif:hover .nx,.notif .nx:focus-visible{opacity:1} .notif:hover{background:var(--surface-2)} .notif.unread{font-weight:500} .notif.unread::before{content:"● ";color:var(--link)}
 .pluswrap{position:relative}
 .plusmenu{position:absolute;right:0;top:46px;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.2);padding:6px 0;z-index:20;min-width:210px}
 .plusmenu button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:center;padding:8px 14px;font-size:14px;width:100%;box-sizing:border-box}
@@ -1514,8 +1514,8 @@ function commsPanel(list, title="Komunikace se zákazníkem"){
     <div class="cbody">${c.body?`<div style="white-space:pre-wrap">${esc(c.body)}</div>`:""}${c.pdfId?`<div style="margin-top:6px"><a class="link" href="${blobUrl(c.pdfId)}" target="_blank" rel="noopener">📄 ${esc(c.pdfName||"PDF")}</a></div>`:""}${c.offerId&&canSee("offers")?`<div style="margin-top:6px"><span class="link" data-act="open-offer" data-id="${c.offerId}">Otevřít nabídku</span></div>`:""}${c.actId?`<div style="margin-top:6px"><span class="link" data-act="open-act" data-id="${c.actId}">Otevřít aktivitu</span></div>`:""}${!c.body&&!c.pdfId&&!c.offerId&&!c.actId?`<span class="muted">Bez obsahu.</span>`:""}</div></details>`).join("") : `<p class="muted" style="margin:0">Zatím nic neodešlo. Zobrazí se tu e-maily z automatizací, odeslané nabídky a aktivity typu E-mail a Dopis.</p>`}</div></div>`;
 }
 function notifsModal(){ const list = S.notifs.filter(n=>n.to===me()).sort((a,b)=>b.at-a.at).slice(0,50);
-  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Upozornění"><div class="box" style="width:min(520px,100%)"><div class="mh"><b style="font-size:17px">Upozornění</b><span class="row">${list.some(n=>!n.read)?`<button class="btn sm" data-act="notif-allread">Označit vše jako přečtené</button>`:""}<button class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></span></div>
-  <div class="mb" style="gap:0">${list.map(n=>`<div class="notif ${n.read?"":"unread"}" data-act="notif-open" data-id="${n.id}"><div>${esc(n.text)}</div><small class="muted">${fmtTs(n.at)}${n.by?" · "+esc(n.by):""}</small></div>`).join("") || `<p class="muted">Žádná upozornění.</p>`}</div></div></div>`; }
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Upozornění"><div class="box" style="width:min(520px,100%)"><div class="mh"><b style="font-size:17px">Upozornění</b><span class="row">${list.some(n=>!n.read)?`<button class="btn sm" data-act="notif-allread">Označit vše jako přečtené</button>`:""}${list.some(n=>n.read)?`<button class="btn sm ghost" data-act="notif-delread">Smazat přečtená</button>`:""}<button class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></span></div>
+  <div class="mb" style="gap:0">${list.map(n=>`<div class="notif ${n.read?"":"unread"}"><div class="nt" data-act="notif-open" data-id="${n.id}"><div>${esc(n.text)}</div><small class="muted">${fmtTs(n.at)}${n.by?" · "+esc(n.by):""}</small></div><button class="btn sm ghost nx" data-act="notif-del" data-id="${n.id}" aria-label="Smazat upozornění" title="Smazat">✕</button></div>`).join("") || `<p class="muted">Žádná upozornění.</p>`}</div></div></div>`; }
 
 // ---------- column & filter modals ----------
 function colsModal(){
@@ -2557,7 +2557,7 @@ function renderOverlay(){
   let h = ""; if (S.newmenu) h += newMenuHtml(); h += modalHtml();
   if (S.light) h += `<div class="lightbox" data-act="close-light"><img src="${blobUrl(S.light)}" alt="Náhled fotky"><button class="btn" data-act="close-light">Zavřít ✕</button></div>`;
   const o = $("#overlay"); const keep = o.querySelector(".modal") && S.modal && S.modal._open; if (keep && !S._forceModal) { if (!S.newmenu && o.querySelector(".newmenu")) o.querySelector(".newmenu").remove(); return; }
-  o.innerHTML = h; S._forceModal = false; if (S.modal){ const first = !S.modal._open; S.modal._open = true; if (S.modal.kind==="sign" || S.modal.kind==="isign") initSigPad(); if (first && S.modal.kind==="mailc"){ const t = o.querySelector(S.modal.data.to ? "#mc-text" : "#mc-to"); if (t){ t.focus(); if (t.id==="mc-text"){ const r = document.createRange(); r.setStart(t, 0); r.collapse(true); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } } }
+  o.innerHTML = h; S._forceModal = false; if (S.modal){ const first = !S.modal._open; S.modal._open = true; if (S.modal.kind==="sign" || S.modal.kind==="isign") initSigPad(); if (first && S.modal.kind==="mailc"){ const t = o.querySelector(S.modal.data.to ? "#mc-text" : "#mc-to"); { const d = readCompose(); if (d) d._init = composeSig(d); } if (t){ t.focus(); if (t.id==="mc-text"){ const r = document.createRange(); r.setStart(t, 0); r.collapse(true); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } } }
   if (first && !["cols","filter","states","acc","isign","auto","notifs","mail","phist","mailc","mbox","sigs"].includes(S.modal.kind)){ const f = o.querySelector("input:not([type=hidden]),select,textarea"); f && f.focus(); } }
 }
 const openModal = (kind, data) => { S.modal = {kind, data}; S.newmenu = false; S._forceModal = true; renderOverlay(); };
@@ -2781,6 +2781,15 @@ document.addEventListener("click", async e => {
     case "mc-sched-toggle": { const d = readCompose(); d.sched = !d.sched; S._forceModal = true; renderOverlay(); break; }
     case "mc-when": mailSend(Number(a.dataset.t)); break;
     case "mc-schedule": { const v = $("#mc-at")?.value; const t = v ? new Date(v).getTime() : 0; if (!t){ toast("Zadejte datum a čas."); break; } mailSend(t); break; }
+    case "pm-del": { const m = MAIL.msg; if (!m) break; const forever = m.folder==="trash";
+      if (forever && !confirm("Smazat zprávu natrvalo? Zmizí i ze schránky na serveru.")) break;
+      try { await mailApi("del", {ids:[m.id], forever}); const i = (MAIL.items||[]).findIndex(x => x.id===m.id); MAIL.items = (MAIL.items||[]).filter(x => x.id!==m.id);
+        const next = MAIL.items[Math.min(Math.max(i,0), MAIL.items.length-1)]; MAIL.sel = null; MAIL.msg = null; toast(forever ? "Zpráva smazána" : "Přesunuto do koše"); if (next && innerWidth > 900) mailOpen(next.id); else render(); }
+      catch(e){ toast(e.message || "Smazání se nepovedlo."); } break; }
+    case "mc-draft": mailSaveDraft(false); break;
+    case "mc-draft-del": { const d = readCompose(); if (!d?.draft || !confirm("Zahodit tento koncept?")) break; try { await mailApi("del", {ids:[d.draft], forever:true}); d.done = true; closeModal(); toast("Koncept zahozen"); if (S.view==="mail") mailRefresh(); } catch(e){ toast(e.message); } break; }
+    case "notif-del": { const n = S.notifs.find(v => v.id===id); if (n && n.to===me()){ try { await store.del("notifs", id); } catch(e){ toast("Upozornění se nepodařilo smazat."); } } S._forceModal = true; renderOverlay(); break; }
+    case "notif-delread": { const L = S.notifs.filter(n => n.to===me() && n.read); if (!L.length || !confirm(`Smazat přečtená upozornění (${L.length})?`)) break; for (const n of L){ try { await store.del("notifs", n.id); } catch(e){ console.warn(e); } } toast("Přečtená upozornění smazána"); S._forceModal = true; renderOverlay(); break; }
     case "pm-folder": MAIL.box = a.dataset.box; MAIL.folder = a.dataset.f; ls.set("stinko-mailbox", MAIL.box); MAIL.sel = null; MAIL.msg = null; MAIL.items = null; render(); break;
     case "pm-open": mailOpen(id); break;
     case "pm-goto": MAIL.box = a.dataset.box; MAIL.folder = a.dataset.f; MAIL.q = ""; MAIL.items = null; go("mail"); mailOpen(id); break;
@@ -2798,7 +2807,7 @@ document.addEventListener("click", async e => {
     case "mbox-ask": S.confirm = "mbox-" + id; render(); break;
     case "mbox-del": { S.confirm = null; if (S.modal?.kind==="mbox"){ if (!confirm("Odpojit schránku? Stažená pošta se z CRM smaže, ve schránce samotné zůstane.")) break; S.modal = null; S._forceModal = true; renderOverlay(); } try { await mailApi("boxdel", {id}); toast("Schránka odpojena"); } catch(e){ toast(e.message); } MAIL.boxes = null; MAIL.items = null; MAIL.sel = null; render(); break; }
     case "mbox-test": { const d = readMbox(); d.busy = "test"; d.testMsg = ""; S._forceModal = true; renderOverlay(); try { const r = await mailApi("test", mboxBody(d)); d.testOk = true; d.testMsg = "Spojení funguje: přihlášení k IMAP i SMTP proběhlo." + (r.sent ? " Odeslané se ukládají do složky „" + r.sent + "“." : " Složku Odeslané se nepodařilo najít."); } catch(e){ d.testOk = false; d.testMsg = e.message; } d.busy = ""; if (S.modal?.data===d){ S._forceModal = true; renderOverlay(); } break; }
-    case "close-modal": closeModal(); break;
+    case "close-modal": if (await composeClose()) closeModal(); break;
     case "close-light": S.light = null; renderOverlay(); break;
     case "light": S.light = id; renderOverlay(); break;
     case "copy": try { await navigator.clipboard.writeText(a.dataset.text); toast("Zkopírováno"); } catch { toast("Kopírování se nepovedlo, označte text ručně."); } break;
@@ -2870,7 +2879,7 @@ document.addEventListener("click", async e => {
 document.addEventListener("mousedown", e => { if (e.target.closest?.('[data-act="tpl-var"]')) e.preventDefault(); });
 document.addEventListener("keydown", e => {
   if ((e.key==="Enter"||e.key===" ") && e.target.matches("tr[data-act],.fr[data-act],.icard[data-act],.mrec[data-act]")){ e.preventDefault(); e.target.click(); }
-  if (e.key==="Escape"){ if (S.light){ S.light = null; renderOverlay(); } else if (S.modal){ closeModal(); } else if (S.newmenu){ S.newmenu = false; renderOverlay(); } }
+  if (e.key==="Escape"){ if (S.light){ S.light = null; renderOverlay(); } else if (S.modal){ composeClose().then(ok => ok && closeModal()); } else if (S.newmenu){ S.newmenu = false; renderOverlay(); } }
   if (e.key==="Enter" && e.target.id==="gq"){ S.q = e.target.value; if (S.q.trim()) go("search"); }
 });
 document.addEventListener("input", e => {
@@ -3114,10 +3123,17 @@ async function mailRefresh(boxesToo){
   if (S.view==="mail") render();
 }
 async function mailOpen(id){
+  if (MAIL.folder==="drafts" || (MAIL.items||[]).find(x => x.id===id)?.folder==="drafts") return mailOpenDraft(id);
   MAIL.sel = id; MAIL.msg = null; render();
   try { const m = await mailApi("msg?id=" + encodeURIComponent(id)); if (MAIL.sel !== id) return; MAIL.msg = m; const it = (MAIL.items||[]).find(x => x.id===id); if (it) it.seen = true; }
   catch(e){ toast("Zprávu se nepodařilo načíst."); MAIL.sel = null; }
   if (S.view==="mail") render();
+}
+async function mailOpenDraft(id){
+  let m; try { m = await mailApi("msg?peek=1&id=" + encodeURIComponent(id)); } catch(e){ toast("Koncept se nepodařilo načíst."); return; }
+  const k = m.draft || {}, list = a => (a||[]).map(addrTxt).join(", ");
+  mailCompose({box:m.box, to:list(m.to), cc:list(m.cc), subject:m.subject||"", html:m.html ? cleanHtml(m.html) : plainToHtml(m.text||""), sigId:k.sigId, replyTo:k.replyTo||"", commId:k.commId||"",
+    fwd:(m.atts||[]).length ? m.id : "", fwdAtt:(m.atts||[]).map(a => a.name), draft:m.id, share:k.offer ? {token:k.offer} : null, ctx:k.ctx||null, title:"Koncept"});
 }
 // realtime: the server bumps docs mailstate/{box} after new mail, a sent mail or a read flag
 let mailStT = null;
@@ -3149,7 +3165,7 @@ function mailReader(){
   const ed = mailCanSend(m.box);
   return `<div class="mhead"><button class="btn sm ghost mback" data-act="pm-back" aria-label="Zpět na seznam">‹ Zpět</button><div class="msubj">${esc(m.subject||"(bez předmětu)")}</div>
     <div class="mmeta"><div><span class="muted">Od:</span> ${ad({name:m.fromName, addr:m.from})}</div>${m.to?.length?`<div><span class="muted">Komu:</span> ${m.to.map(ad).join(", ")}</div>`:""}${m.cc?.length?`<div><span class="muted">Kopie:</span> ${m.cc.map(ad).join(", ")}</div>`:""}<div class="muted">${fmtTs(m.date)}</div></div>
-    <div class="row mact">${ed?`<button class="btn sm blue" data-act="pm-reply">↩ Odpovědět</button><button class="btn sm" data-act="pm-replyall">↩ Všem</button><button class="btn sm" data-act="pm-fwd">↪ Přeposlat</button>`:""}${m.folder==="inbox"?`<button class="btn sm ghost" data-act="pm-unread">Označit jako nepřečtené</button>`:""}${m.folder==="inbox" && !lead && canEdit("leads") ? `<button class="btn sm" data-act="pm-lead">+ Založit lead</button>` : ""}</div>
+    <div class="row mact">${ed?`<button class="btn sm blue" data-act="pm-reply">↩ Odpovědět</button><button class="btn sm" data-act="pm-replyall">↩ Všem</button><button class="btn sm" data-act="pm-fwd">↪ Přeposlat</button>`:""}${m.folder==="inbox"?`<button class="btn sm ghost" data-act="pm-unread">Označit jako nepřečtené</button>`:""}${m.folder==="inbox" && !lead && canEdit("leads") ? `<button class="btn sm" data-act="pm-lead">+ Založit lead</button>` : ""}${ed ? `<button class="btn sm ghost bad" data-act="pm-del" style="margin-left:auto" title="${m.folder==="trash" ? "Smaže zprávu natrvalo, i ve schránce na serveru" : "Přesune zprávu do koše"}">🗑 ${m.folder==="trash" ? "Smazat natrvalo" : "Smazat"}</button>` : ""}</div>
     ${links?`<div class="row mlinks">${links}</div>`:""}</div>
     ${m.atts?.length?`<div class="matts">${m.atts.map(a => `<a class="matt" href="/api/stinko/mail/att?id=${encodeURIComponent(m.id)}&i=${a.i}" target="_blank" rel="noopener">📎 ${esc(a.name)} <small class="muted">${fmtSize(a.size)}</small></a>`).join("")}</div>`:""}
     ${m.html ? `<iframe class="mframe" sandbox="allow-popups allow-popups-to-escape-sandbox" srcdoc="${esc(mailDoc(m.html))}" title="Obsah e-mailu"></iframe>` : `<div class="mtext">${linkify(esc(m.text||""))}</div>`}`;
@@ -3161,7 +3177,7 @@ function vMail(){
   if (!MAIL.boxes.length) return head() + `<div class="card"><div class="cb"><p style="margin-top:0">Zatím tu nemáte žádnou e-mailovou schránku.</p><button class="btn blue" data-act="mbox-new">+ Připojit moji schránku</button><p class="muted" style="margin-bottom:0;font-size:13px">Svou pracovní schránku si připojí každý sám. Poštu z ní uvidíte jen vy. Společné schránky připojuje administrátor.</p></div></div>`;
   const bx = MAIL.boxes, all = MAIL.box==="*", f = MAIL.folder;
   const fbtn = (id, fo, label, icon, n) => `<button class="mfi" data-act="pm-folder" data-box="${id}" data-f="${fo}" aria-current="${id===MAIL.box && fo===f}">${icon} ${label}${n?`<span class="badge ${fo==="queue"?"q":""}">${n}</span>`:""}</button>`;
-  const group = (id, name, color, unread, queued, err, title) => `<div class="mfbox ${id===MAIL.box?"on":""}"><button class="mfhead" data-act="pm-folder" data-box="${id}" data-f="inbox" title="${esc(title||name)}" aria-expanded="${id===MAIL.box}"><span class="mdot" style="background:${color}"></span><span class="mfname">${esc(name)}</span>${unread?`<span class="badge">${unread}</span>`:""}</button>${id===MAIL.box ? fbtn(id,"inbox","Doručená","📥",unread) + fbtn(id,"sent","Odeslaná","📤",0) + fbtn(id,"queue","Naplánované","⏰",queued) : ""}${err?`<div class="mferr" title="${esc(err)}">⚠ Spojení se schránkou selhalo</div>`:""}${id===MAIL.box && mailBox(id)?.mine ? `<button class="mfi muted" data-act="mbox-edit" data-id="${id}">⚙ Nastavení schránky</button>` : ""}</div>`;
+  const group = (id, name, color, unread, queued, err, title) => `<div class="mfbox ${id===MAIL.box?"on":""}"><button class="mfhead" data-act="pm-folder" data-box="${id}" data-f="inbox" title="${esc(title||name)}" aria-expanded="${id===MAIL.box}"><span class="mdot" style="background:${color}"></span><span class="mfname">${esc(name)}</span>${unread?`<span class="badge">${unread}</span>`:""}</button>${id===MAIL.box ? fbtn(id,"inbox","Doručená","📥",unread) + fbtn(id,"drafts","Koncepty","📝",0) + fbtn(id,"sent","Odeslaná","📤",0) + fbtn(id,"queue","Naplánované","⏰",queued) + fbtn(id,"trash","Koš","🗑",0) : ""}${err?`<div class="mferr" title="${esc(err)}">⚠ Spojení se schránkou selhalo</div>`:""}${id===MAIL.box && mailBox(id)?.mine ? `<button class="mfi muted" data-act="mbox-edit" data-id="${id}">⚙ Nastavení schránky</button>` : ""}</div>`;
   const own = `<button class="mfi mfadd" data-act="mbox-new">＋ Připojit moji schránku</button>`;
   const folders = (bx.length > 1 ? group("*", "Všechny schránky", "var(--muted)", bx.reduce((s,b) => s+boxUnread(b), 0), bx.reduce((s,b) => s+(b.queued||0), 0), "", "") : "")
     + bx.map(x => group(x.id, x.name||x.email, boxColor(x.id), boxUnread(x), x.queued||0, MAIL.st[x.id]?.error ?? x.error, x.email)).join("");
@@ -3172,10 +3188,10 @@ function vMail(){
     rows = MAIL.items.map(q => `<div class="mrow mq"><span class="mr1"><span class="mwho">${tag(q)}Komu: ${esc(q.to)}</span><span class="mdate">⏰ ${fmtTs(q.sendAt)}</span></span><span class="mr2">${q.att?"📎 ":""}${esc(q.subject||"(bez předmětu)")}</span>${q.status==="error" ? `<span class="mr3" style="color:var(--bad);white-space:normal">⚠ ${esc(q.error)}</span>` : q.status==="hold" ? `<span class="mr3" style="color:var(--warn)">✎ Právě se upravuje – zatím neodejde</span>` : `<span class="mr3">${esc(q.snippet||"")}</span>`}
       <span class="row" style="gap:6px;margin-top:6px">${(isAdmin() || q.acc===me_) && mailCanSend(q.box) ? `<button class="btn sm" data-act="pm-qedit" data-id="${q.id}">✎ Upravit</button><button class="btn sm" data-act="pm-qnow" data-id="${q.id}">Odeslat hned</button><button class="btn sm ghost bad" data-act="pm-qdel" data-id="${q.id}">Zrušit</button>` : ""}<small class="muted" style="margin-left:auto">${esc(q.by||"")}</small></span></div>`).join("") || `<p class="muted" style="padding:14px;margin:0">Žádné naplánované e-maily.</p>`;
   } else {
-    const who = m => m.folder==="sent" ? "Komu: " + (m.to||[]).map(a => a.name||a.addr).join(", ") : (m.fromName || m.from);
+    const who = m => m.folder==="sent" || m.folder==="drafts" ? "Komu: " + (m.to||[]).map(a => a.name||a.addr).join(", ") : (m.fromName || m.from);
     rows = MAIL.items.map(m => `<button class="mrow ${m.seen?"":"unread"}" data-act="pm-open" data-id="${m.id}" aria-current="${m.id===MAIL.sel}"><span class="mr1"><span class="mwho">${tag(m)}${esc(who(m))}</span><span class="mdate">${mailDate(m.date)}</span></span><span class="mr2">${m.att?.length?"📎 ":""}${esc(m.subject||"(bez předmětu)")}</span><span class="mr3">${esc(m.snippet||"")}</span></button>`).join("") || `<p class="muted" style="padding:14px;margin:0">${MAIL.q?"Nic nenalezeno.":"Žádné zprávy."}</p>`;
   }
-  const reader = f==="queue" ? `<div class="mempty muted">Naplánované e-maily odejdou samy v nastavený čas, i když máte CRM zavřené.<br>Upravit je můžete až do odeslání.</div>` : mailReader();
+  const reader = f==="drafts" && !MAIL.sel ? `<div class="mempty muted">Rozepsané e-maily. Kliknutím koncept otevřete a dopíšete.<br>Koncepty jsou uložené i ve schránce, uvidíte je i ve webmailu.</div>` : f==="queue" ? `<div class="mempty muted">Naplánované e-maily odejdou samy v nastavený čas, i když máte CRM zavřené.<br>Upravit je můžete až do odeslání.</div>` : mailReader();
   return head(`<input id="mailq" type="search" placeholder="Hledat v poště…" value="${esc(MAIL.q)}" aria-label="Hledat v poště" style="max-width:260px"><button class="btn sm" data-act="pm-sync" title="Načíst novou poštu ze serveru">↻ Načíst</button><span class="sp"></span>${mailCanSend()?`<button class="btn sm ghost" data-act="sig-manage">✎ Moje podpisy</button><button class="btn blue up" data-act="pm-new">+ Nový e-mail</button>`:""}`)
     + `<div class="mailwrap ${MAIL.sel && f!=="queue"?"hassel":""}"><nav class="mfold card" aria-label="Schránky a složky">${folders}${own}</nav><div class="mlist card">${rows}${MAIL.more?`<button class="btn sm" data-act="pm-more" style="margin:10px">Načíst starší</button>`:""}</div><div class="mread card">${reader}</div></div>`;
 }
@@ -3223,7 +3239,7 @@ function openSigs(){ const back = S.modal?.kind==="mailc" ? readCompose() : null
 function mailCompose(o = {}){
   const box = mailBox(o.box) || sendBox(); if (!box){ toast(isAdmin() ? "Nejdřív připojte e-mailovou schránku v Nastavení." : "Není připojená žádná e-mailová schránka."); return; }
   openModal("mailc", {box:box.id, to:o.to||"", cc:o.cc||"", subject:o.subject||"", text:o.text||"", sigId:o.sigId ?? defaultSig(box.id), origSig:o.origSig||null,
-    html:o.html || plainToHtml(o.text||""), quote:o.quote||"", useQuote:o.useQuote ?? true, replyTo:o.replyTo||"", fwd:o.fwd||"", fwdAtt:o.fwdAtt||[], att:o.att||[], title:o.title||"Nový e-mail", commId:o.commId||"", hold:o.hold||"", schedAt:o.schedAt||0, sched:false, tplId:o.tplId||"", ctx:o.ctx||null, share:o.share||null, useCard:!!o.share, offerPdf:o.offerPdf||null}); const d = S.modal?.data; if (d?.tplId) d.tplHtml = d.html;
+    html:o.html || plainToHtml(o.text||""), quote:o.quote||"", useQuote:o.useQuote ?? true, replyTo:o.replyTo||"", fwd:o.fwd||"", fwdAtt:o.fwdAtt||[], att:o.att||[], title:o.title||"Nový e-mail", commId:o.commId||"", hold:o.hold||"", schedAt:o.schedAt||0, sched:false, tplId:o.tplId||"", ctx:o.ctx||null, share:o.share||null, useCard:!!o.share, offerPdf:o.offerPdf||null, draft:o.draft||""}); const d = S.modal?.data; if (d?.tplId) d.tplHtml = d.html;
 }
 function mailReplyData(kind){
   const m = MAIL.msg, mine = new Set((MAIL.boxes||[]).map(b => b.email));
@@ -3272,7 +3288,7 @@ function mailComposeModal(){
   <div class="row" style="gap:6px">${d.fwdAtt.map(n => `<span class="matt">📎 ${esc(n)}</span>`).join("")}${d.att.map((a,i) => `<span class="matt">📎 ${esc(a.name)} ${a.size?`<small class="muted">${fmtSize(a.size)}</small>`:""}<button type="button" class="btn sm ghost" data-act="mc-unatt" data-i="${i}" aria-label="Odebrat přílohu">✕</button></span>`).join("")}${d.uploading?`<span class="muted">Nahrávám přílohu…</span>`:""}${d.offerPdf && !d.att.some(a => a.id===d.offerPdf.id) ? `<button type="button" class="btn sm" data-act="mc-att-pdf">📎 Přiložit i PDF nabídky</button>` : ""}<label class="btn sm">📎 Přiložit soubor<input type="file" id="mc-file" multiple hidden></label></div>
   <datalist id="mc-addrs">${addrs.map(a => `<option value="${esc(a)}">`).join("")}</datalist></div>
   ${d.sched ? `<div class="mf mcsched"><div class="row" style="gap:6px;flex:1"><span class="lbl">Odeslat</span>${schedPresets().map(([t,ms]) => `<button type="button" class="chip mlink" data-act="mc-when" data-t="${ms}" ${busy?"disabled":""}>${t}</button>`).join("")}</div><div class="row" style="gap:8px"><input type="datetime-local" id="mc-at" value="${localDT(d.schedAt || atTime(1,8))}" aria-label="Datum a čas odeslání"><button type="button" class="btn blue" data-act="mc-schedule" ${busy?"disabled":""}>⏰ Naplánovat</button><button type="button" class="btn ghost" data-act="mc-sched-toggle">Zpět</button></div></div>`
-    : `<div class="mf"><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button type="button" class="btn" data-act="mc-sched-toggle" ${busy?"disabled":""}>⏰ Odeslat později…</button><button class="btn blue up" type="submit" ${busy?"disabled":""}>${d.sending?"Odesílám…":"Odeslat"}</button></div>`}</form></div>`;
+    : `<div class="mf">${d.draft ? `<button type="button" class="btn ghost bad" data-act="mc-draft-del" style="margin-right:auto">🗑 Zahodit koncept</button>` : ""}<button type="button" class="btn ghost" data-act="close-modal">Zrušit</button>${d.hold ? "" : `<button type="button" class="btn" data-act="mc-draft" ${busy?"disabled":""}>💾 Uložit koncept</button>`}<button type="button" class="btn" data-act="mc-sched-toggle" ${busy?"disabled":""}>⏰ Odeslat později…</button><button class="btn blue up" type="submit" ${busy?"disabled":""}>${d.sending?"Odesílám…":"Odeslat"}</button></div>`}</form></div>`;
 }
 async function mailSend(sendAt){
   const d = readCompose(); if (!d || d.sending) return;
@@ -3283,7 +3299,7 @@ async function mailSend(sendAt){
   d.sending = true; S._forceModal = true; renderOverlay();
   try {
     const r = await mailApi("send", {box:d.box, to:d.to, cc:d.cc, subject:d.subject, text:d.text, html:d.html, sigText:sig?.text||"", sigLogo:sig?.logo?.id||"", sigId:d.sigId,
-      quote:d.useQuote ? d.quote : "", replyTo:d.replyTo, fwd:d.fwd, att:d.att.map(a => a.id), attNames:d.att.map(a => a.name), commId:d.commId, sendAt:sendAt||0, offer:d.share && d.useCard ? d.share.token : ""});
+      quote:d.useQuote ? d.quote : "", replyTo:d.replyTo, fwd:d.fwd, att:d.att.map(a => a.id), attNames:d.att.map(a => a.name), commId:d.commId, sendAt:sendAt||0, offer:d.share && d.useCard ? d.share.token : "", draft:d.draft||"", ctx:d.ctx||null});
     if (d.hold){ await mailApi("unqueue", {id:d.hold}).catch(() => {}); d.hold = ""; }
     d.done = true; closeModal(); toast(r.queued ? "E-mail naplánován na " + fmtTs(sendAt) : "E-mail odeslán"); MAIL.rec = {};
     const off = d.ctx?.offerId && getOffer(d.ctx.offerId);
@@ -3294,6 +3310,28 @@ async function mailSend(sendAt){
     if (d.next) d.next(); else if (S.view==="mail") mailRefresh(true); else render();
   } catch(e){ d.sending = false; S._forceModal = true; renderOverlay(); toast(e.message || "Odeslání se nepovedlo."); }
 }
+// "💾 Uložit koncept": into the mailbox's Drafts folder (the quote becomes part of the text)
+async function mailSaveDraft(close){
+  const d = readCompose(); if (!d || d.sending) return false;
+  d.sending = true; S._forceModal = true; renderOverlay();
+  const html = d.html + (d.useQuote && d.quote ? "<div><br></div>" + plainToHtml(d.quote) : "");
+  try {
+    const r = await mailApi("draft", {box:d.box, to:d.to, cc:d.cc, subject:d.subject, text:rteText(html), html, sigId:d.sigId, replyTo:d.replyTo, fwd:d.fwd, att:d.att.map(a => a.id), attNames:d.att.map(a => a.name),
+      commId:d.commId, offer:d.share && d.useCard ? d.share.token : "", draft:d.draft||"", ctx:d.ctx||null});
+    d.draft = r.id || ""; d.sending = false; d._init = composeSig(d); toast("Uloženo do Konceptů");
+    if (close){ d.done = true; closeModal(); } else { S._forceModal = true; renderOverlay(); }
+    if (S.view==="mail" && MAIL.folder==="drafts") mailRefresh();
+    return true;
+  } catch(e){ d.sending = false; S._forceModal = true; renderOverlay(); toast(e.message || "Koncept se nepodařilo uložit."); return false; }
+}
+// closing a written e-mail: offer to keep it in Koncepty (true = close now)
+async function composeClose(){
+  if (S.modal?.kind!=="mailc") return true;
+  const d = readCompose(); if (!d || d.done || d.hold || d.sending || !d._init || composeSig(d)===d._init || !(d.text.trim() || d.subject.trim())) return true;
+  if (!confirm("Uložit rozepsaný e-mail do Konceptů?\n\nOK = uložit, Zrušit = zahodit změny")) return true;
+  await mailSaveDraft(true); return false;
+}
+const composeSig = d => JSON.stringify([d.to, d.cc, d.subject, d.html, d.att.length]);
 async function mailAttach(files){
   const d = readCompose(); if (!d || !assets) return; d.uploading = true; S._forceModal = true; renderOverlay();
   for (const f of files){ try { const r = await assets.upload(f); d.att.push({id:r.id, name:f.name, size:r.sizeBytes||f.size}); } catch(e){ console.error(e); toast("Přílohu " + f.name + " se nepodařilo nahrát."); } }
