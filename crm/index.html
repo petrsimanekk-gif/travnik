@@ -1853,6 +1853,95 @@ function newsAllModal(){
   return `<div class="modal" role="dialog" aria-modal="true" aria-label="Všechny novinky"><div class="box" style="width:min(640px,100%)"><div class="mh"><b style="font-size:17px">📢 Všechny novinky</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
   <div class="mb" style="gap:8px">${newsSorted().map(n => `<button class="nitem ${newsRead(n)?"":"unread"}" data-act="news-open" data-id="${n.id}">${newsChip(n)}<b>${n.pinned?"📌 ":""}${esc(n.title)}</b><small>${esc(n.by||"")} · ${fmtTs(n.at)}</small></button>`).join("")}</div></div></div>`;
 }
+// ---------- faktury přes Fakturoid ----------
+let FAK = null;   // {ready, vatPayer, dueDeposit, dueFinal, ...} from the server
+const fakOn = () => { if (!SV) return false; if (FAK===null){ FAK = {loading:true}; after.push(async () => { try { FAK = await SV.api("/api/stinko/fak/cfg"); } catch(e){ FAK = {ready:false}; } render(); }); } return !!FAK.ready; };
+const INV_ST = {open:["Vystavena","info"], sent:["Odeslána","info"], overdue:["Po splatnosti","bad"], paid:["Uhrazena","good"], cancelled:["Stornována","mute"], uncollectible:["Nedobytná","bad"]};
+const invKindName = k => k==="deposit" ? "Zálohová faktura" : "Konečná faktura";
+function invoicesCard(d){
+  const L = d.invoices||[]; if (!L.length && !fakOn()) return "";
+  return `<div class="card"><div class="ch"><span class="lbl">Faktury (${L.length})</span>${L.some(i => !["paid","cancelled"].includes(i.status)) ? `<button class="btn sm ghost" data-act="inv-check" title="Zeptá se Fakturoidu, které faktury jsou zaplacené">↻ Úhrady</button>` : ""}</div><div class="cb">${L.length ? [...L].reverse().map(i => { const st = INV_ST[i.status] || INV_ST.open;
+    return `<div class="ovrow"><span><b>${esc(i.number||"")}</b> ${esc(i.kind==="deposit"?"záloha":"konečná")}${i.label?` <span class="muted">· ${esc(i.label)}</span>`:""}</span><b>${money(Math.round((i.total||0)*100))}</b><small><span class="tpill ${st[1]}" style="font-size:11px">${st[0]}</span>${i.due?` · splatnost ${fmtD(i.due)}`:""}${i.pdfId?` · <a class="link" href="${blobUrl(i.pdfId)}" data-name="${esc(i.pdfName||"faktura.pdf")}">📄 PDF</a>`:""}${i.url?` · <a class="link" href="${esc(i.url)}" target="_blank" rel="noopener">Fakturoid ↗</a>`:""}</small></div>`; }).join("") : `<p class="muted" style="margin:0;font-size:13px">Zatím žádná faktura. Vystavíte ji tlačítkem 🧾 nahoře.</p>`}</div></div>`;
+}
+const tplById = id => mailTpls().find(t => t.id===id) || DEFAULT_TPLS.find(t => t.id===id);
+// what the deal is billed for: the accepted offer (or the deal's products), per line in Kč
+function invBase(d){
+  const {src, srcName} = dealItems(d), o = S.offers.find(x => x.dealId===d.id && x.items===src) || null, vp = !!FAK?.vatPayer;
+  const lines = src.filter(it => it.name && toN(it.qty)).map(it => { const unit = (it.price||0) * (100 - toN(it.discount)) / 100 / 100; const vat = vp ? itemVat(o, it) : 0;
+    return {name:it.name, qty:toN(it.qty), unit:it.unit||"ks", price:Math.round(unit*100)/100, vat}; });
+  const gross = lines.reduce((s, l) => s + l.qty * l.price * (1 + l.vat/100), 0);
+  const mainV = vp ? (lines.slice().sort((a,b) => b.qty*b.price - a.qty*a.price)[0]?.vat ?? 21) : 0;
+  return {lines, gross:Math.round(gross*100)/100, srcName, mainV};
+}
+function invOpen(d){
+  const b = invBase(d), deps = (d.invoices||[]).filter(i => i.kind==="deposit" && i.status!=="cancelled");
+  openModal("inv", {dealId:d.id, kind:deps.length ? "final" : "deposit", mode:"50", amount:Math.round(b.gross*0.5), due:"", note:"", deduct:deps.map(i => i.fakId), tplId:"", busy:false});
+}
+function invCalc(m){
+  const d = getDeal(m.dealId), b = invBase(d), vp = !!FAK?.vatPayer;
+  if (m.kind==="deposit"){
+    const amt = m.mode==="fixed" ? toN(m.amount) : Math.round(b.gross * toN(m.mode) / 100 * 100) / 100;
+    const label = m.mode==="fixed" ? "Záloha" : `Záloha ${m.mode} %`;
+    const price = vp ? Math.round(amt / (1 + b.mainV/100) * 100) / 100 : amt;
+    return {b, amt, label, lines:[{name:`${label} – ${d.name}`, qty:1, unit:"ks", price, vat:vp ? b.mainV : 0}]};
+  }
+  const deps = (d.invoices||[]).filter(i => i.kind==="deposit" && i.status!=="cancelled" && m.deduct.includes(i.fakId));
+  const minus = deps.map(i => ({name:`Odpočet uhrazené zálohy (ZF ${i.number})`, qty:1, unit:"ks", price:-(vp ? Math.round(i.total / (1 + b.mainV/100) * 100) / 100 : i.total), vat:vp ? b.mainV : 0}));
+  const lines = [...b.lines, ...minus], amt = Math.round(lines.reduce((s, l) => s + l.qty * l.price * (1 + l.vat/100), 0) * 100) / 100;
+  return {b, amt, label:deps.length ? "Doplatek" : "Konečná faktura", lines};
+}
+function readInv(){ const m = S.modal?.data; if (!m || S.modal.kind!=="inv") return m; const v = id => document.getElementById(id);
+  if (v("inv-amount")) m.amount = v("inv-amount").value; if (v("inv-due")) m.due = v("inv-due").value; if (v("inv-note")) m.note = v("inv-note").value; if (v("inv-tpl")) m.tplId = v("inv-tpl").value;
+  if (document.querySelector(".inv-ded")) m.deduct = [...document.querySelectorAll(".inv-ded:checked")].map(x => Number(x.value)); return m; }
+function invModal(){
+  const m = S.modal.data, d = getDeal(m.dealId); if (!d) return "";
+  const c = invCalc(m), cl = getClient(d.clientId), deps = (d.invoices||[]).filter(i => i.kind==="deposit" && i.status!=="cancelled");
+  const czk = v => money(Math.round(v*100)), tplId = m.tplId || (m.kind==="deposit" ? "t-zf" : "t-df");
+  const tpls = [...mailTpls(), ...DEFAULT_TPLS.filter(t => /^t-(zf|df)$/.test(t.id) && !mailTpls().some(x => x.id===t.id))];
+  const chips = [["fixed","Pevná částka"],["20","20 %"],["50","50 %"],["70","70 %"],["100","100 %"]];
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Vystavit fakturu"><form class="box" id="invform" style="width:min(680px,100%)"><div class="mh"><b style="font-size:17px">🧾 Vystavit fakturu · ${esc(d.code)}</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="mb">
+  <div class="seg" role="group" aria-label="Typ faktury" style="justify-self:start"><button type="button" data-act="inv-kind" data-k="deposit" aria-pressed="${m.kind==="deposit"}">Zálohová faktura</button><button type="button" data-act="inv-kind" data-k="final" aria-pressed="${m.kind==="final"}">Konečná (doplatková) faktura</button></div>
+  <div class="muted" style="font-size:13px">Odběratel: <b style="color:var(--fg)">${esc(cl?.name||"– obchod nemá klienta –")}</b>${cl?.email?` · ${esc(cl.email)}`:` · <span style="color:var(--bad)">bez e-mailu</span>`} · podklad: ${esc(c.b.srcName)} (${czk(c.b.gross)}${FAK?.vatPayer?" vč. DPH":""})</div>
+  ${m.kind==="deposit" ? `<div><span class="lbl">Výše zálohy</span><div class="row" style="gap:6px;margin-top:6px">${chips.map(([k,t]) => `<button type="button" class="chip" data-act="inv-mode" data-m="${k}" aria-pressed="${m.mode===k}">${t}</button>`).join("")}</div></div>
+    ${m.mode==="fixed" ? `<label class="f" style="max-width:240px"><span>Částka zálohy (Kč)</span><input id="inv-amount" inputmode="decimal" value="${esc(m.amount)}"></label>` : ""}`
+  : `<div><span class="lbl">Položky</span><table class="lines" style="min-width:0;margin-top:4px"><tbody>${c.lines.map(l => `<tr><td>${esc(l.name)}</td><td class="num">${String(l.qty).replace(".",",")} ${esc(l.unit)}</td><td class="num">${czk(l.qty*l.price*(1+l.vat/100))}</td></tr>`).join("")}</tbody></table>
+    ${deps.length ? `<div style="margin-top:8px"><span class="lbl">Odečíst zálohy</span>${deps.map(i => `<label class="c" style="margin-top:4px"><input type="checkbox" class="inv-ded" value="${i.fakId}" ${m.deduct.includes(i.fakId)?"checked":""}> ZF ${esc(i.number)} – ${czk(i.total)} (${(INV_ST[i.status]||INV_ST.open)[0].toLowerCase()})</label>`).join("")}</div>` : ""}</div>`}
+  <div class="sumbox tot" style="justify-self:start;padding:10px 16px"><span class="lbl">${m.kind==="deposit" ? "Záloha k úhradě" : "K úhradě"}</span><div style="font-size:22px;font-weight:600">${czk(c.amt)}</div>${FAK?.vatPayer?"":`<small class="muted">neplátce DPH – bez DPH</small>`}</div>
+  <div class="fgrid"><label class="f"><span>Splatnost (dní)</span><input id="inv-due" inputmode="numeric" value="${esc(m.due || (m.kind==="deposit" ? FAK?.dueDeposit : FAK?.dueFinal) || 14)}"></label>
+  <label class="f"><span>E-mail pro klienta (šablona)</span><select id="inv-tpl">${tpls.map(t => `<option value="${t.id}" ${t.id===tplId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label></div>
+  <label class="f"><span>Poznámka na fakturu (nepovinné)</span><input id="inv-note" value="${esc(m.note)}" maxlength="500"></label>
+  <p class="muted" style="margin:0;font-size:12px">Faktura se vystaví ve Fakturoidu, její PDF se uloží do historie obchodu a e-mail pro klienta s fakturou v příloze se připraví do Pošty → Koncepty. Odešle ho až ${esc(d.owner||"vlastník obchodu")} po kontrole.</p></div>
+  <div class="mf"><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit" ${m.busy || !cl || c.amt<=0 ? "disabled" : ""}>${m.busy ? "Vystavuji…" : "Vystavit ve Fakturoidu"}</button></div></form></div>`;
+}
+async function invSubmit(){
+  const m = readInv(); if (!m || m.busy) return; const d = getDeal(m.dealId), c = invCalc(m);
+  if (c.amt <= 0){ toast("Částka k úhradě musí být kladná."); return; }
+  const t = tplById(m.tplId || (m.kind==="deposit" ? "t-zf" : "t-df")), v = tplVars({dealId:d.id, clientId:d.clientId});
+  m.busy = true; S._forceModal = true; renderOverlay();
+  try {
+    const r = await SV.api("/api/stinko/fak/invoice", {body:{dealId:d.id, kind:m.kind, label:c.label, lines:c.lines, due:Number(m.due)||0, note:m.note.trim(),
+      mail:t ? {subject:fillTpl(t.subject, v), body:fillTpl(t.body, v), html:cleanHtml(fillTpl(tplHtml(t), v, true))} : {}}});
+    closeModal(); MAIL.items = null;
+    toast(`${invKindName(m.kind)} ${r.invoice.number} vystavena. ` + (r.mailError ? `E-mail se nepřipravil: ${r.mailError}` : "E-mail pro klienta čeká v Poště → Koncepty."));
+  } catch(e){ m.busy = false; S._forceModal = true; renderOverlay(); toast(e.message || "Fakturu se nepodařilo vystavit."); }
+}
+// Nastavení → Fakturoid
+let FAKS = null;
+function fakCard(){
+  if (!SV || !isAdmin()) return "";
+  if (!FAKS){ FAKS = {loading:true}; after.push(async () => { try { FAKS = await SV.api("/api/stinko/fak/cfg"); } catch(e){ FAKS = {err:e.message}; } if (S.view==="settings") render(); }); }
+  const f = FAKS, boxes = (MAIL.all||[]).filter(b => !b.owner);
+  return `<div class="card"><div class="ch"><h2>🧾 Fakturoid</h2>${f.ready ? `<span class="tpill good">✓ Propojeno</span>` : `<span class="muted" style="font-size:12px">nepropojeno</span>`}</div><div class="cb" style="display:grid;gap:12px">
+  <p class="muted" style="margin:0;font-size:13px">Údaje najdete ve Fakturoidu: <b>Nastavení → Uživatelský účet → API</b> (Client ID a Client Secret pro API v3). Název účtu je část adresy za <span class="mono">app.fakturoid.cz/</span>. Secret zůstává uložený jen na serveru.</p>
+  <div class="fgrid"><label class="f"><span>Název účtu (slug)</span><input id="fk-slug" value="${esc(f.slug||"")}" placeholder="primashade" autocomplete="off"></label><label class="f"><span>Váš e-mail ve Fakturoidu</span><input id="fk-email" type="email" value="${esc(f.email||"")}" placeholder="petr@primashade.cz"></label>
+  <label class="f"><span>Client ID</span><input id="fk-id" value="${esc(f.clientId||"")}" autocomplete="off"></label><label class="f"><span>Client Secret</span><input id="fk-secret" type="password" autocomplete="new-password" placeholder="${f.hasSecret?"beze změny":""}"></label>
+  <label class="f"><span>Splatnost zálohové faktury (dní)</span><input id="fk-dd" inputmode="numeric" value="${esc(f.dueDeposit||7)}"></label><label class="f"><span>Splatnost konečné faktury (dní)</span><input id="fk-df" inputmode="numeric" value="${esc(f.dueFinal||14)}"></label>
+  <label class="f"><span>E-maily s fakturou připravit do schránky</span><select id="fk-box"><option value="">První společná schránka</option>${boxes.map(b => `<option value="${b.id}" ${f.box===b.id?"selected":""}>${esc(b.name)} · ${esc(b.email)}</option>`).join("")}</select></label>
+  <label class="c" style="padding-top:18px"><input type="checkbox" id="fk-vat" ${f.vatPayer?"checked":""}> Jsme plátci DPH (faktury s DPH podle sazeb v nabídce)</label></div>
+  <div class="row"><button class="btn blue" data-act="fak-save" ${f.busy?"disabled":""}>${f.busy?"Ověřuji…":"Uložit a vyzkoušet spojení"}</button>${f.msg?`<span style="color:${f.ok?"var(--good)":"var(--bad)"}">${esc(f.msg)}</span>`:""}</div>
+  <p class="muted" style="margin:0;font-size:12px">CRM se každých 15 minut zeptá Fakturoidu, které faktury jsou uhrazené (Fakturoid je pozná po spárování platby z banky nebo když je označíte ručně). Uhrazená záloha posune obchod do stavu „ZF uhrazena“ a vlastník dostane upozornění.</p></div></div>`;
+}
 // ---------- dashboard ----------
 function vDash(){
   const t = today(), mine = me(), yr = t.slice(0,4);
@@ -2104,6 +2193,7 @@ function vDeal(){
     <div class="dtop"><div style="min-width:0"><span class="lbl">Obchodní případ</span> <span class="mono muted">${esc(d.code)}</span><div class="dtitle">${esc(d.name)}</div></div>
       <div class="row" style="gap:18px;align-items:center"><div class="price"><span class="lbl">Konečná cena</span><div class="v">${money(d.value)}</div></div>
         <div class="row" style="gap:8px"><div class="price"><span class="lbl">Pravděpodobnost výhry</span><div class="v" style="font-size:20px">${pr} %</div></div><svg class="prob" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="19" fill="none" stroke="var(--line)" stroke-width="5"/><circle cx="23" cy="23" r="19" fill="none" stroke="var(--good)" stroke-width="5" stroke-dasharray="${circ*pr/100} ${circ}" transform="rotate(-90 23 23)"/></svg></div>
+        ${fakOn() && canEdit("deals") ? `<button class="btn blue" data-act="inv-new" data-id="${d.id}">🧾 Vystavit fakturu</button>` : ""}
         <span class="pluswrap"><button class="plus" data-act="deal-plus" aria-label="Přidat aktivitu" title="Přidat aktivitu">+</button>${S.dealplus?dealPlusMenu(d):""}</span>
         <span class="row">${cf==="del"?`<span class="confirm">Smazat obchod?<button class="btn sm badfill" data-act="del-deal" data-id="${d.id}">Ano</button><button class="btn sm" data-act="no">Ne</button></span>`:`<button class="btn sm ghost" data-act="ask" data-what="del" aria-label="Smazat">🗑</button>`}</span></div></div>
     <div class="phasebar"><b class="stavlbl">Stav:</b><button class="btn sm ghost" data-act="phase-hist" data-id="${d.id}" title="Průběh obchodního případu – kolik dní v kterém stavu" aria-label="Průběh obchodního případu">⏱</button><button class="btn sm ghost" data-act="edit-states" data-kind="deal" title="Upravit, přidat a seřadit stavy" aria-label="Upravit stavy">✎</button><div class="phasebtn"><select id="phase-select" style="background:${gColor(p.group)}" aria-label="Fáze obchodu">${phaseOpts(d.phaseId)}<option disabled>──────────</option><option value="__edit">✎ Upravit stavy…</option></select></div>
@@ -2115,6 +2205,7 @@ function vDeal(){
     <div class="rcol">
       <div class="card"><div class="ch"><span class="lbl">Poznámka k obchodu</span></div><div class="cb"><textarea class="inl-note dnote" data-kind="deal" data-id="${d.id}" placeholder="Napište poznámku, uloží se po kliknutí mimo pole">${esc(d.note||"")}</textarea></div></div>
       <div class="card"><div class="ch"><span class="lbl">Čeho se to týká</span><button class="btn sm ghost" data-act="edit-deal" data-id="${d.id}" aria-label="Upravit">✎</button></div><div class="cb">${client?`<span class="lbl">Klient</span><div style="font-size:16px;font-weight:500;margin:2px 0 6px"><span class="link" data-act="open-client" data-id="${client.id}">${esc(client.name)}</span></div><div class="muted" style="font-size:13px">${esc([client.street,[client.zip,client.city].filter(Boolean).join(" ")].filter(Boolean).join(", "))}<br>${esc(client.phone||"")} ${esc(client.email||"")}</div>`:`<span class="muted">Bez klienta</span>`}${lead?`<div style="margin-top:8px"><span class="lbl">Lead</span><div>${canSee("leads")?`<span class="link" data-act="open-lead" data-id="${lead.id}">${esc(lead.code)} ${esc(lead.name||"")}</span>`:`<span class="mono">${esc(lead.code)}</span>`}</div></div>`:d.leadCode?`<div style="margin-top:8px"><span class="lbl">Lead</span><div class="mono">${esc(d.leadCode)}</div></div>`:""}</div></div>
+      ${invoicesCard(d)}
       <div class="card"><div class="ch"><span class="lbl">Participanti obchodního případu</span></div><div class="cb">${(d.participants||[]).length?(d.participants).map(x=>`<div class="row" style="gap:6px;margin-bottom:4px"><span class="av" style="width:22px;height:22px;font-size:10px">${initials(x)}</span>${esc(x)}</div>`).join(""):`<span class="muted" style="font-size:13px">Přidejte kolegy, kteří na obchodu pracují.</span>`}<select id="add-participant" style="margin-top:8px" aria-label="Přidat participanta"><option value="">+ Přidat participanta</option>${C().users.filter(u=>!(d.participants||[]).includes(u)&&u!==d.owner).map(u=>`<option>${esc(u)}</option>`).join("")}</select></div></div>
       <div class="card"><div class="ch"><span class="lbl">Přílohy (${files.length})</span><button class="btn sm ghost" data-tab="photos" aria-label="Otevřít přílohy">›</button></div>${files.length?`<div class="cb"><div class="photos" style="grid-template-columns:repeat(3,1fr);gap:6px">${files.slice(0,6).map(f=>thumb(f,false)).join("")}</div></div>`:""}</div>
       <div class="card"><div class="cb"><dl class="kv"><dt>Konečná cena</dt><dd class="num">${money(d.value)}</dd>${see("cost")?`<dt>Předpokládané náklady</dt><dd class="num" style="color:var(--bad)">${money(cost)}</dd>`:""}${see("profit")?`<dt>Předpokládaný zisk</dt><dd class="num" style="color:var(--good)">${money(profit)}</dd>`:""}${see("commission")?`<dt>Provize obchodníka</dt><dd class="num">${money(d.commission)}</dd>`:""}</dl>${see("cost")&&see("profit")?`<div class="fin" style="margin-top:10px"><i style="width:${d.value?Math.min(100,cost/d.value*100):0}%;background:var(--bad)"></i><i style="flex:1;background:var(--good)"></i></div><div class="row" style="justify-content:space-between;font-size:12px;margin-top:4px"><span style="color:var(--bad)">${d.value?Math.round(cost/d.value*100):0} %</span><span style="color:var(--good)">${margin} %</span></div>`:""}</div></div>
@@ -2150,7 +2241,8 @@ function tlItem(e, ctx){
     title:ctx.title||"Změna stavu", sub:m[5]?`⚡ ${m[5]}`:"", html:`<span class="row" style="gap:8px;flex-wrap:nowrap;min-width:0">${phaseTxt(m[2])}<span class="muted">→</span>${phaseTxt(m[3])}</span>`};
   if (e.actId){ const pl = ACT_PILL[e.status] || ACT_PILL.planned; return {at:e.at, by:e.by, kind:"act", icon:e.type, type:ACT[e.type]?.[0]||"Aktivita", pill:pl, title:e.text.replace(/^[^:]+:\s*/,""), sub:e.by||"", act:["open-act", e.actId], future:e.status==="planned" && e.at > Date.now()}; }
   if (k==="comm") return {at:e.at, by:e.by, kind:"comm", icon:/📄/.test(e.text)?"offer":"email", type:/📄/.test(e.text)?"Nabídka":"E-mail", pill:e.status?[e.status, e.status==="odesláno"?"good":e.status==="neodesláno"?"bad":"warn"]:null, title:e.text.replace(/^[📄✉]\s*/u,"").replace(/ – (odesláno|neodesláno|připraveno)$/,""), sub:e.by||""};
-  if (k==="file") return {at:e.at, by:e.by, kind:"file", icon:"file", type:e.kind==="sign"?"Podpis":"Soubor", title:e.text, sub:e.by||""};
+  if (k==="file") return {at:e.at, by:e.by, kind:"file", icon:/^🧾/.test(e.text||"")?"offer":"file", type:e.kind==="sign"?"Podpis":/^🧾/.test(e.text||"")?"Faktura":"Soubor", title:e.text.replace(/^🧾\s*/u,""), sub:e.by||"",
+    html:e.pdfId ? `<div style="margin-top:4px"><a class="link" href="${blobUrl(e.pdfId)}" data-name="${esc(e.pdfName||"faktura.pdf")}">📄 ${esc(e.pdfName||"PDF")}</a> <span class="muted" style="font-size:12px">· kliknutím zobrazíte, v náhledu jde stáhnout</span></div>` : ""};
   if (k==="auto") return {at:e.at, by:e.by, kind:"edit", icon:"auto", accent:true, type:"Automatizace", title:e.text.replace(/^⚡\s*/,""), sub:""};
   const created = /založen|přijat/i.test(e.text||"");
   return {at:e.at, by:e.by, kind:"edit", icon:created?"create":"edit", type:created?(ctx.entity||"Záznam"):"Úprava", pill:created?["Založeno","info"]:null, title:e.text, sub:e.by||""};
@@ -2526,6 +2618,7 @@ function modalHtml(){
   if (md.kind === "newsv") return newsViewModal();
   if (md.kind === "newse") return newsEditModal();
   if (md.kind === "newsall") return newsAllModal();
+  if (md.kind === "inv") return invModal();
   if (md.kind === "mail") return mailModal();
   if (md.kind === "mailc") return mailComposeModal();
   if (md.kind === "mbox") return mboxModal();
@@ -2632,6 +2725,7 @@ function vSettings(){
   <div style="display:grid;gap:14px">
   ${LOGIN_OFF ? "" : usersCard()}
   ${mailBoxesCard()}
+  ${fakCard()}
   ${SV ? tplsCard() : ""}
   ${migrCard()}
   <div class="card"><div class="ch"><h2>Barvy uživatelů v kalendáři</h2></div><div class="cb row" style="gap:14px">${C().users.map(u=>`<label class="c"><input type="color" class="ucol" data-u="${esc(u)}" value="${/^#[0-9a-f]{6}$/i.test(personColor(u))?personColor(u):"#888888"}" style="width:38px;height:30px;padding:2px"> ${esc(u)}</label>`).join("")}<span class="muted" style="font-size:12px">Použijí se, když v kalendáři zvolíte Filtry → Barvy podle člověka.</span></div></div>
@@ -2848,6 +2942,16 @@ document.addEventListener("click", async e => {
     case "news-edit": { if (!isAdmin()) break; const n = (S.news||[]).find(x => x.id===id); if (n) openModal("newse", JSON.parse(JSON.stringify(n))); break; }
     case "news-pin": { if (!isAdmin()) break; const n = (S.news||[]).find(x => x.id===id); if (n && await save("news", {...n, pinned:!n.pinned})){ S._forceModal = true; renderOverlay(); } break; }
     case "news-del": { if (!isAdmin() || !confirm("Smazat novinku?")) break; try { await store.del("news", id); for (const r of (S.newsreads||[]).filter(r => r.news===id)) await store.del("newsreads", r.id).catch(() => {}); closeModal(); toast("Novinka smazána"); } catch(e){ toast("Smazání se nepovedlo."); } break; }
+    case "inv-new": { const d = getDeal(id); if (!d) break; if (!getClient(d.clientId)){ toast("Obchod nemá klienta – nejdřív ho přiřaďte."); break; } invOpen(d); break; }
+    case "inv-kind": { const m = readInv(); m.kind = a.dataset.k; m.tplId = ""; S._forceModal = true; renderOverlay(); break; }
+    case "inv-mode": { const m = readInv(); m.mode = a.dataset.m; S._forceModal = true; renderOverlay(); break; }
+    case "inv-check": { try { const r = await SV.api("/api/stinko/fak/check", {body:{}}); toast(r.changed ? "Stav faktur aktualizován" : "Beze změny – žádná nová úhrada"); } catch(e){ toast(e.message); } break; }
+    case "fak-save": { const v = x => (document.getElementById(x)?.value ?? "").trim(); const body = {slug:v("fk-slug"), email:v("fk-email"), clientId:v("fk-id"), secret:v("fk-secret"), dueDeposit:Number(v("fk-dd"))||7, dueFinal:Number(v("fk-df"))||14, box:v("fk-box"), vatPayer:!!$("#fk-vat")?.checked};
+      if (!body.slug || !body.clientId || (!body.secret && !FAKS?.hasSecret)){ toast("Vyplňte název účtu, Client ID a Client Secret."); break; }
+      FAKS = {...FAKS, ...body, busy:true, msg:""}; render();
+      try { const r = await SV.api("/api/stinko/fak/cfg", {body}); FAKS = null; FAK = null; await new Promise(res => setTimeout(res, 0)); FAKS = {...(await SV.api("/api/stinko/fak/cfg")), ok:true, msg:`✓ Spojení funguje – účet ${r.account||body.slug}`}; }
+      catch(e){ FAKS = {...FAKS, busy:false, ok:false, msg:e.message || "Spojení se nepovedlo."}; }
+      render(); break; }
     case "pm-del": { const m = MAIL.msg; if (!m) break; const forever = m.folder==="trash";
       if (forever && !confirm("Smazat zprávu natrvalo? Zmizí i ze schránky na serveru.")) break;
       try { await mailApi("del", {ids:[m.id], forever}); const i = (MAIL.items||[]).findIndex(x => x.id===m.id); MAIL.items = (MAIL.items||[]).filter(x => x.id!==m.id);
@@ -2964,6 +3068,7 @@ document.addEventListener("change", async e => {
   if (t.id==="mc-tpl"){ const d = readCompose(), tp = mailTpls().find(x => x.id===t.value); if (!tp){ d.tplId = ""; return; }
     if (d.text.trim() && d.html !== d.tplHtml && !confirm("Nahradit napsaný text e-mailu šablonou?")){ t.value = d.tplId; return; }
     const v = tplVars(composeCtx(d)); d.tplId = tp.id; d.subject = fillTpl(tp.subject, v); d.html = d.tplHtml = cleanHtml(fillTpl(tplHtml(tp), v, true)); d.text = rteText(d.html); S._forceModal = true; renderOverlay(); return; }
+  if (t.classList?.contains("inv-ded") || t.id==="inv-amount"){ readInv(); S._forceModal = true; renderOverlay(); return; }
   if (t.id==="mc-sig" || t.id==="mc-card"){ readCompose(); S._forceModal = true; renderOverlay(); return; }
   if (t.id==="mc-box"){ const d = readCompose(); d.sigId = defaultSig(d.box); S._forceModal = true; renderOverlay(); return; }
   if (t.id==="mb-logo"){ const f = t.files[0]; t.value = ""; if (!f || !assets) return; const d = readMbox(); if (f.size > 1.5e6){ toast("Obrázek je moc velký (max. 1,5 MB)."); return; }
@@ -3039,6 +3144,7 @@ function readModalAct(){ const r = S.modal.data, v = id => document.getElementBy
 document.addEventListener("submit", async e => {
   e.preventDefault(); const f = e.target; const v = id => (document.getElementById(id)?.value ?? "").trim();
   if (f.id==="mailform"){ mailSend(); return; }
+  if (f.id==="invform"){ invSubmit(); return; }
   if (f.id==="newsform"){ if (!isAdmin()) return; const d = S.modal.data, title = v("nw-title"); if (!title){ toast("Vyplňte nadpis."); return; }
     const n = {id:d.id, title, text:$("#nw-text").value.replace(/\s+$/,""), tag:v("nw-tag")||"info", pinned:!!$("#nw-pin")?.checked, at:d.at||Date.now(), by:d.by||me(), byId:d.byId||acc()?.id||""};
     if (!d._new) n.editedAt = Date.now();
@@ -3582,7 +3688,21 @@ děkuji, že jste mi dali vědět. Mrzí mě, že jsme se tentokrát nedohodli.
 
 Abychom se mohli zlepšovat, pomohlo by mi vědět, co rozhodlo – cena, termín, provedení nebo něco jiného? Stačí jedna věta.
 
-Pokud byste se k projektu v budoucnu vrátili, rád Vám připravím novou nabídku.`}
+Pokud byste se k projektu v budoucnu vrátili, rád Vám připravím novou nabídku.`},
+  {id:"t-zf", name:"Zálohová faktura", subject:"Zálohová faktura {faktura} – {predmet}", body:`{osloveni}
+
+děkujeme za Vaši objednávku. V příloze Vám posíláme zálohovou fakturu {faktura} na částku {castka} se splatností do {splatnost}.
+
+Při platbě prosím uveďte variabilní symbol {vs}. Jakmile platbu obdržíme, ozveme se Vám a domluvíme termín zaměření a montáže.
+
+Pokud byste cokoli potřebovali, stačí odpovědět na tento e-mail.`},
+  {id:"t-df", name:"Konečná faktura (doplatek)", subject:"Faktura {faktura} – {predmet}", body:`{osloveni}
+
+děkujeme za spolupráci. V příloze Vám posíláme konečnou fakturu {faktura}. K úhradě zbývá {castka}, splatnost je do {splatnost}.
+
+Při platbě prosím uveďte variabilní symbol {vs}.
+
+Ať Vám pergola dělá radost. Pokud byste cokoli potřebovali, jsme tu pro Vás.`}
 ];
 const mailTpls = () => C().mailTpls || DEFAULT_TPLS;
 // the company logo for signatures ships with the page (PNG: every mail app shows it)
@@ -3592,6 +3712,7 @@ async function companyLogo(){
   return companyLogoUp;
 }
 async function saveTpls(list){ const ok = await save("config", {id:"main", ...C(), mailTpls:list}); if (ok && cfgDraft) cfgDraft.mailTpls = list; return ok; }
+const TPL_VARS_FAK = [["faktura","číslo faktury (jen u faktur)"],["castka","částka k úhradě (jen u faktur)"],["splatnost","datum splatnosti (jen u faktur)"],["vs","variabilní symbol (jen u faktur)"]];
 const TPL_VARS = [["osloveni","oslovení, např. Dobrý den, pane Nováku,"],["jmeno","jméno klienta / kontaktní osoby"],["klient","název klienta"],["nabidka","číslo nabídky"],["predmet","předmět nabídky / obchodu"],["cena","cena nabídky vč. DPH"],["cena_bez_dph","cena bez DPH"],["platnost","platnost nabídky do"],["obchod","číslo obchodního případu"],["obchodnik","vaše jméno"]];
 // values for {proměnné} from what the e-mail is about (offer → deal → client, or a lead)
 function tplVars(ctx = {}){
@@ -3616,7 +3737,7 @@ function tplModal(){
   <div class="mb"><label class="f"><span>Název šablony</span><input id="tp-name" value="${esc(d.name||"")}" placeholder="např. Zaslání cenové nabídky"></label>
   <label class="f"><span>Předmět e-mailu</span><input id="tp-subj" value="${esc(d.subject||"")}"></label>
   <div style="display:grid;gap:3px"><span class="lbl">Text</span>${rteBox("tp-body", tplHtml(d), "Text šablony")}</div>
-  <div class="row" style="gap:4px"><span class="lbl" style="margin-right:4px">Vložit proměnnou:</span>${TPL_VARS.map(([k,t]) => `<button type="button" class="chip mlink" data-act="tpl-var" data-v="${k}" title="${esc(t)}">{${k}}</button>`).join("")}</div></div>
+  <div class="row" style="gap:4px"><span class="lbl" style="margin-right:4px">Vložit proměnnou:</span>${[...TPL_VARS, ...(/^t-(zf|df)$/.test(d.id) ? TPL_VARS_FAK : [])].map(([k,t]) => `<button type="button" class="chip mlink" data-act="tpl-var" data-v="${k}" title="${esc(t)}">{${k}}</button>`).join("")}</div></div>
   <div class="mf">${d._new?"":`<button type="button" class="btn ghost bad" data-act="tpl-del" data-id="${d.id}" style="margin-right:auto">Smazat šablonu</button>`}${DEFAULT_TPLS.some(t => t.id===d.id) ? `<button type="button" class="btn ghost" data-act="tpl-reset" title="Načte text, který CRM pro tuto šablonu nabízí. Uloží se až tlačítkem Uložit šablonu.">↺ Vrátit připravené znění</button>` : ""}<button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit">Uložit šablonu</button></div></form></div>`;
 }
 // "✉ Odeslat e-mailem" on an offer: the client's address, the offer template and the online offer
