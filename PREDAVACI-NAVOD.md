@@ -95,7 +95,10 @@ Bez serveru jde `index.html` otevřít i samostatně (režim bez ukládání, da
   **Sklad → „📄 Naskladnit z dokladu“** používá stejné čtení: fotka účtenky / PDF bez ISDOC → položky
   (`stockInvFromAi`; nákupní ceny s DPH, dokud firma není plátce – `stockVat`, pak bez DPH) → spárování s produkty → naskladnění; zaškrtnutím se doklad
   zapíše i do Přijatých dokladů. Z detailu přijatého dokladu s položkami tlačítko „📦 Naskladnit položky“.
-  Naskladněný doklad má `acc_in.stocked = {at, by, n}`. Čtení smí spustit i kdo má jen právo upravovat Sklad (`aiStockEditor`).
+  Naskladněný doklad má `acc_in.stocked = {at, by, n}`.
+  Dlouhé účtenky: `server/imgprep.go` vytáhne fotku ze skenovaného PDF (bez textu, jeden JPEG – CamScanner apod.)
+  a vysoký obrázek rozřeže na části (řezy v bílých mezerách mezi řádky), jinak by model četl zmenšené písmo a pletl
+  množství a ceny. `cleanAiDoc` hlídá množství × cena = celkem a upozorní, když součet položek nesedí s celkem. Čtení smí spustit i kdo má jen právo upravovat Sklad (`aiStockEditor`).
 - Banka: **platby se zapisují samy z e-mailových oznámení banky** (`server/bankmail.go`): ČSOB CEB posílá
   „Zaúčtování platby“ (Kredit i Debet, 1–99 999 999 Kč) na faktury@primashade.cz, schránka je připojená v Poště;
   při synchronizaci schránky `bankFromMail` oznámení rozpozná, uloží do `acc_bank` (source "mail") a spáruje podle VS

@@ -36,7 +36,7 @@ func TestOpenaiRead(t *testing.T) {
 	}))
 	defer srv.Close()
 	t.Setenv("STINKO_OPENAI_URL", srv.URL)
-	res, err := openaiRead(context.Background(), "sk-test", "gpt-5-mini", aiPrompt(accCats), aiInput{mime: "image/jpeg", data: []byte{0xff, 0xd8, 0xff}})
+	res, err := openaiRead(context.Background(), "sk-test", "gpt-5-mini", aiPrompt(accCats), []aiInput{{mime: "image/jpeg", data: []byte{0xff, 0xd8, 0xff}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestOpenaiRead(t *testing.T) {
 		t.Fatalf("usage %+v", res)
 	}
 	rf := got["response_format"].(map[string]any)["json_schema"].(map[string]any)
-	if rf["strict"] != true || got["reasoning_effort"] != "low" {
+	if rf["strict"] != true || got["reasoning_effort"] != "medium" {
 		t.Fatalf("body: %+v", got)
 	}
 	user := got["messages"].([]any)[1].(map[string]any)["content"].([]any)[0].(map[string]any)
@@ -64,7 +64,7 @@ func TestOpenaiErrors(t *testing.T) {
 	}))
 	defer srv.Close()
 	t.Setenv("STINKO_OPENAI_URL", srv.URL)
-	_, err := openaiRead(context.Background(), "k", "gpt-5-mini", "p", aiInput{mime: "application/pdf", data: []byte("%PDF-1.4")})
+	_, err := openaiRead(context.Background(), "k", "gpt-5-mini", "p", []aiInput{{mime: "application/pdf", data: []byte("%PDF-1.4")}})
 	if err == nil || !strings.Contains(err.Error(), "kredit") {
 		t.Fatalf("err %v", err)
 	}
@@ -84,13 +84,13 @@ func TestAnthropicRead(t *testing.T) {
 	}))
 	defer srv.Close()
 	t.Setenv("STINKO_ANTHROPIC_URL", srv.URL)
-	res, err := anthropicRead(context.Background(), "sk-ant-test", "claude-haiku-5-5", aiPrompt(accCats), aiInput{mime: "application/pdf", data: []byte("%PDF-1.4")})
+	res, err := anthropicRead(context.Background(), "sk-ant-test", "claude-haiku-5-5", aiPrompt(accCats), []aiInput{{mime: "application/pdf", data: []byte("%PDF-1.4")}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	checkAiDoc(t, res.Doc)
 	oc := got["output_config"].(map[string]any)
-	if oc["effort"] != "low" || oc["format"].(map[string]any)["type"] != "json_schema" {
+	if oc["effort"] != "medium" || oc["format"].(map[string]any)["type"] != "json_schema" {
 		t.Fatalf("output_config %+v", oc)
 	}
 	part := got["messages"].([]any)[0].(map[string]any)["content"].([]any)[0].(map[string]any)

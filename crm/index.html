@@ -2361,8 +2361,8 @@ function accAiLoad(){
   return S.accAiP;
 }
 function accAiState(){ if (SV && !S.accAi) accAiLoad().then(() => { if (S.view==="accounting") render(); if (S.modal?.kind==="accin"){ S._forceModal = true; renderOverlay(); } }); return S.accAi || {}; }
-async function accAiImage(file){ // a smaller JPEG: the model reads up to ~2000 px anyway and the upload is faster
-  const bmp = await createImageBitmap(file), k = Math.min(1, 2000/Math.max(bmp.width, bmp.height));
+async function accAiImage(file){ // a smaller JPEG for a faster upload; the width is kept readable, a tall receipt is cut into parts on the server
+  const bmp = await createImageBitmap(file), k = Math.min(1, 1600/bmp.width, Math.sqrt(10e6/(bmp.width*bmp.height)));
   const c = document.createElement("canvas"); c.width = Math.round(bmp.width*k); c.height = Math.round(bmp.height*k); c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
   return c.toDataURL("image/jpeg", .85).split(",")[1];
 }
@@ -2854,7 +2854,7 @@ function stockInvFromAi(m, res){
   const d = res.doc || {}, rows = stockRowsFromItems(d.items), disc = (d.items||[]).some(i => toN(i.total ?? i.price) < 0);
   Object.assign(m, {step:"review", manual:true, aiRes:res, inv:{supplier:d.supplier?.name || "", number:d.number || "", date:d.issued || today()}, rows:rows.length ? rows : [siRow({})], spread:true, setCost:true, cat:"",
     note:[rows.length ? "Položky přečtené z dokladu – zkontrolujte množství, ceny a spárování s produkty." : "Na dokladu se nenašly žádné položky, zadejte je ručně.",
-      d.currency && d.currency!=="CZK" ? `Doklad je v měně ${d.currency} – ceny přepočtěte na Kč.` : "", disc ? "Doklad obsahuje slevu, ta se do cen nepromítla." : ""].filter(Boolean).join(" ")});
+      d.currency && d.currency!=="CZK" ? `Doklad je v měně ${d.currency} – ceny přepočtěte na Kč.` : "", disc ? "Doklad obsahuje slevu, ta se do cen nepromítla." : "", d.note || ""].filter(Boolean).join(" ")});
   if (m.toAcc===undefined){ const dup = d.number && S.acc_in.find(b => b.number===d.number && (!d.supplier?.ico || b.supplier?.ico===d.supplier.ico)); if (dup){ m.toAcc = false; m.note += ` Doklad už je v Účetnictví (${dup.supplier?.name||""} ${dup.number}).`; } }
 }
 async function stockInvSubmit(){

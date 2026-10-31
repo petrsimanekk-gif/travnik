@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -296,11 +297,24 @@ Pravidla:
 - Dodavatel je ten, kdo doklad vystavil a komu se platí.
 - Data piš jako YYYY-MM-DD. Částky jako čísla s desetinnou tečkou, bez měny a mezer.
 - Co na dokladu není nebo nejde přečíst, nech prázdné ("" nebo 0). Nic si nevymýšlej.
-- Položky vypiš všechny, včetně slev (se zápornou cenou).
+- Položky vypiš všechny, včetně slev (se zápornou cenou). Každý řádek dokladu je jedna položka, nic nesčítej ani nevynechávej.
+- Na účtenkách bývá pod názvem položky řádek s množstvím, např. "5 KS a 139,00 B   695,00": množství je 5, cena za kus 139,00
+  a 695,00 vpravo je cena položky celkem. Když je jen "1 KS", cena vpravo je zároveň cena za kus.
+- U každé položky musí platit množství × cena za kus = cena celkem. Součet položek celkem musí dát částku k úhradě;
+  když nesedí, podívej se na doklad znovu a oprav, co jsi přečetl špatně.
+- Kód položky (EAN, katalogové číslo) opiš přesně, číslici po číslici; když si nejsi jistý, nech ho prázdný.
+- Doklad může přijít rozdělený na několik obrázků – jsou to navazující části jednoho dokladu shora dolů.
 - Kategorie nákladu, vyber nejbližší: ` + strings.Join(cats, ", ") + `.`
 }
 
 // ---------- reading ----------
+
+func aiAsk(parts int) string {
+	if parts > 1 {
+		return fmt.Sprintf("Vypiš údaje z tohoto dokladu. Je rozdělený na %d navazujících částí shora dolů.", parts)
+	}
+	return "Vypiš údaje z tohoto dokladu."
+}
 
 type aiInput struct {
 	mime string // image/jpeg, image/png, image/webp, application/pdf
@@ -372,9 +386,9 @@ func handleAiRead(e *core.RequestEvent) error {
 	defer cancel()
 	var res *aiResult
 	if c.Provider == "anthropic" {
-		res, err = anthropicRead(ctx, c.AnthropicKey, model, aiPrompt(cats), in)
+		res, err = anthropicRead(ctx, c.AnthropicKey, model, aiPrompt(cats), docParts(in))
 	} else {
-		res, err = openaiRead(ctx, c.OpenaiKey, model, aiPrompt(cats), in)
+		res, err = openaiRead(ctx, c.OpenaiKey, model, aiPrompt(cats), docParts(in))
 	}
 	if err != nil {
 		e.App.Logger().Warn("ai read", "provider", c.Provider, "model", model, "err", err)
@@ -403,6 +417,35 @@ func handleAiRead(e *core.RequestEvent) error {
 var accCats = []string{"Materiál a zboží", "Subdodávky a montáže", "Doprava a PHM", "Nájem", "Energie", "Telefon a internet", "Software a služby", "Marketing a reklama", "Kancelář", "Nářadí a vybavení", "Pojištění", "Bankovní poplatky", "Daně a poplatky", "Ostatní"}
 
 func cleanAiDoc(d *aiDoc) {
+	// quantity × unit price must give the line total: the commonest misreading
+	// is a line total taken as the unit price (or the other way round)
+	sum := 0.0
+	for i := range d.Items {
+		it := &d.Items[i]
+		if it.Qty <= 0 {
+			it.Qty = 1
+		}
+		switch {
+		case it.Total == 0 && it.Price != 0:
+			it.Total = round2(it.Qty * it.Price)
+		case it.Price == 0 && it.Total != 0:
+			it.Price = round2(it.Total / it.Qty)
+		case math.Abs(it.Qty*it.Price-it.Total) > 0.011:
+			if q := it.Total / it.Price; q >= 1 && math.Abs(q-math.Round(q)) < 0.001 && it.Qty == 1 {
+				it.Qty = math.Round(q) // "1 ks à 695" with total 695·… : the quantity was missed
+			} else {
+				it.Price = round2(it.Total / it.Qty)
+			}
+		}
+		sum += it.Total
+	}
+	if len(d.Items) > 0 && d.Total > 0 && math.Abs(sum-d.Total) > 1 {
+		msg := fmt.Sprintf("Součet položek (%.2f) nesedí s částkou celkem (%.2f) – zkontrolujte položky.", sum, d.Total)
+		if d.Note != "" {
+			msg = d.Note + " " + msg
+		}
+		d.Note = msg
+	}
 	d.Supplier.Ico = digitsRe.ReplaceAllString(d.Supplier.Ico, "")
 	d.VS = digitsRe.ReplaceAllString(d.VS, "")
 	d.Supplier.Dic = strings.ToUpper(strings.ReplaceAll(d.Supplier.Dic, " ", ""))
@@ -416,6 +459,8 @@ func cleanAiDoc(d *aiDoc) {
 		d.Items = []aiItem{}
 	}
 }
+
+func round2(v float64) float64 { return math.Round(v*100) / 100 }
 
 func loadBlob(app core.App, key string) (aiInput, error) {
 	rec, err := app.FindFirstRecordByData("blobs", "key", key)
@@ -490,29 +535,32 @@ func openaiCheck(key string) error {
 	return nil
 }
 
-func openaiRead(ctx context.Context, key, model, prompt string, in aiInput) (*aiResult, error) {
-	b64 := base64.StdEncoding.EncodeToString(in.data)
-	var part map[string]any
-	if in.mime == "application/pdf" {
-		name := in.name
-		if !strings.HasSuffix(strings.ToLower(name), ".pdf") {
-			name = "doklad.pdf"
+func openaiRead(ctx context.Context, key, model, prompt string, parts []aiInput) (*aiResult, error) {
+	content := []any{}
+	for _, in := range parts {
+		b64 := base64.StdEncoding.EncodeToString(in.data)
+		if in.mime == "application/pdf" {
+			name := in.name
+			if !strings.HasSuffix(strings.ToLower(name), ".pdf") {
+				name = "doklad.pdf"
+			}
+			content = append(content, map[string]any{"type": "file", "file": map[string]any{"filename": name, "file_data": "data:application/pdf;base64," + b64}})
+		} else {
+			content = append(content, map[string]any{"type": "image_url", "image_url": map[string]any{"url": "data:" + in.mime + ";base64," + b64, "detail": "high"}})
 		}
-		part = map[string]any{"type": "file", "file": map[string]any{"filename": name, "file_data": "data:application/pdf;base64," + b64}}
-	} else {
-		part = map[string]any{"type": "image_url", "image_url": map[string]any{"url": "data:" + in.mime + ";base64," + b64, "detail": "high"}}
 	}
+	content = append(content, map[string]any{"type": "text", "text": aiAsk(len(parts))})
 	body := map[string]any{
 		"model": model,
 		"messages": []any{
 			map[string]any{"role": "system", "content": prompt},
-			map[string]any{"role": "user", "content": []any{part, map[string]any{"type": "text", "text": "Vypiš údaje z tohoto dokladu."}}},
+			map[string]any{"role": "user", "content": content},
 		},
 		"response_format":       map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "doklad", "strict": true, "schema": aiSchema()}},
 		"max_completion_tokens": 16000,
 	}
 	if strings.HasPrefix(model, "gpt-5") || strings.HasPrefix(model, "o") {
-		body["reasoning_effort"] = "low"
+		body["reasoning_effort"] = "medium" // with "low" it skipped the arithmetic checks
 	}
 	raw, _ := json.Marshal(body)
 	req, _ := http.NewRequestWithContext(ctx, "POST", openaiBase()+"/chat/completions", bytes.NewReader(raw))
@@ -593,24 +641,27 @@ func anthropicCheck(key string) error {
 	return nil
 }
 
-func anthropicRead(ctx context.Context, key, model, prompt string, in aiInput) (*aiResult, error) {
-	b64 := base64.StdEncoding.EncodeToString(in.data)
-	var doc anthropic.ContentBlockParamUnion
-	if in.mime == "application/pdf" {
-		doc = anthropic.NewDocumentBlock(anthropic.Base64PDFSourceParam{Data: b64})
-	} else {
-		doc = anthropic.NewImageBlockBase64(in.mime, b64)
+func anthropicRead(ctx context.Context, key, model, prompt string, parts []aiInput) (*aiResult, error) {
+	var blocks []anthropic.ContentBlockParamUnion
+	for _, in := range parts {
+		b64 := base64.StdEncoding.EncodeToString(in.data)
+		if in.mime == "application/pdf" {
+			blocks = append(blocks, anthropic.NewDocumentBlock(anthropic.Base64PDFSourceParam{Data: b64}))
+		} else {
+			blocks = append(blocks, anthropic.NewImageBlockBase64(in.mime, b64))
+		}
 	}
+	blocks = append(blocks, anthropic.NewTextBlock(aiAsk(len(parts))))
 	cl := anthropicClient(key)
 	resp, err := cl.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.Model(model),
 		MaxTokens: 16000,
 		System:    []anthropic.TextBlockParam{{Text: prompt}},
 		Messages: []anthropic.MessageParam{
-			anthropic.NewUserMessage(doc, anthropic.NewTextBlock("Vypiš údaje z tohoto dokladu.")),
+			anthropic.NewUserMessage(blocks...),
 		},
 		OutputConfig: anthropic.OutputConfigParam{
-			Effort: anthropic.OutputConfigEffortLow,
+			Effort: anthropic.OutputConfigEffortMedium,
 			Format: anthropic.JSONOutputFormatParam{Schema: aiSchema()},
 		},
 	})
