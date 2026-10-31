@@ -1717,7 +1717,7 @@ function vStock(){
   const chips = cats.length ? `<select id="stock-cat" class="catsel" aria-label="Kategorie"><option value="all">Všechny kategorie</option>${cats.map(c=>`<option value="${esc(c)}" ${f===c?"selected":""}>${esc(c)}</option>`).join("")}</select>` : "";
   const tile = (k, n, t, cls) => `<button class="stile ${cls}" data-filter="${k}" aria-pressed="${f===k}"><b>${n}</b><span>${t}</span></button>`;
   const tiles = `<div class="stiles">${tile("all", all.length, "položek celkem", "")}${tile("in", all.length-zero, "skladem", "ok")}${tile("low", low, "pod minimem – doobjednat", low?"warn":"")}${tile("zero", zero, "není skladem", zero?"bad":"")}${see("cost")?`<div class="stile val"><b>${money(all.reduce((s,p)=>s+Math.round(Math.max(0,toN(p.stock))*(p.cost||0)),0))}</b><span>hodnota zásob</span></div>`:""}</div>`;
-  const invBtn = canEdit("stock") ? `<button class="btn" data-act="stock-invoice">📄 Naskladnit z faktury</button>` : "";
+  const invBtn = canEdit("stock") ? `<button class="btn" data-act="stock-invoice">📄 Naskladnit z dokladu</button>` : "";
   return listHead("Sklad", chips, "new-product", "stock", invBtn) + tiles + grid("stock", rows, {open:"open-product", defaultSort:"name", defaultDir:"asc",
     summary:r=>[["Položek", r.length],["Kusů skladem", String(r.reduce((s,p)=>s+Math.max(0,toN(p.stock)),0)).replace(".",",")],...(see("cost")?[["Hodnota zásob", money(r.reduce((s,p)=>s+Math.round(Math.max(0,toN(p.stock))*(p.cost||0)),0))]]:[])],
     emptyText:"Skladové položky jsou produkty z ceníku. Přidejte produkt tlačítkem + a zadejte příjem."});
@@ -2392,7 +2392,7 @@ function accInModal(){
   const ai = accAiState(), f0 = (m.files||[])[0], prev = f0 ? (/^image\//.test(f0.type||"") || /\.(jpe?g|png|webp|heic)$/i.test(f0.name) ? `<img src="${blobUrl(f0.id)}" alt="Doklad">` : /pdf/i.test(f0.type||f0.name) ? `<iframe src="${blobUrl(f0.id)}#view=FitH&toolbar=0" title="Náhled dokladu"></iframe>` : `<div class="empty">Náhled není k dispozici</div>`) : `<div class="empty"><strong>Bez souboru</strong>Doklad můžete přiložit níže.</div>`;
   const fi = (id, label, v, extra="") => `<label class="f"><span>${label}</span><input id="${id}" value="${esc(v??"")}" ${extra}></label>`;
   return `<div class="modal" role="dialog" aria-modal="true" aria-label="Přijatý doklad"><form class="box accinbox" id="accinform"><div class="mh"><b style="font-size:17px">${m.kind==="receipt"?"Účtenka":"Přijatá faktura"}${s.name?" · "+esc(s.name):""}</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
-  <div class="mb accin"><div class="accprev">${prev}${(m.files||[]).length?`<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">${m.files.map((f, i) => `<a class="link" href="${blobUrl(f.id)}" data-name="${esc(f.name)}">📎 ${esc(f.name)}</a>${ed?`<button type="button" class="btn sm ghost" data-act="acc-in-unfile" data-i="${i}" aria-label="Odebrat soubor">✕</button>`:""}`).join("")}</div>`:""}${ed?`<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px"><label class="btn sm">📎 Přiložit soubor<input type="file" id="acc-in-addfile" accept=".pdf,image/*,.isdoc,.isdocx" hidden></label>${ai.ready && (m.files||[]).length ? `<button type="button" class="btn sm blue" data-act="acc-in-ai" ${S.accAiBusy?"disabled":""}>${S.accAiBusy?"Čtu doklad…":"✨ Přečíst údaje z dokladu"}</button><button type="button" class="btn sm ghost" data-act="acc-in-ai" data-careful="1" ${S.accAiBusy?"disabled":""} title="Dražší a pečlivější model – pro špatně čitelné doklady">Přečíst pečlivěji</button>` : ""}</div>`:""}</div>
+  <div class="mb accin"><div class="accprev">${prev}${(m.files||[]).length?`<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">${m.files.map((f, i) => `<a class="link" href="${blobUrl(f.id)}" data-name="${esc(f.name)}">📎 ${esc(f.name)}</a>${ed?`<button type="button" class="btn sm ghost" data-act="acc-in-unfile" data-i="${i}" aria-label="Odebrat soubor">✕</button>`:""}`).join("")}</div>`:""}${ed?`<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px"><label class="btn sm">📎 Přiložit soubor<input type="file" id="acc-in-addfile" accept=".pdf,image/*,.isdoc,.isdocx" hidden></label>${(m.items||[]).length && canEdit("stock") && !m.stocked ? `<button type="button" class="btn sm" data-act="acc-in-stock">📦 Naskladnit položky</button>` : ""}${ai.ready && (m.files||[]).length ? `<button type="button" class="btn sm blue" data-act="acc-in-ai" ${S.accAiBusy?"disabled":""}>${S.accAiBusy?"Čtu doklad…":"✨ Přečíst údaje z dokladu"}</button><button type="button" class="btn sm ghost" data-act="acc-in-ai" data-careful="1" ${S.accAiBusy?"disabled":""} title="Dražší a pečlivější model – pro špatně čitelné doklady">Přečíst pečlivěji</button>` : ""}</div>`:""}</div>
   <div class="accform"><div class="seg" role="group" aria-label="Druh" style="justify-self:start"><button type="button" data-act="acc-in-kind" data-k="invoice" aria-pressed="${m.kind!=="receipt"}">Faktura</button><button type="button" data-act="acc-in-kind" data-k="receipt" aria-pressed="${m.kind==="receipt"}">Účtenka</button></div>
   <div class="fgrid">${fi("ai-sname","Dodavatel *",s.name,'list="ai-sups" autocomplete="off"')}<datalist id="ai-sups">${sups.map(x => `<option value="${esc(x)}">`).join("")}</datalist><label class="f"><span>IČO</span><span class="row" style="gap:6px;flex-wrap:nowrap"><input id="ai-sico" value="${esc(s.ico||"")}" inputmode="numeric"><button type="button" class="btn sm" data-act="acc-ares" data-p="ai-s">ARES</button></span></label></div>
   <div class="fgrid">${fi("ai-number", m.kind==="receipt"?"Číslo účtenky":"Číslo faktury", m.number)}${m.kind==="receipt"?"":fi("ai-vs","Variabilní symbol",m.vs,'inputmode="numeric"')}${fi("ai-sdic","DIČ dodavatele",s.dic)}</div>
@@ -2402,7 +2402,7 @@ function accInModal(){
   <div class="fgrid"><label class="c" style="align-self:end"><input type="checkbox" id="ai-paid" ${m.paid?"checked":""}> Zaplaceno</label><label class="f"><span>Datum platby</span><input type="date" id="ai-paidat" value="${esc(m.paidAt||"")}"></label><label class="f"><span>Jak</span><select id="ai-how">${Object.entries(PAY_HOW).map(([k,t]) => `<option value="${k}" ${k===m.paidHow?"selected":""}>${t}</option>`).join("")}</select></label></div>
   <label class="f"><span>Poznámka</span><input id="ai-note" value="${esc(m.note||"")}"></label>
   ${m.ai ? `<div class="aiinfo">✨ Přečteno automaticky${m.ai.costCzk ? ` (${esc(m.ai.model)}, ${m.ai.costCzk < .1 ? "za méně než 10 haléřů" : "za ≈ " + czk(m.ai.costCzk)})` : m.ai.model ? ` (${esc(m.ai.model)})` : ""} – údaje prosím zkontrolujte.${m.currency ? ` <b>Doklad je v měně ${esc(m.currency)}</b> – částku přepočtěte na Kč.` : ""}${m.ai.note ? `<br><span class="muted">${esc(m.ai.note)}</span>` : ""}</div>` : ""}
-  ${(m.items||[]).length ? `<div class="aiitems"><span class="lbl">Položky (${m.items.length})</span><div style="overflow-x:auto"><table class="lines" style="min-width:0"><thead><tr><th>Položka</th><th class="num">Množství</th><th class="num">Cena/j.</th>${vp?`<th class="num">DPH</th>`:""}<th class="num">Celkem</th>${ed?"<th></th>":""}</tr></thead><tbody>${m.items.map((it, i) => `<tr><td>${esc(it.name)}</td><td class="num">${esc(String(it.qty).replace(".",","))}${it.unit?" "+esc(it.unit):""}</td><td class="num">${czk(it.price)}</td>${vp?`<td class="num">${it.vatRate?esc(it.vatRate)+" %":""}</td>`:""}<td class="num">${czk(it.total)}</td>${ed?`<td><button type="button" class="btn sm ghost" data-act="acc-in-unitem" data-i="${i}" aria-label="Odebrat položku">✕</button></td>`:""}</tr>`).join("")}</tbody></table></div>${Math.abs(m.items.reduce((a, it) => a + (Number(it.total)||0), 0) - (Number(m.total)||0)) > 1 && m.total!=="" ? `<p class="muted" style="margin:4px 0 0;font-size:12px">Součet položek (${czk(m.items.reduce((a, it) => a + (Number(it.total)||0), 0))}) nesedí s částkou celkem – zkontrolujte.</p>` : ""}</div>` : ""}</div></div>
+  ${(m.items||[]).length ? `<div class="aiitems"><span class="lbl">Položky (${m.items.length})${m.stocked ? ` · <span style="color:var(--good)">📦 naskladněno ${fmtD(new Date(m.stocked.at).toISOString().slice(0,10))}</span>` : ""}</span><div style="overflow-x:auto"><table class="lines" style="min-width:0"><thead><tr><th>Položka</th><th class="num">Množství</th><th class="num">Cena/j.</th>${vp?`<th class="num">DPH</th>`:""}<th class="num">Celkem</th>${ed?"<th></th>":""}</tr></thead><tbody>${m.items.map((it, i) => `<tr><td>${esc(it.name)}</td><td class="num">${esc(String(it.qty).replace(".",","))}${it.unit?" "+esc(it.unit):""}</td><td class="num">${czk(it.price)}</td>${vp?`<td class="num">${it.vatRate?esc(it.vatRate)+" %":""}</td>`:""}<td class="num">${czk(it.total)}</td>${ed?`<td><button type="button" class="btn sm ghost" data-act="acc-in-unitem" data-i="${i}" aria-label="Odebrat položku">✕</button></td>`:""}</tr>`).join("")}</tbody></table></div>${Math.abs(m.items.reduce((a, it) => a + (Number(it.total)||0), 0) - (Number(m.total)||0)) > 1 && m.total!=="" ? `<p class="muted" style="margin:4px 0 0;font-size:12px">Součet položek (${czk(m.items.reduce((a, it) => a + (Number(it.total)||0), 0))}) nesedí s částkou celkem – zkontrolujte.</p>` : ""}</div>` : ""}</div></div>
   <div class="mf">${ed && !m._new ? `<button type="button" class="btn ghost bad" data-act="acc-in-del" data-id="${m.id}" style="margin-right:auto">Smazat</button>` : ""}<button type="button" class="btn ghost" data-act="close-modal">Zavřít</button>${ed?`<button class="btn blue up" type="submit">Uložit doklad</button>`:""}</div></form></div>`;
 }
 function readAccIn(){
@@ -2642,6 +2642,11 @@ async function accAct(act, a){
       try { const r = await accAiRead(null, f0.id, a.dataset.careful==="1"); if (S.modal?.kind==="accin" && S.modal.data.id===m.id){ accAiApply(m, r, true); toast("Údaje přečteny – zkontrolujte je a uložte."); } }
       catch(e){ toast(e.message || "Údaje se nepodařilo přečíst."); }
       S.accAiBusy = false; if (S.modal?.kind==="accin"){ S._forceModal = true; renderOverlay(); } break; }
+    case "acc-in-stock": { const m = readAccIn(); if (!m || !canEdit("stock")) break;
+      if (!m._new && m.supplier?.name){ const {_new, _open, ...rec} = m; await save("acc_in", rec); }
+      const f0 = (m.files||[])[0], rows = stockRowsFromItems(m.items);
+      S.modal = {kind:"stockinv", data:{step:"review", manual:true, accInId:m._new ? "" : m.id, fileId:f0?.id || "", inv:{supplier:m.supplier?.name || "", number:m.number || "", date:m.issued || today()}, rows:rows.length ? rows : [siRow({})], spread:true, setCost:true, cat:"",
+        note:"Položky z dokladu – zkontrolujte spárování s produkty. Ceny jsou přepočtené bez DPH."}}; S._forceModal = true; renderOverlay(); break; }
     case "acc-in-unitem": { const m = readAccIn(); m.items.splice(Number(a.dataset.i), 1); S._forceModal = true; renderOverlay(); break; }
     case "acc-ai-save": { if (!isAdmin()) break; const v = id => (document.getElementById(id)?.value || "").trim();
       const body = {provider:v("aa-prov"), openaiKey:v("aa-okey"), anthropicKey:v("aa-akey"), openaiModel:v("aa-om"), openaiModel2:v("aa-om2"), anthropicModel:v("aa-am"), anthropicModel2:v("aa-am2")};
@@ -2684,7 +2689,7 @@ async function accFromDeal(m){
   closeModal(); await accAfterIssue(id, `${OUT_KIND[kind]} ${accOut(id)?.number||""} vystavena.`, true, m.tplId);
 }
 
-// Sklad → "📄 Naskladnit z faktury": reads the supplier's e-invoice (ISDOC – the Czech standard most accounting programs export:
+// Sklad → "📄 Naskladnit z dokladu": reads the supplier's e-invoice (ISDOC – the Czech standard most accounting programs export:
 // a .isdoc file, a zipped .isdocx, or one embedded in the invoice PDF) right here in the browser, or the lines are typed in by hand.
 // The lines are then paired with products, checked, and stocked with the invoice file linked from each stock movement.
 const normName = s => String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g," ").trim();
@@ -2753,7 +2758,7 @@ function readStockInv(){ const m = S.modal?.data; if (!m || S.modal.kind!=="stoc
   document.querySelectorAll("#stinvform tr[data-i]").forEach(tr => { const r = m.rows[Number(tr.dataset.i)], q = s => tr.querySelector(s);
     r.use = q(".si-use").checked; r.qty = q(".si-qty").value; r.price = q(".si-price").value; r.pid = q(".si-pid").value; if (q(".si-name")) r.name = q(".si-name").value; if (q(".si-unit")) r.unit = q(".si-unit").value;
     if (q(".si-ship")) r.kind = q(".si-ship").checked ? "shipping" : "goods"; });
-  const v = id => document.getElementById(id); if (v("si-spread")) m.spread = v("si-spread").checked; m.setCost = !!v("si-cost")?.checked; if (v("si-cat")) m.cat = v("si-cat").value;
+  const v = id => document.getElementById(id); if (v("si-spread")) m.spread = v("si-spread").checked; if (v("si-acc")) m.toAcc = v("si-acc").checked; m.setCost = !!v("si-cost")?.checked; if (v("si-cat")) m.cat = v("si-cat").value;
   if (m.manual) ["supplier","number","date"].forEach(k => { if (v("si-" + k)) m.inv[k] = v("si-" + k).value; });
   return m; }
 // unit cost in haléře per row (shipping spread over the stocked goods by value when asked)
@@ -2764,9 +2769,13 @@ function stockInvCalc(m){
   return {ship, used, unit, total:used.reduce((s,r) => s + unit(r)*toN(r.qty), 0), pcs:used.reduce((s,r) => s + toN(r.qty), 0)};
 }
 function stockInvModal(){
-  const m = S.modal.data, head = `<div class="mh"><b style="font-size:17px">📄 Naskladnit z faktury</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>`;
-  if (m.step!=="review") return `<div class="modal" role="dialog" aria-modal="true" aria-label="Naskladnit z faktury"><form class="box" id="stinvform" style="width:min(600px,100%)">${head}<div class="mb">
-    ${m.step==="busy" ? `<div class="empty"><strong>Načítám fakturu…</strong>${esc(m.fileName||"")}</div>`
+  const m = S.modal.data, head = `<div class="mh"><b style="font-size:17px">📄 Naskladnit z dokladu</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>`;
+  if (m.step!=="review") return `<div class="modal" role="dialog" aria-modal="true" aria-label="Naskladnit z dokladu"><form class="box" id="stinvform" style="width:min(600px,100%)">${head}<div class="mb">
+    ${m.step==="busy" ? `<div class="empty"><strong>${esc(m.busyText||"Načítám fakturu…")}</strong>${esc(m.fileName||"")}</div>`
+    : S.accAi?.ready ? `<p style="margin:0">Vyfoťte účtenku nebo nahrajte fakturu (PDF, fotku, ISDOC). Položky, množství a ceny se přečtou samy a před naskladněním je zkontrolujete a spárujete s produkty.</p>
+    <label class="drop" style="cursor:pointer;display:block;margin:0"><input type="file" id="si-file" accept=".isdoc,.isdocx,.xml,application/pdf,image/*" hidden><b>📷 Vyfotit nebo vybrat doklad</b><br><small>fotka účtenky, PDF faktury nebo ISDOC</small></label>
+    ${m.err?`<p style="margin:0;color:var(--bad)">${esc(m.err)}</p>`:""}
+    <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><span class="muted">Bez dokladu?</span><button type="button" class="btn" data-act="si-manual">✍ Zadat položky ručně</button></div>`
     : `<p style="margin:0">Nahrajte elektronickou fakturu od dodavatele ve formátu <b>ISDOC</b> – soubor <span class="mono">.isdoc</span> / <span class="mono">.isdocx</span>, nebo PDF faktury, ve kterém je ISDOC vložený (umí to Pohoda, Money, iDoklad, Fakturoid a další). Položky, množství a ceny bez DPH se načtou samy a před naskladněním je zkontrolujete.</p>
     <label class="drop" style="cursor:pointer;display:block;margin:0"><input type="file" id="si-file" accept=".isdoc,.isdocx,.xml,application/pdf" hidden><b>Vybrat soubor faktury</b><br><small>ISDOC nebo PDF s ISDOC</small></label>
     ${m.err?`<p style="margin:0;color:var(--bad)">${esc(m.err)}</p>`:""}
@@ -2784,16 +2793,17 @@ function stockInvModal(){
     <td>${r.kind==="shipping" ? "" : `<select class="si-pid" aria-label="Naskladnit jako">${opts(r)}</select>`}${r.kind==="shipping" ? `<select class="si-pid" hidden><option value="skip" selected></option></select>` : ""}</td>
     <td>${m.manual ? `<button type="button" class="btn sm ghost" data-act="si-del" data-i="${i}" aria-label="Odebrat řádek">✕</button>` : ""}</td></tr>`;
   const news = m.rows.some(r => r.pid==="new" && r.kind!=="shipping" && r.use), cats = [...new Set(S.products.map(p=>p.category).filter(Boolean))];
-  const fileBtn = m.fileId ? `<a class="btn sm" href="${blobUrl(m.fileId)}" target="_blank" rel="noopener">Otevřít fakturu</a>` : SV ? `<label class="btn sm" style="cursor:pointer"><input type="file" id="si-attach" hidden>${m.attaching?"Nahrávám…":"📎 Přiložit fakturu"}</label>` : "";
+  const fileBtn = m.fileId ? `<a class="btn sm" href="${blobUrl(m.fileId)}" target="_blank" rel="noopener">Otevřít doklad</a>` : SV ? `<label class="btn sm" style="cursor:pointer"><input type="file" id="si-attach" hidden>${m.attaching?"Nahrávám…":"📎 Přiložit fakturu"}</label>` : "";
   const hdr = m.manual
     ? `<div class="fgrid" style="grid-template-columns:2fr 1fr 1fr"><label class="f"><span>Dodavatel</span><input id="si-supplier" value="${esc(inv.supplier)}"></label><label class="f"><span>Číslo faktury</span><input id="si-number" value="${esc(inv.number)}"></label><label class="f"><span>Datum</span><input id="si-date" type="date" value="${esc(inv.date)}"></label></div>`
     : `<div class="row" style="gap:24px"><div><span class="lbl">Dodavatel</span><div><b>${esc(inv.supplier||"–")}</b></div></div><div><span class="lbl">Číslo faktury</span><div>${esc(inv.number||"–")}</div></div><div><span class="lbl">Datum</span><div>${inv.date?fmtD(inv.date):"–"}</div></div></div>`;
-  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Naskladnit z faktury"><form class="box" id="stinvform" style="width:min(1080px,100%)">${head}<div class="mb">
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Naskladnit z dokladu"><form class="box" id="stinvform" style="width:min(1080px,100%)">${head}<div class="mb">
   <div class="row" style="align-items:flex-end"><div style="flex:1">${hdr}</div>${fileBtn}</div>
   ${m.note?`<div class="banner" style="display:block;margin:0">${esc(m.note)}</div>`:""}
   <div style="overflow-x:auto"><table class="lines sitab"><thead><tr><th></th><th>Položka z faktury</th><th>Množství</th><th>Cena/MJ bez DPH</th><th class="num">Nákupní cena/MJ</th><th>Naskladnit jako</th><th></th></tr></thead><tbody>${m.rows.map(row).join("")}</tbody></table></div>
   ${m.manual ? `<div><button type="button" class="btn sm" data-act="si-add">+ Přidat řádek</button></div>` : ""}
   ${c.ship || m.rows.some(r => r.kind==="shipping") ? `<label class="c"><input type="checkbox" id="si-spread" ${m.spread?"checked":""}> Rozpočítat dopravné <span id="si-shipamt">${money(Math.round(c.ship*100))}</span> do nákupních cen položek (podle hodnoty)</label>` : ""}
+  ${m.aiRes && !m.accInId && canEdit("accounting") ? `<label class="c"><input type="checkbox" id="si-acc" ${m.toAcc!==false?"checked":""}> Zapsat doklad i do Účetnictví (Přijaté doklady)</label>` : ""}
   <label class="c"><input type="checkbox" id="si-cost" ${m.setCost?"checked":""}> Zapsat nákupní cenu do produktů (přepíše „Náklady celkem“ u vybraných produktů)</label>
   ${news ? `<label class="f" style="max-width:320px"><span>Kategorie nových produktů</span><input id="si-cat" list="si-cats" value="${esc(m.cat||"")}" placeholder="např. Náhradní díly"><datalist id="si-cats">${cats.map(x=>`<option value="${esc(x)}">`).join("")}</datalist></label>` : ""}
   </div><div class="mf"><span class="muted" id="si-sum" style="margin-right:auto;align-self:center">Naskladní se ${c.used.length} položek · ${String(c.pcs).replace(".",",")} MJ · ${money(c.total)} bez DPH</span><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit" ${m.busy || !c.used.length ? "disabled" : ""}>${m.busy?"Naskladňuji…":"Naskladnit"}</button></div></form></div>`;
@@ -2814,18 +2824,35 @@ function stockInvManual(m, note){ Object.assign(m, {step:"review", manual:true, 
 async function stockInvFile(file){
   const m = S.modal?.data; if (!m || !file) return;
   Object.assign(m, {step:"busy", fileName:file.name, err:""}); S._forceModal = true; renderOverlay();
-  let inv = null, r = {};
-  try { r = await readInvoiceFile(file); inv = r.xml ? parseIsdoc(r.xml) : null; } catch(e){ console.error(e); }
+  let inv = null, r = {}; const isImg = /^image\//.test(file.type||"") || /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name), ai = await accAiLoad();
+  if (!isImg) try { r = await readInvoiceFile(file); inv = r.xml ? parseIsdoc(r.xml) : null; } catch(e){ console.error(e); }
   if (S.modal?.data !== m) return;
-  if (!inv && !r.pdf){ Object.assign(m, {step:"pick", err:"Soubor není faktura ve formátu ISDOC."}); S._forceModal = true; renderOverlay(); return; }
-  m.fileId = await stockInvUpload(file);
+  if (!inv && !r.pdf && !(isImg && ai.ready)){ Object.assign(m, {step:"pick", err:isImg ? "Čtení fotek není zapnuté (Účetnictví → Nastavení)." : "Soubor není faktura ve formátu ISDOC."}); S._forceModal = true; renderOverlay(); return; }
+  m.fileId = await stockInvUpload(file); m.fileName = file.name; m.fileType = file.type;
   if (S.modal?.data !== m) return;
+  if (!inv && ai.ready && m.fileId){ m.busyText = "Čtu položky z dokladu…"; S._forceModal = true; renderOverlay();
+    try { const res = await accAiRead(file, m.fileId, false); if (S.modal?.data !== m) return; stockInvFromAi(m, res); S._forceModal = true; renderOverlay(); return; }
+    catch(e){ if (S.modal?.data !== m) return; stockInvManual(m, `${e.message || "Doklad se nepodařilo přečíst."} Položky zadejte ručně, doklad je přiložený.`); S._forceModal = true; renderOverlay(); return; } }
   if (!inv) stockInvManual(m, "V tomto PDF není vložený ISDOC, položky proto zadejte ručně. Faktura je přiložená, otevřete si ji vedle.");
   else if (!inv.lines.length) stockInvManual(m, "Ve faktuře se nenašly žádné položky, zadejte je ručně.");
   else Object.assign(m, {step:"review", manual:false, inv, spread:true, setCost:true, cat:"", note:"",
     rows:inv.lines.map(l => siRow({...l, price:l.unitPrice, pid:l.kind==="shipping" ? "skip" : ""}))});
   if (m.manual && inv){ m.inv = {supplier:inv.supplier, number:inv.number, date:inv.date || today()}; }
   S._forceModal = true; renderOverlay();
+}
+// rows for stocking from items read from a photo / PDF (prices there include VAT)
+function stockRowsFromItems(items){
+  return (items||[]).filter(i => i.name && toN(i.qty) > 0 && toN(i.total ?? i.price) >= 0 && !/zaokrouhl|zaloh/.test(normName(i.name))).map(i => {
+    const ex = r2(toN(i.price) / (1 + (toN(i.vatRate) || 0)/100)), kind = SHIP_RE.test(normName(i.name)) ? "shipping" : "goods";
+    return siRow({name:i.name, code:i.code||"", qty:toN(i.qty), unit:/^(ks|kus|kusy|pcs)$/i.test(i.unit||"") || !i.unit ? "ks" : String(i.unit).toLowerCase(), price:ex, kind, pid:kind==="shipping" ? "skip" : ""});
+  });
+}
+function stockInvFromAi(m, res){
+  const d = res.doc || {}, rows = stockRowsFromItems(d.items), disc = (d.items||[]).some(i => toN(i.total ?? i.price) < 0);
+  Object.assign(m, {step:"review", manual:true, aiRes:res, inv:{supplier:d.supplier?.name || "", number:d.number || "", date:d.issued || today()}, rows:rows.length ? rows : [siRow({})], spread:true, setCost:true, cat:"",
+    note:[rows.length ? "Položky přečtené z dokladu – zkontrolujte množství, ceny a spárování s produkty." : "Na dokladu se nenašly žádné položky, zadejte je ručně.",
+      d.currency && d.currency!=="CZK" ? `Doklad je v měně ${d.currency} – ceny přepočtěte na Kč.` : "", disc ? "Doklad obsahuje slevu, ta se do cen nepromítla." : ""].filter(Boolean).join(" ")});
+  if (m.toAcc===undefined){ const dup = d.number && S.acc_in.find(b => b.number===d.number && (!d.supplier?.ico || b.supplier?.ico===d.supplier.ico)); if (dup){ m.toAcc = false; m.note += ` Doklad už je v Účetnictví (${dup.supplier?.name||""} ${dup.number}).`; } }
 }
 async function stockInvSubmit(){
   const m = readStockInv(); if (!m || m.busy) return; const c = stockInvCalc(m), inv = m.inv;
@@ -2843,7 +2870,13 @@ async function stockInvSubmit(){
     p.stockLog = [...(p.stockLog||[]), {at, by:me(), qty, note, fileId:m.fileId||"", cost, after:p.stock}].slice(-200);
     if (await save("products", p)) n++; else fail++;
   }
-  closeModal(); toast(fail ? `Naskladněno ${n} položek, ${fail} se nepovedlo uložit.` : `Naskladněno ${n} položek${inv.number?` z faktury ${inv.number}`:""}`);
+  let accMsg = ""; const stocked = {at, by:me(), n};
+  if (m.accInId){ const b = S.acc_in.find(x => x.id===m.accInId); if (b) await save("acc_in", {...b, stocked}); }
+  else if (m.aiRes && m.toAcc!==false && canEdit("accounting") && n){
+    const rec = accAiApply({id:uid(), kind:"invoice", status:"todo", supplier:{name:"", ico:"", dic:""}, number:"", vs:"", issued:"", duzp:"", due:"", total:"", base:"", vat:"", category:"", dealId:"", note:"",
+      files:m.fileId ? [{id:m.fileId, name:m.fileName||"doklad", type:m.fileType||""}] : [], paid:false, paidAt:"", paidHow:"bank", at, by:me(), source:"ai"}, m.aiRes, false);
+    rec.stocked = stocked; if (await save("acc_in", rec)) accMsg = " Doklad je i v Účetnictví ke kontrole."; }
+  closeModal(); toast(fail ? `Naskladněno ${n} položek, ${fail} se nepovedlo uložit.` : `Naskladněno ${n} položek${inv.number?` z dokladu ${inv.number}`:""}.${accMsg}`, 5000);
 }
 // Nastavení → Fakturoid
 let FAKS = null;
@@ -3790,7 +3823,8 @@ document.addEventListener("click", async e => {
     case "acc-edit": { if (!isAdmin()) break; const x = S.accounts.find(v=>v.id===id); if (!x) break; S.modal = {kind:"acc", data:{...JSON.parse(JSON.stringify(x)), perms:{...(x.perms||{})}, fields:{...(x.fields||{})}}}; S._forceModal = true; renderOverlay(); break; }
     case "acc-genpw": readAccModal(); S.modal.data.newPw = genPw(); S._forceModal = true; renderOverlay(); break;
     case "stock-move": S.modal = {kind:"move", id, dir:a.dataset.dir}; S._forceModal = true; renderOverlay(); $("#mv-qty")?.select(); break;
-    case "stock-invoice": S.modal = {kind:"stockinv", data:{step:"pick"}}; S._forceModal = true; renderOverlay(); break;
+    case "stock-invoice": S.modal = {kind:"stockinv", data:{step:"pick"}}; S._forceModal = true; renderOverlay();
+      if (!S.accAi) accAiLoad().then(() => { if (S.modal?.kind==="stockinv" && S.modal.data.step==="pick"){ S._forceModal = true; renderOverlay(); } }); break;
     case "si-manual": { const m = S.modal?.data; if (!m) break; stockInvManual(m); S._forceModal = true; renderOverlay(); document.querySelector("#stinvform .si-name")?.focus(); break; }
     case "si-add": { const m = readStockInv(); if (!m) break; m.rows.push(siRow({})); S._forceModal = true; renderOverlay(); [...document.querySelectorAll("#stinvform .si-name")].at(-1)?.focus(); break; }
     case "si-del": { const m = readStockInv(); if (!m) break; m.rows.splice(Number(a.dataset.i), 1); if (!m.rows.length) m.rows.push(siRow({})); S._forceModal = true; renderOverlay(); break; }

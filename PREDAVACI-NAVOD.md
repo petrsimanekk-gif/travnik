@@ -92,6 +92,10 @@ Bez serveru jde `index.html` otevřít i samostatně (režim bez ukládání, da
   `gpt-5.4-mini`; Anthropic `claude-haiku-5-5` / `claude-sonnet-5-5`. Cena se počítá podle tabulky `aiPrices`
   (kurz 23 Kč/USD) a sčítá po měsících. Petr má kredit u OpenAI, po jeho vyčerpání přepne na Anthropic.
   Testy: `airead_test.go` (simulované API přes `STINKO_OPENAI_URL` / `STINKO_ANTHROPIC_URL`).
+  **Sklad → „📄 Naskladnit z dokladu“** používá stejné čtení: fotka účtenky / PDF bez ISDOC → položky
+  (`stockInvFromAi`, ceny přepočtené bez DPH podle sazby) → spárování s produkty → naskladnění; zaškrtnutím se doklad
+  zapíše i do Přijatých dokladů. Z detailu přijatého dokladu s položkami tlačítko „📦 Naskladnit položky“.
+  Naskladněný doklad má `acc_in.stocked = {at, by, n}`. Čtení smí spustit i kdo má jen právo upravovat Sklad (`aiStockEditor`).
 - Banka: **platby se zapisují samy z e-mailových oznámení banky** (`server/bankmail.go`): ČSOB CEB posílá
   „Zaúčtování platby“ (Kredit i Debet, 1–99 999 999 Kč) na faktury@primashade.cz, schránka je připojená v Poště;
   při synchronizaci schránky `bankFromMail` oznámení rozpozná, uloží do `acc_bank` (source "mail") a spáruje podle VS

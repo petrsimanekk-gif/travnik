@@ -148,7 +148,7 @@ func handleAiCfg(e *core.RequestEvent) error {
 	if err != nil {
 		return err
 	}
-	if accPerm(a) == "none" {
+	if accPerm(a) == "none" && !aiStockEditor(a) {
 		return e.ForbiddenError("permission_denied", nil)
 	}
 	c, _ := loadAiCfg(e.App)
@@ -160,6 +160,16 @@ func handleAiCfg(e *core.RequestEvent) error {
 		out["monthN"], out["monthCzk"] = m.N, m.USD*usdCzk
 	}
 	return e.JSON(http.StatusOK, out)
+}
+
+// aiStockEditor: Sklad → "Naskladnit z faktury" reads documents too, so whoever
+// may edit the stock may have a document read (but sees no keys or costs).
+func aiStockEditor(a map[string]any) bool {
+	if a == nil || a["active"] == false {
+		return false
+	}
+	perms, _ := a["perms"].(map[string]any)
+	return perms["stock"] == "edit"
 }
 
 func handleAiCfgSave(e *core.RequestEvent) error {
@@ -240,6 +250,7 @@ type aiParty struct {
 
 type aiItem struct {
 	Name    string  `json:"name"`
+	Code    string  `json:"code"`
 	Qty     float64 `json:"qty"`
 	Unit    string  `json:"unit"`
 	Price   float64 `json:"price"`
@@ -258,7 +269,7 @@ func aiSchema() map[string]any {
 		return map[string]any{"type": "object", "properties": props, "required": req, "additionalProperties": false}
 	}
 	item := obj(map[string]any{
-		"name": s("název položky tak, jak je na dokladu"), "qty": n("množství"), "unit": s("jednotka (ks, kg, l, h…), jinak prázdné"),
+		"name": s("název položky tak, jak je na dokladu"), "code": s("katalogové číslo / kód zboží u položky, jinak prázdné"), "qty": n("množství"), "unit": s("jednotka (ks, kg, l, h…), jinak prázdné"),
 		"price": n("cena za jednotku včetně DPH"), "vatRate": n("sazba DPH v procentech (21, 12, 0); neznámá = 0"), "total": n("cena položky celkem včetně DPH"),
 	})
 	return obj(map[string]any{
@@ -303,8 +314,12 @@ type aiResult struct {
 }
 
 func handleAiRead(e *core.RequestEvent) error {
-	if _, err := accEditor(e); err != nil {
+	a, err := authAccount(e)
+	if err != nil {
 		return err
+	}
+	if accPerm(a) != "edit" && !aiStockEditor(a) {
+		return e.ForbiddenError("permission_denied", nil)
 	}
 	var b struct {
 		FileID  string `json:"fileId"`
@@ -326,7 +341,6 @@ func handleAiRead(e *core.RequestEvent) error {
 		}
 		in = aiInput{mime: http.DetectContentType(data), data: data, name: "doklad.jpg"}
 	} else if b.FileID != "" {
-		var err error
 		if in, err = loadBlob(e.App, b.FileID); err != nil {
 			return e.NotFoundError("Soubor dokladu nebyl nalezen.", nil)
 		}
@@ -354,7 +368,6 @@ func handleAiRead(e *core.RequestEvent) error {
 	ctx, cancel := context.WithTimeout(e.Request.Context(), 3*time.Minute)
 	defer cancel()
 	var res *aiResult
-	var err error
 	if c.Provider == "anthropic" {
 		res, err = anthropicRead(ctx, c.AnthropicKey, model, aiPrompt(cats), in)
 	} else {
