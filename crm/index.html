@@ -504,6 +504,34 @@ table.g td select.inl-state:hover,table.g td select.inl-state:focus{background-c
 .lines .p-name{min-width:200px} .lines .p-qty,.lines .p-disc{min-width:56px} .lines .p-price{min-width:84px}
 .sitab td{vertical-align:middle;padding:6px} .sitab tr.off td{opacity:.5} .sitab td:nth-child(2){min-width:240px} .sitab .si-pid{min-width:220px} .sitab .si-name{min-width:220px}
 .smove{display:inline-flex;gap:4px} .smove .btn{width:28px;justify-content:center;padding:3px 0;font-size:15px;font-weight:600}
+/* Účetnictví */
+.acctabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:12px;overflow-x:auto;scrollbar-width:none}
+.acctabs button{all:unset;cursor:pointer;padding:8px 14px;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.acctabs button:hover{color:var(--fg)} .acctabs button[aria-selected="true"]{color:var(--fg);font-weight:600;border-bottom-color:var(--link)}
+.acctabs .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:11px;text-align:center;line-height:18px;font-weight:600}
+.accbar{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap} .accbar .mname{font-size:16px}
+.mnav{display:inline-flex;align-items:center;gap:4px} .mnav input[type=month]{width:150px;padding:5px 8px}
+.accgrid{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:12px;align-items:start} @media (max-width:1000px){ .accgrid{grid-template-columns:minmax(0,1fr)} }
+@media (max-width:860px){ .lhead.acch{flex-wrap:wrap;overflow:visible} .lhead.acch h1{flex:1 1 100%} .lhead.acch .sp{display:none} }
+@media (max-width:560px){ .stiles.accst{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .accst .stile b{font-size:16px} .accbar .mname{display:none} .acctabs button{padding:8px 10px} .lhead.accl .lsearch{flex:1 1 100%} .stile.val{grid-column:auto} }
+.acctab th.num{text-align:right} .acctab tbody tr{cursor:pointer} .acctab tbody tr:hover td{background:var(--surface-2)} .acctab tr.cur td{background:var(--link-soft);font-weight:600} .acctab tfoot td{border-top:2px solid var(--line)}
+.vatbar{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)} .vatbar i{display:block;height:100%}
+.accsum{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:-4px 0 8px} .accsum b{color:var(--fg)}
+.lhead.accl{margin-bottom:10px} .lhead.accl select{max-width:200px}
+table.acclist{min-width:820px} table.acclist tbody tr{cursor:pointer}
+.accdrop{display:grid;gap:3px;justify-items:center;text-align:center;border:2px dashed var(--line);border-radius:6px;padding:16px;margin-bottom:12px;cursor:pointer;background:var(--surface);color:var(--muted);font-size:13px}
+.accdrop b{color:var(--fg);font-size:14.5px} .accdrop:hover,.accdrop.over{border-color:var(--link);background:var(--link-soft)}
+.accam{display:none} @media (max-width:860px){ .accam{display:inline-flex} }
+.accfs{border:1px solid var(--line);border-radius:4px;padding:8px 12px 12px;display:grid;gap:8px;margin:0} .accfs legend{font-size:12px;color:var(--muted);padding:0 4px}
+.aelines td{padding:3px 4px} .aelines input,.aelines select{width:100%;box-sizing:border-box;padding:5px 6px} .aelines input.num{text-align:right} .aelines .ae-lt{white-space:nowrap;font-weight:600}
+.accinbox{width:min(1100px,100%)} .accin{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.accprev iframe,.accprev img{width:100%;height:min(68vh,720px);border:1px solid var(--line);border-radius:4px;background:#fff;object-fit:contain} .accprev .empty{border:1px dashed var(--line);border-radius:4px;padding:40px 10px}
+.accform{display:grid;gap:10px;align-content:start}
+@media (max-width:860px){ .accin{grid-template-columns:1fr} .accprev iframe,.accprev img{height:46vh} }
+.pairl{display:grid;gap:4px;max-height:50vh;overflow:auto} .pairit{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:4px}
+.pairit:hover{border-color:var(--link);background:var(--link-soft)} .pairit small{color:var(--muted)}
+.accset{display:grid;gap:12px;max-width:980px} .accset .lines input{width:100%;box-sizing:border-box}
+.paybox .f{margin:0}
 </style>
 
 <div class="app">
@@ -557,9 +585,9 @@ const STATE_COLOR = {"Potenciální":"var(--warn)","Aktuální":"var(--good)","O
 
 // ---------- data ----------
 const S = { view:"dashboard", param:null, sub:null, q:"", filter:"all", group:"open", confirm:null, offline:false, calDate:today(), calView:ls.get("stinko-calview","month"), sort:{}, page:0, pageSize:50, newmenu:false, modal:null, light:null,
-  config:{...DEFAULT_CONFIG}, clients:[], leads:[], deals:[], activities:[], products:[], offers:[], accounts:[], installs:[], notifs:[], comms:[], presence:[], news:[], newsreads:[], all:{}, loaded:{news:false,newsreads:false,presence:false,comms:false,notifs:false,installs:false,accounts:false,config:false,clients:false,leads:false,deals:false,activities:false,products:false,offers:false} };
+  config:{...DEFAULT_CONFIG}, clients:[], leads:[], deals:[], activities:[], products:[], offers:[], accounts:[], installs:[], notifs:[], comms:[], presence:[], news:[], newsreads:[], acc_out:[], acc_in:[], acc_bank:[], acc_cfg:[], all:{}, loaded:{acc_out:false,acc_in:false,acc_bank:false,acc_cfg:false,news:false,newsreads:false,presence:false,comms:false,notifs:false,installs:false,accounts:false,config:false,clients:false,leads:false,deals:false,activities:false,products:false,offers:false} };
 let db = null, assets = null;
-const COLS = ["config","clients","leads","deals","activities","products","offers","accounts","installs","notifs","comms","presence","news","newsreads"];
+const COLS = ["config","clients","leads","deals","activities","products","offers","accounts","installs","notifs","comms","presence","news","newsreads","acc_out","acc_in","acc_bank","acc_cfg"];
 const mem = {}, memSubs = {}; COLS.forEach(c => { mem[c] = new Map(); memSubs[c] = []; });
 const emit = c => memSubs[c].forEach(cb => cb([...mem[c]].map(([id,d]) => ({id,...d}))));
 const store = {
@@ -571,12 +599,13 @@ const save = async (col, obj) => { try { await store.set(col, obj); if (db){ con
 const C = () => S.config;
 const me = () => { const A = acc(); if (A) return A.name; const v = ls.get("stinko-me", null); return v && C().users.includes(v) ? v : (C().users[0] || ""); };
 // ---------- accounts & permissions (prototype: real auth comes with own server) ----------
-const SECTIONS = [["dashboard","Nástěnka"],["calendar","Kalendář"],["installs","Montáže"],["leads","Leady"],["clients","Klienti"],["deals","Obchodní případy"],["offers","Nabídky"],["pricelist","Ceník"],["stock","Sklad"],["activities","Aktivity (kalendář)"],["mail","Pošta"]];
+const SECTIONS = [["dashboard","Nástěnka"],["calendar","Kalendář"],["installs","Montáže"],["leads","Leady"],["clients","Klienti"],["deals","Obchodní případy"],["offers","Nabídky"],["pricelist","Ceník"],["stock","Sklad"],["activities","Aktivity (kalendář)"],["mail","Pošta"],["accounting","Účetnictví"]];
 const ROLE_PRESETS = {
   admin:["Admin", null],
   sales:["Obchodník", {dashboard:"view",calendar:"edit",installs:"view",leads:"edit",clients:"edit",deals:"edit",offers:"edit",pricelist:"view",stock:"view",activities:"edit",documents:"edit",analysis:"view",mail:"edit"}, {cost:false,profit:false,commission:true}],
   tech:["Technik", {dashboard:"view",calendar:"edit",installs:"edit",leads:"none",clients:"view",deals:"view",offers:"none",pricelist:"none",stock:"edit",activities:"edit",documents:"view",analysis:"none",mail:"none"}, {cost:false,profit:false,commission:false}],
-  read:["Jen čtení", Object.fromEntries(SECTIONS.map(([k])=>[k,"view"])), {cost:false,profit:false,commission:false}],
+  read:["Jen čtení", Object.fromEntries(SECTIONS.map(([k])=>[k, k==="accounting" ? "none" : "view"])), {cost:false,profit:false,commission:false}],
+  acct:["Účetní", Object.fromEntries(SECTIONS.map(([k])=>[k, k==="accounting" ? "edit" : "none"])), {cost:true,profit:true,commission:false}],
   custom:["Vlastní", null]
 };
 const SV = window.STINKO_SERVER || null; // set by stinko-server.js on the own server
@@ -711,7 +740,7 @@ function actSection(act, a){
   if (act==="inst-pdf") return a.dataset.mode==="save" ? "installs" : null;
   return ACT_SEC[act] || (WRITE_ACT.test(act) ? secOf(S.view) : null);
 }
-const RO_KEEP = "#mailq,#q,#pagesize,#groupsel,#savedfilter,.cal-user,.cal-type,#cal-hidedone,#quicknote,#colq,#comment";
+const RO_KEEP = "#acc-month,#acc-outm,#acc-inm,#acc-exp-from,#acc-exp-to,#acc-bacct,#mailq,#q,#pagesize,#groupsel,#savedfilter,.cal-user,.cal-type,#cal-hidedone,#quicknote,#colq,#comment";
 const phaseById = id => C().phases.find(p => p.id === id) || {id, name:"(neznámá fáze)", group:"end", kind:"open"};
 const gColor = g => (GROUPS[g]||GROUPS.end)[1];
 const log = (o, text, kind="edit") => { o.events = [...(o.events||[]), {at:Date.now(), by:me(), text, kind}].slice(-100); };
@@ -734,6 +763,7 @@ const ICON = {
   install:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>',
   stock:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l9-5 9 5v11H3z"/><path d="M7 20v-7h10v7M7 16h10"/></svg>',
   mail:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
+  accounting:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8M9 9h3"/></svg>',
   analysis:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>'
 };
 function navHtml(){
@@ -744,11 +774,11 @@ function navHtml(){
   return it("dashboard","Nástěnka",ICON.dashboard) + it("calendar","Kalendář",ICON.calendar) + mailIt + it("installs","Montáže",ICON.install)
     + (canSee("leads")||canSee("clients") ? `<button class="it" data-go="${canSee("clients")?"clients":"leads"}" aria-current="${inAdr?"page":"false"}">${ICON.clients}Adresář</button><div class="sub">${it("leads","Leady")}${it("clients","Klienti")}</div>` : "")
     + (["deals","offers","pricelist"].some(canSee) ? `<button class="it" data-go="${["deals","offers","pricelist"].find(canSee)}" aria-current="${inObchod?"page":"false"}">${ICON.deals}Obchod</button><div class="sub">${it("deals","Obchodní případy")}${it("offers","Nabídky")}${it("pricelist","Ceníky")}</div>` : "")
-    + it("stock","Sklad",ICON.stock);
+    + it("stock","Sklad",ICON.stock) + it("accounting","Účetnictví",ICON.accounting);
 }
 function pushRecent(view, param, label){ recent = [{view,param,label}, ...recent.filter(r => !(r.view===view && r.param===param))].slice(0,8); ls.set("stinko-recent", recent); }
 function rtabsHtml(){
-  const base = {dashboard:"Nástěnka",calendar:"Kalendář",clients:"Klienti",leads:"Leady",deals:"Obchodní případy",offers:"Nabídky",pricelist:"Ceníky",stock:"Sklad",installs:"Montáže",mail:"Pošta",activities:"Aktivity",documents:"Dokumenty",analysis:"Analýzy",settings:"Nastavení"};
+  const base = {dashboard:"Nástěnka",calendar:"Kalendář",clients:"Klienti",leads:"Leady",deals:"Obchodní případy",offers:"Nabídky",pricelist:"Ceníky",stock:"Sklad",installs:"Montáže",mail:"Pošta",activities:"Aktivity",documents:"Dokumenty",analysis:"Analýzy",settings:"Nastavení",accounting:"Účetnictví"};
   const list = recent.filter(r => (r.view==="deal" && getDeal(r.param)) || (r.view==="client" && getClient(r.param)) || (r.view==="lead" && S.leads.some(l=>l.id===r.param)) || (r.view==="activity" && S.activities.some(a=>a.id===r.param)) || (r.view==="offer" && S.offers.some(o=>o.id===r.param)) || (r.view==="install" && S.installs.some(o=>o.id===r.param)));
   const cur = base[S.view] ? `<button class="rtab" aria-current="page"><span>${base[S.view]}</span></button>` : "";
   return cur + list.map(r => `<button class="rtab" data-act="tab" data-v="${r.view}" data-id="${r.param}" aria-current="${S.view===r.view&&S.param===r.param?"page":"false"}"><span>${esc(r.label)}</span><span class="x" data-act="tabx" data-v="${r.view}" data-id="${r.param}" aria-label="Zavřít">✕</span></button>`).join("");
@@ -772,8 +802,8 @@ function render(){
   $("#who").textContent = "Odhlásit (" + m.split(" ")[0] + ")"; { const lo = document.querySelector('.side [data-act="logout"]'); if (lo) lo.hidden = LOGIN_OFF; } if (LOGIN_OFF){ let ws = $("#side-who"); if (!ws){ ws = document.createElement("label"); ws.id = "side-who"; ws.className = "sidewho"; document.querySelector(".side .bottom").prepend(ws); } ws.innerHTML = `<span>Pracuje:</span><select id="me-select2" aria-label="Kdo pracuje">${C().users.map(u=>`<option ${u===m?"selected":""}>${esc(u)}</option>`).join("")}</select>`; }
   { const n = S.notifs.filter(x=>x.to===m && !x.read).length; const el = $("#side-notif-n"); if (el) el.textContent = n ? `(${n})` : ""; }
   const sbtn = document.querySelector('.side [data-go="settings"]'); if (sbtn) sbtn.hidden = !isAdmin();
-  const nbtn = document.querySelector('.side [data-act="newmenu"]'); if (nbtn) nbtn.hidden = !["clients","leads","deals","offers","pricelist","activities"].some(canEdit);
-  const V = {dashboard:vDash, leads:vLeads, lead:vLead, deals:vDeals, deal:vDeal, clients:vClients, client:vClient, calendar:vCal, activity:vAct, offers:vOffers, offer:vOffer, pricelist:vPricelist, stock:vStock, installs:vInstalls, install:vInstall, settings:vSettings, search:vSearch, mail:vMail}[S.view] || vDash;
+  const nbtn = document.querySelector('.side [data-act="newmenu"]'); if (nbtn) nbtn.hidden = !["clients","leads","deals","offers","pricelist","activities","accounting"].some(canEdit);
+  const V = {dashboard:vDash, leads:vLeads, lead:vLead, deals:vDeals, deal:vDeal, clients:vClients, client:vClient, calendar:vCal, activity:vAct, offers:vOffers, offer:vOffer, pricelist:vPricelist, stock:vStock, installs:vInstalls, install:vInstall, settings:vSettings, search:vSearch, mail:vMail, accounting:vAcc}[S.view] || vDash;
   const qf = document.activeElement?.id === "q" ? document.activeElement.selectionStart : null;
   $("#main").innerHTML = (S.offline ? `<div class="banner"><b>Nejste přihlášeni do Claude – nic se neukládá.</b> Klikněte vpravo nahoře na Sign in, přihlaste se a stránku obnovte.</div>` : "") + V();
   $("#rtabs").innerHTML = rtabsHtml();
@@ -1904,18 +1934,21 @@ function newsAllModal(){
 }
 // ---------- faktury přes Fakturoid ----------
 let FAK = null;   // {ready, vatPayer, dueDeposit, dueFinal, ...} from the server
+const crmInv = () => C().invoicing==="crm"; // invoices are issued in Účetnictví (no Fakturoid)
+const invVp = () => crmInv() ? accVat() : !!FAK?.vatPayer;
+const invKey = i => String(i.accId || i.fakId || "");
 const fakOn = () => { if (!SV) return false; if (FAK===null){ FAK = {loading:true}; after.push(async () => { try { FAK = await SV.api("/api/stinko/fak/cfg"); } catch(e){ FAK = {ready:false}; } render(); }); } return !!FAK.ready; };
 const INV_ST = {open:["Vystavena","info"], sent:["Odeslána","info"], overdue:["Po splatnosti","bad"], paid:["Uhrazena","good"], cancelled:["Stornována","mute"], uncollectible:["Nedobytná","bad"]};
 const invKindName = k => k==="deposit" ? "Zálohová faktura" : "Konečná faktura";
 function invoicesCard(d){
-  const L = d.invoices||[]; if (!L.length && !fakOn()) return "";
-  return `<div class="card"><div class="ch"><span class="lbl">Faktury (${L.length})</span>${L.some(i => !["paid","cancelled"].includes(i.status)) ? `<button class="btn sm ghost" data-act="inv-check" title="Zeptá se Fakturoidu, které faktury jsou zaplacené">↻ Úhrady</button>` : ""}</div><div class="cb">${L.length ? [...L].reverse().map(i => { const st = INV_ST[i.status] || INV_ST.open;
-    return `<div class="ovrow"><span><b>${esc(i.number||"")}</b> ${esc(i.kind==="deposit"?"záloha":"konečná")}${i.label?` <span class="muted">· ${esc(i.label)}</span>`:""}</span><b>${money(Math.round((i.total||0)*100))}</b><small><span class="tpill ${st[1]}" style="font-size:11px">${st[0]}</span>${i.due?` · splatnost ${fmtD(i.due)}`:""}${i.pdfId?` · <a class="link" href="${blobUrl(i.pdfId)}" data-name="${esc(i.pdfName||"faktura.pdf")}">📄 PDF</a>`:""}${i.url?` · <a class="link" href="${esc(i.url)}" target="_blank" rel="noopener">Fakturoid ↗</a>`:""}</small></div>`; }).join("") : `<p class="muted" style="margin:0;font-size:13px">Zatím žádná faktura. Vystavíte ji tlačítkem 🧾 nahoře.</p>`}</div></div>`;
+  const L = d.invoices||[]; if (!L.length && !(crmInv() ? canEdit("accounting") : fakOn())) return "";
+  return `<div class="card"><div class="ch"><span class="lbl">Faktury (${L.length})</span>${L.some(i => i.fakId && !["paid","cancelled"].includes(i.status)) ? `<button class="btn sm ghost" data-act="inv-check" title="Zeptá se Fakturoidu, které faktury jsou zaplacené">↻ Úhrady</button>` : ""}</div><div class="cb">${L.length ? [...L].reverse().map(i => { const st = INV_ST[i.status] || INV_ST.open;
+    return `<div class="ovrow"><span><b>${esc(i.number||"")}</b> ${esc(i.kind==="deposit"?"záloha":"konečná")}${i.label?` <span class="muted">· ${esc(i.label)}</span>`:""}</span><b>${money(Math.round((i.total||0)*100))}</b><small><span class="tpill ${st[1]}" style="font-size:11px">${st[0]}</span>${i.due?` · splatnost ${fmtD(i.due)}`:""}${i.pdfId?` · <a class="link" href="${blobUrl(i.pdfId)}" data-name="${esc(i.pdfName||"faktura.pdf")}">📄 PDF</a>`:""}${i.url?` · <a class="link" href="${esc(i.url)}" target="_blank" rel="noopener">Fakturoid ↗</a>`:""}${i.accId && canSee("accounting")?` · <a class="link" data-act="acc-out-open" data-id="${i.accId}">Detail ›</a>`:""}</small></div>`; }).join("") : `<p class="muted" style="margin:0;font-size:13px">Zatím žádná faktura. Vystavíte ji tlačítkem 🧾 nahoře.</p>`}</div></div>`;
 }
 const tplById = id => mailTpls().find(t => t.id===id) || DEFAULT_TPLS.find(t => t.id===id);
 // what the deal is billed for: the accepted offer (or the deal's products), per line in Kč
 function invBase(d){
-  const {src, srcName} = dealItems(d), o = S.offers.find(x => x.dealId===d.id && x.items===src) || null, vp = !!FAK?.vatPayer;
+  const {src, srcName} = dealItems(d), o = S.offers.find(x => x.dealId===d.id && x.items===src) || null, vp = invVp();
   const lines = src.filter(it => it.name && toN(it.qty)).map(it => { const unit = (it.price||0) * (100 - toN(it.discount)) / 100 / 100; const vat = vp ? itemVat(o, it) : 0;
     return {name:it.name, qty:toN(it.qty), unit:it.unit||"ks", price:Math.round(unit*100)/100, vat}; });
   const gross = lines.reduce((s, l) => s + l.qty * l.price * (1 + l.vat/100), 0);
@@ -1924,24 +1957,24 @@ function invBase(d){
 }
 function invOpen(d){
   const b = invBase(d), deps = (d.invoices||[]).filter(i => i.kind==="deposit" && i.status!=="cancelled");
-  openModal("inv", {dealId:d.id, kind:deps.length ? "final" : "deposit", mode:"50", amount:Math.round(b.gross*0.5), due:"", note:"", deduct:deps.map(i => i.fakId), tplId:"", busy:false});
+  openModal("inv", {dealId:d.id, kind:deps.length ? "final" : "deposit", mode:"50", amount:Math.round(b.gross*0.5), due:"", note:"", deduct:deps.map(invKey), tplId:"", busy:false});
 }
 function invCalc(m){
-  const d = getDeal(m.dealId), b = invBase(d), vp = !!FAK?.vatPayer;
+  const d = getDeal(m.dealId), b = invBase(d), vp = invVp();
   if (m.kind==="deposit"){
     const amt = m.mode==="fixed" ? toN(m.amount) : Math.round(b.gross * toN(m.mode) / 100 * 100) / 100;
     const label = m.mode==="fixed" ? "Záloha" : `Záloha ${m.mode} %`;
     const price = vp ? Math.round(amt / (1 + b.mainV/100) * 100) / 100 : amt;
     return {b, amt, label, lines:[{name:`${label} – ${d.name}`, qty:1, unit:"ks", price, vat:vp ? b.mainV : 0}]};
   }
-  const deps = (d.invoices||[]).filter(i => i.kind==="deposit" && i.status!=="cancelled" && m.deduct.includes(i.fakId));
-  const minus = deps.map(i => ({name:`Odpočet uhrazené zálohy (ZF ${i.number})`, qty:1, unit:"ks", price:-(vp ? Math.round(i.total / (1 + b.mainV/100) * 100) / 100 : i.total), vat:vp ? b.mainV : 0}));
+  const deps = (d.invoices||[]).filter(i => i.kind==="deposit" && i.status!=="cancelled" && m.deduct.includes(invKey(i)));
+  const minus = deps.map(i => ({name:`Odpočet ${i.status==="paid"?"uhrazené ":""}zálohy (ZF ${i.number})`, qty:1, unit:"ks", price:-(vp ? Math.round(i.total / (1 + b.mainV/100) * 100) / 100 : i.total), vat:vp ? b.mainV : 0}));
   const lines = [...b.lines, ...minus], amt = Math.round(lines.reduce((s, l) => s + l.qty * l.price * (1 + l.vat/100), 0) * 100) / 100;
   return {b, amt, label:deps.length ? "Doplatek" : "Konečná faktura", lines};
 }
 function readInv(){ const m = S.modal?.data; if (!m || S.modal.kind!=="inv") return m; const v = id => document.getElementById(id);
   if (v("inv-amount")) m.amount = v("inv-amount").value; if (v("inv-due")) m.due = v("inv-due").value; if (v("inv-note")) m.note = v("inv-note").value; if (v("inv-tpl")) m.tplId = v("inv-tpl").value;
-  if (document.querySelector(".inv-ded")) m.deduct = [...document.querySelectorAll(".inv-ded:checked")].map(x => Number(x.value)); return m; }
+  if (document.querySelector(".inv-ded")) m.deduct = [...document.querySelectorAll(".inv-ded:checked")].map(x => x.value); return m; }
 function invModal(){
   const m = S.modal.data, d = getDeal(m.dealId); if (!d) return "";
   const c = invCalc(m), cl = getClient(d.clientId), deps = (d.invoices||[]).filter(i => i.kind==="deposit" && i.status!=="cancelled");
@@ -1951,20 +1984,20 @@ function invModal(){
   return `<div class="modal" role="dialog" aria-modal="true" aria-label="Vystavit fakturu"><form class="box" id="invform" style="width:min(680px,100%)"><div class="mh"><b style="font-size:17px">🧾 Vystavit fakturu · ${esc(d.code)}</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
   <div class="mb">
   <div class="seg" role="group" aria-label="Typ faktury" style="justify-self:start"><button type="button" data-act="inv-kind" data-k="deposit" aria-pressed="${m.kind==="deposit"}">Zálohová faktura</button><button type="button" data-act="inv-kind" data-k="final" aria-pressed="${m.kind==="final"}">Konečná (doplatková) faktura</button></div>
-  <div class="muted" style="font-size:13px">Odběratel: <b style="color:var(--fg)">${esc(cl?.name||"– obchod nemá klienta –")}</b>${cl?.email?` · ${esc(cl.email)}`:` · <span style="color:var(--bad)">bez e-mailu</span>`} · podklad: ${esc(c.b.srcName)} (${czk(c.b.gross)}${FAK?.vatPayer?" vč. DPH":""})</div>
+  <div class="muted" style="font-size:13px">Odběratel: <b style="color:var(--fg)">${esc(cl?.name||"– obchod nemá klienta –")}</b>${cl?.email?` · ${esc(cl.email)}`:` · <span style="color:var(--bad)">bez e-mailu</span>`} · podklad: ${esc(c.b.srcName)} (${czk(c.b.gross)}${invVp()?" vč. DPH":""})</div>
   ${m.kind==="deposit" ? `<div><span class="lbl">Výše zálohy</span><div class="row" style="gap:6px;margin-top:6px">${chips.map(([k,t]) => `<button type="button" class="chip" data-act="inv-mode" data-m="${k}" aria-pressed="${m.mode===k}">${t}</button>`).join("")}</div></div>
     ${m.mode==="fixed" ? `<label class="f" style="max-width:240px"><span>Částka zálohy (Kč)</span><input id="inv-amount" inputmode="decimal" value="${esc(m.amount)}"></label>` : ""}`
   : `<div><span class="lbl">Položky</span><table class="lines" style="min-width:0;margin-top:4px"><tbody>${c.lines.map(l => `<tr><td>${esc(l.name)}</td><td class="num">${String(l.qty).replace(".",",")} ${esc(l.unit)}</td><td class="num">${czk(l.qty*l.price*(1+l.vat/100))}</td></tr>`).join("")}</tbody></table>
-    ${deps.length ? `<div style="margin-top:8px"><span class="lbl">Odečíst zálohy</span>${deps.map(i => `<label class="c" style="margin-top:4px"><input type="checkbox" class="inv-ded" value="${i.fakId}" ${m.deduct.includes(i.fakId)?"checked":""}> ZF ${esc(i.number)} – ${czk(i.total)} (${(INV_ST[i.status]||INV_ST.open)[0].toLowerCase()})</label>`).join("")}</div>` : ""}</div>`}
-  <div class="sumbox tot" style="justify-self:start;padding:10px 16px"><span class="lbl">${m.kind==="deposit" ? "Záloha k úhradě" : "K úhradě"}</span><div style="font-size:22px;font-weight:600">${czk(c.amt)}</div>${FAK?.vatPayer?"":`<small class="muted">neplátce DPH – bez DPH</small>`}</div>
-  <div class="fgrid"><label class="f"><span>Splatnost (dní)</span><input id="inv-due" inputmode="numeric" value="${esc(m.due || (m.kind==="deposit" ? FAK?.dueDeposit : FAK?.dueFinal) || 14)}"></label>
+    ${deps.length ? `<div style="margin-top:8px"><span class="lbl">Odečíst zálohy</span>${deps.map(i => `<label class="c" style="margin-top:4px"><input type="checkbox" class="inv-ded" value="${invKey(i)}" ${m.deduct.includes(invKey(i))?"checked":""}> ZF ${esc(i.number)} – ${czk(i.total)} (${(INV_ST[i.status]||INV_ST.open)[0].toLowerCase()})</label>`).join("")}</div>` : ""}</div>`}
+  <div class="sumbox tot" style="justify-self:start;padding:10px 16px"><span class="lbl">${m.kind==="deposit" ? "Záloha k úhradě" : "K úhradě"}</span><div style="font-size:22px;font-weight:600">${czk(c.amt)}</div>${invVp()?"":`<small class="muted">neplátce DPH – bez DPH</small>`}</div>
+  <div class="fgrid"><label class="f"><span>Splatnost (dní)</span><input id="inv-due" inputmode="numeric" value="${esc(m.due || (crmInv() ? (m.kind==="deposit" ? accCfg().dueDepositDays : accCfg().dueDays) : (m.kind==="deposit" ? FAK?.dueDeposit : FAK?.dueFinal)) || 14)}"></label>
   <label class="f"><span>E-mail pro klienta (šablona)</span><select id="inv-tpl">${tpls.map(t => `<option value="${t.id}" ${t.id===tplId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label></div>
   <label class="f"><span>Poznámka na fakturu (nepovinné)</span><input id="inv-note" value="${esc(m.note)}" maxlength="500"></label>
-  <p class="muted" style="margin:0;font-size:12px">Faktura se vystaví ve Fakturoidu, její PDF se uloží do historie obchodu a e-mail pro klienta s fakturou v příloze se připraví do Pošty → Koncepty. Odešle ho až ${esc(d.owner||"vlastník obchodu")} po kontrole.</p></div>
-  <div class="mf"><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit" ${m.busy || !cl || c.amt<=0 ? "disabled" : ""}>${m.busy ? "Vystavuji…" : "Vystavit ve Fakturoidu"}</button></div></form></div>`;
+  ${crmInv() ? `<p class="muted" style="margin:0;font-size:12px">Faktura dostane číslo z řady v Účetnictví, její PDF s QR platbou se uloží do historie obchodu a e-mail pro klienta s fakturou v příloze se připraví do Pošty → Koncepty.</p>` : `<p class="muted" style="margin:0;font-size:12px">Faktura se vystaví ve Fakturoidu, její PDF se uloží do historie obchodu a e-mail pro klienta s fakturou v příloze se připraví do Pošty → Koncepty. Odešle ho až ${esc(d.owner||"vlastník obchodu")} po kontrole.</p>`}</div>
+  <div class="mf"><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit" ${m.busy || !cl || c.amt<=0 ? "disabled" : ""}>${m.busy ? "Vystavuji…" : crmInv() ? "Vystavit fakturu" : "Vystavit ve Fakturoidu"}</button></div></form></div>`;
 }
 async function invSubmit(){
-  const m = readInv(); if (!m || m.busy) return; const d = getDeal(m.dealId), c = invCalc(m);
+  const m = readInv(); if (!m || m.busy) return; if (crmInv()){ if (!canEdit("accounting")){ toast("Vystavovat faktury může jen ten, kdo má právo upravovat Účetnictví."); return; } return accFromDeal(m); } const d = getDeal(m.dealId), c = invCalc(m);
   if (c.amt <= 0){ toast("Částka k úhradě musí být kladná."); return; }
   const t = tplById(m.tplId || (m.kind==="deposit" ? "t-zf" : "t-df")), v = tplVars({dealId:d.id, clientId:d.clientId});
   m.busy = true; S._forceModal = true; renderOverlay();
@@ -1975,6 +2008,610 @@ async function invSubmit(){
     toast(`${invKindName(m.kind)} ${r.invoice.number} vystavena. ` + (r.mailError ? `E-mail se nepřipravil: ${r.mailError}` : "E-mail pro klienta čeká v Poště → Koncepty."));
   } catch(e){ m.busy = false; S._forceModal = true; renderOverlay(); toast(e.message || "Fakturu se nepodařilo vystavit."); }
 }
+// ---------- Účetnictví ----------
+// acc_out = vydané faktury, acc_in = přijaté doklady, acc_bank = pohyby z bankovních výpisů, acc_cfg/main = údaje firmy.
+// Server shows these records only to admins and to accounts with the "accounting" right (see server/accounting.go).
+const ACC_CATS = ["Materiál a zboží","Subdodávky a montáže","Doprava a PHM","Nájem","Energie","Telefon a internet","Software a služby","Marketing a reklama","Kancelář","Nářadí a vybavení","Pojištění","Bankovní poplatky","Daně a poplatky","Ostatní"];
+const ACC_DEF = {company:{}, accounts:[], vatPayer:false, vatFrom:"", vatPeriod:"month", dueDays:14, dueDepositDays:7, prefixInvoice:"", prefixDeposit:"Z", mailBox:"", footer:"", categories:ACC_CATS};
+const accCfg = () => ({...ACC_DEF, ...(S.acc_cfg.find(x => x.id==="main") || {})});
+const accVat = () => { const c = accCfg(); return !!c.vatPayer && (!c.vatFrom || c.vatFrom <= today()); };
+const r2 = v => Math.round((Number(v)||0)*100)/100;
+const czk = v => money(Math.round((Number(v)||0)*100));
+const OUT_KIND = {invoice:"Faktura", deposit:"Zálohová faktura"};
+const PAY_HOW = {bank:"Převodem", cash:"Hotově", card:"Kartou"};
+const lineSum = (l, vp) => toN(l.qty) * toN(l.price) * (vp ? 1 + toN(l.vat)/100 : 1);
+const invTotal = (lines, vp) => r2(lines.reduce((s, l) => s + lineSum(l, vp), 0));
+const paidSum = i => r2((i.payments||[]).reduce((s, p) => s + toN(p.amount), 0));
+function outState(i){
+  if (i.status==="cancelled") return ["Stornována","mute"]; if (i.status==="paid") return ["Uhrazena","good"];
+  if (i.due && i.due < today()) return ["Po splatnosti","bad"]; if (paidSum(i) > 0) return ["Částečně uhrazena","warn"]; return ["Neuhrazena","info"];
+}
+function inState(b){ if (b.status==="todo") return ["Ke zpracování","warn"]; if (b.paid) return ["Zaplaceno","good"]; if (b.due && b.due < today()) return ["Po splatnosti","bad"]; return ["Nezaplaceno","info"]; }
+const pill = ([t, c]) => `<span class="tpill ${c}">${esc(t)}</span>`;
+const accAcct = id => { const L = accCfg().accounts||[]; return L.find(a => a.id===id) || L.find(a => a.default) || L[0] || null; };
+// Czech account "19-123457/0100" → IBAN CZ65 0100 0000 1912 3457
+function czIban(num){
+  const m = String(num||"").replace(/\s/g,"").match(/^(?:(\d{1,6})-)?(\d{2,10})\/(\d{4})$/); if (!m) return "";
+  const bban = m[3] + (m[1]||"").padStart(6,"0") + m[2].padStart(10,"0");
+  const ck = 98n - (BigInt(bban + "123500") % 97n); return "CZ" + String(ck).padStart(2,"0") + bban;
+}
+const ibanFmt = s => String(s||"").replace(/\s/g,"").replace(/(.{4})/g,"$1 ").trim();
+const acctIban = a => a ? (a.iban || czIban(a.number)) : "";
+const monthName = m => { const [y, mm] = m.split("-"); return ["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"][Number(mm)-1] + " " + y; };
+const shiftMonth = (m, n) => { const d = new Date(m+"-15T12:00:00"); d.setMonth(d.getMonth()+n); return iso(d).slice(0,7); };
+const accMonth = () => S.accMonth || (S.accMonth = today().slice(0,7));
+const VAT_LIMIT = 2000000;
+
+function vAcc(){
+  const tab = S.sub || "prehled", ed = canEdit("accounting");
+  const todo = S.acc_in.filter(b => b.status==="todo").length, unm = S.acc_bank.filter(t => !t.match).length;
+  const tabs = [["prehled","Přehled"],["vydane","Vydané faktury"],["prijate","Přijaté doklady",todo],["banka","Banka",unm],["export","Export pro účetní"], ...(ed?[["nastaveni","Nastavení"]]:[])];
+  const upl = ed ? `<label class="btn">⤒ Nahrát doklady<input type="file" id="acc-in-file" multiple accept=".pdf,.isdoc,.isdocx,image/*" hidden></label><label class="btn accam">📷 Vyfotit účtenku<input type="file" id="acc-in-cam" accept="image/*" capture="environment" hidden></label><button class="btn blue" data-act="acc-out-new">+ Nová faktura</button>` : "";
+  const head = `<div class="lhead acch"><h1>Účetnictví</h1><span class="sp"></span>${upl}</div>`;
+  const bar = `<div class="acctabs" role="tablist">${tabs.map(([k,t,n]) => `<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${t}${n?` <span class="badge">${n}</span>`:""}</button>`).join("")}</div>`;
+  const miss = ed && !accCfg().company?.name && tab!=="nastaveni" ? `<div class="banner">Nejdřív vyplňte údaje firmy a bankovní účty v záložce <b>Nastavení</b>, objeví se na každé faktuře. <button class="btn sm" data-tab="nastaveni">Otevřít Nastavení</button></div>` : "";
+  const body = ({prehled:accOverview, vydane:accOutList, prijate:accInList, banka:accBankView, export:accExportView, nastaveni:accSettingsView}[tab] || accOverview)();
+  return head + bar + miss + body;
+}
+const monthNav = (id, m, all) => `<div class="mnav"><button class="btn sm ghost" data-act="acc-mshift" data-k="${id}" data-n="-1" aria-label="Předchozí měsíc">‹</button><input type="month" id="${id}" value="${esc(m)}" aria-label="Měsíc">${all?`<button class="btn sm ${m?"ghost":""}" data-act="acc-mall" data-k="${id}" aria-pressed="${!m}">Vše</button>`:""}<button class="btn sm ghost" data-act="acc-mshift" data-k="${id}" data-n="1" aria-label="Další měsíc">›</button></div>`;
+
+function accOverview(){
+  const m = accMonth(), y = m.slice(0,4), inM = s => String(s||"").startsWith(m);
+  const out = S.acc_out.filter(i => i.status!=="cancelled"), inn = S.acc_in.filter(b => b.status!=="todo");
+  const pays = out.flatMap(i => (i.payments||[]).map(p => ({...p, inv:i})));
+  const sum = (L, f) => r2(L.reduce((s, x) => s + toN(f(x)), 0));
+  const issued = out.filter(i => inM(i.issued)), recv = pays.filter(p => inM(p.date)), cost = inn.filter(b => inM(b.issued)), costPaid = inn.filter(b => b.paid && inM(b.paidAt||b.issued));
+  const unpaid = out.filter(i => i.status!=="paid"), over = unpaid.filter(i => i.due && i.due < today()), bills = inn.filter(b => !b.paid), todo = S.acc_in.filter(b => b.status==="todo");
+  const tile = (n, t, cls, go="", f="") => `<${go?"button":"div"} class="stile ${cls}" ${go?`data-act="acc-goto" data-t="${go}" data-f="${f}"`:""}><b>${n}</b><span>${t}</span></${go?"button":"div"}>`;
+  const cash = r2(sum(recv, p => p.amount) - sum(costPaid, b => b.total));
+  const tiles = `<div class="stiles accst">${tile(czk(sum(issued, i => i.total)), `vyfakturováno (${issued.length})`, "val", "vydane", "month")}${tile(czk(sum(recv, p => p.amount)), "přijato od zákazníků", "ok")}${tile(czk(sum(cost, b => b.total)), `náklady (${cost.length} dokladů)`, "", "prijate", "month")}${tile(czk(cash), "příjmy − zaplacené výdaje", cash<0?"bad":"ok")}</div>
+  <div class="stiles accst">${tile(czk(sum(unpaid, i => i.total - paidSum(i))), `neuhrazené vydané (${unpaid.length})`, unpaid.length?"warn":"", "vydane", "unpaid")}${tile(czk(sum(over, i => i.total - paidSum(i))), `po splatnosti (${over.length})`, over.length?"bad":"", "vydane", "overdue")}${tile(czk(sum(bills, b => b.total)), `nezaplacené přijaté (${bills.length})`, bills.length?"warn":"", "prijate", "unpaid")}${tile(todo.length, "dokladů ke zpracování", todo.length?"warn":"", "prijate", "todo")}</div>`;
+  const yRecv = sum(pays.filter(p => String(p.date||"").startsWith(y)), p => p.amount), pct = Math.min(100, Math.round(yRecv / VAT_LIMIT * 100));
+  const vat = accVat() ? `<div class="card"><div class="ch"><span class="lbl">DPH</span></div><div class="cb"><p style="margin:0">Firma je plátce DPH${accCfg().vatFrom?` od ${fmtD(accCfg().vatFrom)}`:""}. Podklady k přiznání a kontrolnímu hlášení přibudou v další verzi.</p></div></div>`
+    : `<div class="card"><div class="ch"><span class="lbl">Hlídání obratu pro registraci k DPH · ${y}</span></div><div class="cb"><div class="vatbar"><i style="width:${pct}%;background:${pct>=80?"var(--bad)":pct>=50?"var(--warn)":"var(--good)"}"></i></div><p class="muted" style="margin:6px 0 0;font-size:13px">Přijato ${czk(yRecv)} z limitu ${czk(VAT_LIMIT)} za kalendářní rok (${pct} %). Po překročení limitu se firma stává plátcem DPH. Přepnutí na plátce nastavíte v Nastavení.</p></div></div>`;
+  const rows = Array.from({length:12}, (_, i) => `${y}-${pad(i+1)}`).map(mm => { const f = s => String(s||"").startsWith(mm);
+    const a = sum(out.filter(i => f(i.issued)), i => i.total), b = sum(pays.filter(p => f(p.date)), p => p.amount), c = sum(inn.filter(x => f(x.issued)), x => x.total), d = sum(inn.filter(x => x.paid && f(x.paidAt||x.issued)), x => x.total);
+    return {mm, a, b, c, d}; });
+  const tot = k => rows.reduce((s, r) => s + r[k], 0);
+  const table = `<div class="card"><div class="ch"><span class="lbl">Rok ${y} po měsících</span></div><div class="cb" style="overflow-x:auto"><table class="lines acctab" style="min-width:560px"><thead><tr><th>Měsíc</th><th class="num">Vyfakturováno</th><th class="num">Přijato</th><th class="num">Náklady</th><th class="num">Zaplaceno dodavatelům</th><th class="num">Rozdíl</th></tr></thead><tbody>${rows.map(r => `<tr class="${r.mm===m?"cur":""}" data-act="acc-setm" data-m="${r.mm}"><td>${monthName(r.mm)}</td><td class="num">${r.a?czk(r.a):"–"}</td><td class="num">${r.b?czk(r.b):"–"}</td><td class="num">${r.c?czk(r.c):"–"}</td><td class="num">${r.d?czk(r.d):"–"}</td><td class="num" style="color:${r.b-r.d<0?"var(--bad)":"inherit"}">${r.b||r.d?czk(r.b-r.d):"–"}</td></tr>`).join("")}</tbody><tfoot><tr><td><b>Celkem</b></td>${["a","b","c","d"].map(k => `<td class="num"><b>${czk(tot(k))}</b></td>`).join("")}<td class="num"><b>${czk(tot("b")-tot("d"))}</b></td></tr></tfoot></table></div></div>`;
+  const overList = over.length ? `<div class="card"><div class="ch"><span class="lbl">Po splatnosti</span></div><div class="cb">${over.sort((a,b) => a.due.localeCompare(b.due)).slice(0,8).map(i => `<div class="ovrow" data-act="acc-out-open" data-id="${i.id}" style="cursor:pointer"><span><b>${esc(i.number)}</b> ${esc(i.buyer?.name||"")}</span><b>${czk(i.total - paidSum(i))}</b><small style="color:var(--bad)">splatnost ${fmtD(i.due)} · ${days(i.due, today())} dní po splatnosti</small></div>`).join("")}</div></div>` : "";
+  return `<div class="accbar">${monthNav("acc-month", m)}<b class="mname">${monthName(m)}</b></div>${tiles}<div class="accgrid">${table}<div style="display:grid;gap:12px;align-content:start">${vat}${overList}</div></div>`;
+}
+
+function accOutList(){
+  const f = S.accF?.out || "all", m = S.accOutM ?? "";
+  const rows = S.acc_out.filter(i => !m || String(i.issued||"").startsWith(m)).filter(i => { const st = outState(i)[0];
+    return f==="all" ? true : f==="unpaid" ? !["Uhrazena","Stornována"].includes(st) : f==="overdue" ? st==="Po splatnosti" : f==="paid" ? st==="Uhrazena" : f==="cancelled" ? st==="Stornována" : f==="deposit" ? i.kind==="deposit" : true; })
+    .filter(i => matchQ([i.number, i.vs, i.buyer?.name, i.buyer?.ico, i.label, getDeal(i.dealId)?.code])).sort((a,b) => String(b.issued).localeCompare(String(a.issued)) || String(b.number).localeCompare(String(a.number)));
+  const chips = [["all","Vše"],["unpaid","Neuhrazené"],["overdue","Po splatnosti"],["paid","Uhrazené"],["deposit","Zálohové"],["cancelled","Stornované"]].map(([k,t]) => `<button class="chip" data-act="acc-f" data-k="out" data-f="${k}" aria-pressed="${f===k}">${t}</button>`).join("");
+  const live = rows.filter(i => i.status!=="cancelled");
+  const sumRow = `<div class="accsum"><span>Faktur: <b>${rows.length}</b></span><span>Celkem: <b>${czk(live.reduce((s,i) => s + toN(i.total), 0))}</b></span><span>Neuhrazeno: <b>${czk(live.filter(i => i.status!=="paid").reduce((s,i) => s + toN(i.total) - paidSum(i), 0))}</b></span></div>`;
+  const table = rows.length ? `<div class="grid"><table class="g acclist"><thead><tr><th>Číslo</th><th>Typ</th><th>Odběratel</th><th>Vystaveno</th><th>Splatnost</th><th class="num">Částka</th><th>Stav</th><th>Obchod</th><th></th></tr></thead><tbody>${rows.map(i => { const d = getDeal(i.dealId);
+    return `<tr data-act="acc-out-open" data-id="${i.id}"><td><b>${esc(i.number)}</b></td><td>${i.kind==="deposit"?"záloha":"faktura"}</td><td>${esc(i.buyer?.name||"")}</td><td>${fmtD(i.issued)}</td><td>${fmtD(i.due)}</td><td class="num"><b>${czk(i.total)}</b></td><td>${pill(outState(i))}</td><td>${d?esc(d.code):""}</td><td>${i.pdfId?`<a class="link" href="${blobUrl(i.pdfId)}" data-name="${esc(i.pdfName||"faktura.pdf")}" title="PDF">📄</a>`:""}</td></tr>`; }).join("")}</tbody></table></div>`
+    : `<div class="card"><div class="empty"><strong>Žádná faktura</strong>${canEdit("accounting")?"Novou vystavíte tlačítkem + Nová faktura nebo přímo v obchodním případu.":""}</div></div>`;
+  return `<div class="lhead accl"><input id="q" class="lsearch" type="search" placeholder="Hledat číslo, odběratele…" value="${esc(S.q)}" aria-label="Hledat">${chips}<span class="sp"></span>${monthNav("acc-outm", m, true)}</div>${sumRow}${table}`;
+}
+
+function accInList(){
+  const f = S.accF?.in || (S.acc_in.some(b => b.status==="todo") ? "todo" : "all"), m = S.accInM ?? "";
+  const rows = S.acc_in.filter(b => !m || String(b.issued||"").startsWith(m) || (b.status==="todo" && !b.issued)).filter(b => f==="all" ? true : f==="todo" ? b.status==="todo" : f==="unpaid" ? b.status!=="todo" && !b.paid : f==="paid" ? b.paid : f==="receipt" ? b.kind==="receipt" : true)
+    .filter(b => matchQ([b.supplier?.name, b.supplier?.ico, b.number, b.vs, b.category, b.note, getDeal(b.dealId)?.code])).sort((a,b) => (a.status==="todo"?0:1) - (b.status==="todo"?0:1) || String(b.issued||"9").localeCompare(String(a.issued||"9")));
+  const chips = [["todo","Ke zpracování"],["unpaid","Nezaplacené"],["paid","Zaplacené"],["receipt","Účtenky"],["all","Vše"]].map(([k,t]) => `<button class="chip" data-act="acc-f" data-k="in" data-f="${k}" aria-pressed="${f===k}">${t}</button>`).join("");
+  const drop = canEdit("accounting") ? `<label class="accdrop" id="accdrop"><input type="file" id="acc-in-file2" multiple accept=".pdf,.isdoc,.isdocx,image/*" hidden><b>Přetáhněte sem faktury a účtenky</b><span>PDF, fotky nebo ISDOC, klidně víc najednou. Nebo klikněte a vyberte soubory.</span></label>` : "";
+  const table = rows.length ? `<div class="grid"><table class="g acclist"><thead><tr><th>Dodavatel</th><th>Číslo dokladu</th><th>Vystaveno</th><th>Splatnost</th><th class="num">Částka</th><th>Kategorie</th><th>Zakázka</th><th>Stav</th><th></th></tr></thead><tbody>${rows.map(b => { const d = getDeal(b.dealId);
+    return `<tr data-act="acc-in-open" data-id="${b.id}"><td><b>${esc(b.supplier?.name || (b.files?.[0]?.name) || "–")}</b>${b.kind==="receipt"?` <span class="muted">· účtenka</span>`:""}</td><td>${esc(b.number||"")}</td><td>${fmtD(b.issued)}</td><td>${fmtD(b.due)}</td><td class="num"><b>${b.total!=null&&b.total!==""?czk(b.total):"–"}</b></td><td>${esc(b.category||"")}</td><td>${d?esc(d.code):""}</td><td>${pill(inState(b))}</td><td>${(b.files||[]).length?"📎":""}</td></tr>`; }).join("")}</tbody></table></div>`
+    : `<div class="card"><div class="empty"><strong>${f==="todo"?"Nic ke zpracování":"Žádné doklady"}</strong>Faktury od dodavatelů a účtenky sem nahrajete tlačítkem nahoře, přetažením nebo fotkou z mobilu.</div></div>`;
+  const all = rows.filter(b => b.status!=="todo");
+  return `${drop}<div class="lhead accl"><input id="q" class="lsearch" type="search" placeholder="Hledat dodavatele, číslo…" value="${esc(S.q)}" aria-label="Hledat">${chips}<span class="sp"></span>${monthNav("acc-inm", m, true)}</div><div class="accsum"><span>Dokladů: <b>${rows.length}</b></span><span>Celkem: <b>${czk(all.reduce((s,b) => s + toN(b.total), 0))}</b></span><span>Nezaplaceno: <b>${czk(all.filter(b => !b.paid).reduce((s,b) => s + toN(b.total), 0))}</b></span></div>${table}`;
+}
+
+// ---- vydaná faktura: detail ----
+function accOutModal(){
+  const i = S.acc_out.find(x => x.id===S.modal.data.id); if (!i) return "";
+  const st = outState(i), ed = canEdit("accounting"), vp = !!i.vatPayer, a = accAcct(i.account), d = getDeal(i.dealId), rest = r2(i.total - paidSum(i)), md = S.modal.data;
+  const b = i.buyer||{};
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Faktura"><div class="box" style="width:min(760px,100%)"><div class="mh"><b style="font-size:17px">${OUT_KIND[i.kind]||"Faktura"} ${esc(i.number)}</b> ${pill(st)}<span class="sp" style="flex:1"></span><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="mb"><div class="fgrid"><div><span class="lbl">Odběratel</span><div><b>${esc(b.name||"")}</b></div><div class="muted" style="font-size:13px">${esc([b.street, [b.zip, b.city].filter(Boolean).join(" ")].filter(Boolean).join(", "))}${b.ico?`<br>IČO ${esc(b.ico)}`:""}${b.dic?` · DIČ ${esc(b.dic)}`:""}${b.email?`<br>${esc(b.email)}`:""}</div></div>
+  <dl class="kv" style="margin:0"><dt>Vystaveno</dt><dd>${fmtD(i.issued)}</dd>${vp?`<dt>DUZP</dt><dd>${fmtD(i.duzp)}</dd>`:""}<dt>Splatnost</dt><dd>${fmtD(i.due)}</dd><dt>VS</dt><dd>${esc(i.vs)}</dd><dt>Úhrada</dt><dd>${PAY_HOW[i.payMethod]||"Převodem"}${a&&i.payMethod!=="cash"?` · ${esc(a.number)}`:""}</dd>${d?`<dt>Obchod</dt><dd><a class="link" data-act="acc-open-deal" data-id="${d.id}">${esc(d.code+" "+d.name)}</a></dd>`:""}</dl></div>
+  <table class="lines" style="min-width:0"><thead><tr><th>Položka</th><th class="num">Množství</th><th class="num">Cena/j.</th>${vp?`<th class="num">DPH</th>`:""}<th class="num">Celkem</th></tr></thead><tbody>${(i.lines||[]).map(l => `<tr><td>${esc(l.name)}</td><td class="num">${String(l.qty).replace(".",",")} ${esc(l.unit||"")}</td><td class="num">${czk(l.price)}</td>${vp?`<td class="num">${toN(l.vat)} %</td>`:""}<td class="num">${czk(lineSum(l, vp))}</td></tr>`).join("")}</tbody><tfoot><tr><td colspan="${vp?4:3}"><b>Celkem${vp?" vč. DPH":""}</b></td><td class="num"><b>${czk(i.total)}</b></td></tr></tfoot></table>
+  ${i.note?`<p class="muted" style="margin:0">${esc(i.note)}</p>`:""}
+  <div><span class="lbl">Úhrady</span>${(i.payments||[]).length ? (i.payments||[]).map(p => `<div class="row" style="gap:8px;font-size:13.5px;margin-top:4px">✓ ${fmtD(p.date)} · <b>${czk(p.amount)}</b> · ${PAY_HOW[p.how]||"převodem"}${p.bankId?" · z výpisu":""}</div>`).join("") : `<p class="muted" style="margin:4px 0 0;font-size:13px">Zatím nic nepřišlo.</p>`}
+  ${ed && i.status!=="paid" && i.status!=="cancelled" ? `<div class="row paybox" style="gap:8px;margin-top:8px;align-items:end"><label class="f"><span>Datum úhrady</span><input type="date" id="ao-pdate" value="${esc(md.pdate||today())}"></label><label class="f"><span>Částka (Kč)</span><input id="ao-pamt" inputmode="decimal" value="${esc(md.pamt ?? String(rest).replace(".",","))}" style="max-width:130px"></label><label class="f"><span>Jak</span><select id="ao-phow">${Object.entries(PAY_HOW).map(([k,t]) => `<option value="${k}" ${k===(i.payMethod||"bank")?"selected":""}>${t}</option>`).join("")}</select></label><button class="btn good" data-act="acc-out-pay" data-id="${i.id}">✓ Zapsat úhradu</button></div>` : ""}</div>
+  <details><summary class="lbl" style="cursor:pointer">Historie</summary>${(i.events||[]).slice().reverse().map(e => `<div class="muted" style="font-size:12.5px;margin-top:3px">${fmtTs(e.at)} · ${esc(e.by||"")} · ${esc(e.text)}</div>`).join("")}</details></div>
+  <div class="mf">${ed && i.status!=="cancelled" && i.status!=="paid" ? `<button class="btn ghost bad" data-act="acc-out-storno" data-id="${i.id}" style="margin-right:auto">Stornovat</button>` : ""}${ed && i.status==="paid" ? `<button class="btn ghost" data-act="acc-out-unpay" data-id="${i.id}" style="margin-right:auto">Zrušit úhradu</button>` : ""}
+  ${ed && i.status!=="cancelled" && i.status!=="paid" ? `<button class="btn" data-act="acc-out-edit" data-id="${i.id}">Upravit</button>` : ""}${ed ? `<button class="btn" data-act="acc-out-copy" data-id="${i.id}">Kopírovat</button>` : ""}${ed && i.status!=="cancelled" && b.email ? `<button class="btn" data-act="acc-out-mail" data-id="${i.id}">✉ Připravit e-mail</button>` : ""}
+  <button class="btn blue" data-act="acc-out-pdf" data-id="${i.id}">📄 PDF</button></div></div></div>`;
+}
+
+// ---- vydaná faktura: vystavení / úprava ----
+function accNewOut(over = {}){
+  const c = accCfg(), kind = over.kind || "invoice";
+  return {_new:true, id:uid(), kind, clientId:"", dealId:"", buyer:{name:"", ico:"", dic:"", street:"", city:"", zip:"", email:""}, issued:today(), duzp:today(),
+    due:addDays(today(), kind==="deposit" ? c.dueDepositDays : c.dueDays), account:accAcct("")?.id || "", payMethod:"bank", lines:[{name:"", qty:1, unit:"ks", price:"", vat:21}], note:"", label:"", mail:true, ...over};
+}
+function buyerOf(cl){ return cl ? {name:cl.name||"", ico:cl.ico||"", dic:cl.dic||"", street:cl.street||"", city:cl.city||"", zip:cl.zip||"", email:cl.email||""} : null; }
+function accEditModal(){
+  const m = S.modal.data, vp = m._new ? accVat() : !!m.vatPayer, c = accCfg(), b = m.buyer;
+  const clients = [...S.clients].sort((a,b) => String(a.name).localeCompare(String(b.name),"cs")), deals = S.deals.filter(d => !m.clientId || d.clientId===m.clientId);
+  const fi = (id, label, v, extra="") => `<label class="f"><span>${label}</span><input id="${id}" value="${esc(v||"")}" ${extra}></label>`;
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Faktura"><form class="box" id="acceditform" style="width:min(860px,100%)"><div class="mh"><b style="font-size:17px">${m._new?"Nová faktura":"Upravit fakturu "+esc(m.number||"")}</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="mb">${m._new?`<div class="seg" role="group" aria-label="Typ faktury" style="justify-self:start">${Object.entries(OUT_KIND).map(([k,t]) => `<button type="button" data-act="acc-ed-kind" data-k="${k}" aria-pressed="${m.kind===k}">${t}</button>`).join("")}</div>`:""}
+  <fieldset class="accfs"><legend>Odběratel</legend><div class="fgrid"><label class="f"><span>Klient z CRM</span><select id="ae-client"><option value="">– vyplnit ručně –</option>${clients.map(x => `<option value="${x.id}" ${x.id===m.clientId?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label><label class="f"><span>Obchodní případ</span><select id="ae-deal"><option value="">–</option>${deals.map(d => `<option value="${d.id}" ${d.id===m.dealId?"selected":""}>${esc(d.code+" "+d.name)}</option>`).join("")}</select></label></div>
+  <div class="fgrid">${fi("ae-bname","Název / jméno *",b.name)}<label class="f"><span>IČO</span><span class="row" style="gap:6px;flex-wrap:nowrap"><input id="ae-bico" value="${esc(b.ico||"")}" inputmode="numeric"><button type="button" class="btn sm" data-act="acc-ares" data-p="ae-b" title="Doplnit z registru ARES">ARES</button></span></label>${fi("ae-bdic","DIČ",b.dic)}${fi("ae-bemail","E-mail",b.email,'type="email"')}</div>
+  <div class="fgrid">${fi("ae-bstreet","Ulice a číslo",b.street)}${fi("ae-bcity","Město",b.city)}${fi("ae-bzip","PSČ",b.zip)}</div></fieldset>
+  <div class="fgrid"><label class="f"><span>Datum vystavení</span><input type="date" id="ae-issued" value="${esc(m.issued)}"></label>${vp?`<label class="f"><span>DUZP</span><input type="date" id="ae-duzp" value="${esc(m.duzp)}"></label>`:""}<label class="f"><span>Splatnost</span><input type="date" id="ae-due" value="${esc(m.due)}"></label>
+  <label class="f"><span>Způsob úhrady</span><select id="ae-pay">${Object.entries(PAY_HOW).map(([k,t]) => `<option value="${k}" ${k===m.payMethod?"selected":""}>${t}</option>`).join("")}</select></label><label class="f"><span>Bankovní účet</span><select id="ae-acct">${(c.accounts||[]).map(a => `<option value="${a.id}" ${a.id===m.account?"selected":""}>${esc(a.name+" · "+a.number)}</option>`).join("") || `<option value="">– doplňte v Nastavení –</option>`}</select></label></div>
+  <div style="overflow-x:auto"><table class="lines aelines" style="min-width:${vp?640:560}px"><thead><tr><th>Položka</th><th class="num" style="width:80px">Množství</th><th style="width:70px">Jedn.</th><th class="num" style="width:120px">Cena/j.${vp?" bez DPH":""}</th>${vp?`<th class="num" style="width:70px">DPH %</th>`:""}<th class="num" style="width:120px">Celkem</th><th style="width:34px"></th></tr></thead><tbody>${m.lines.map((l,i) => `<tr data-i="${i}"><td><input class="ae-name" value="${esc(l.name)}" placeholder="Popis položky"></td><td><input class="ae-qty num" inputmode="decimal" value="${esc(String(l.qty).replace(".",","))}"></td><td><input class="ae-unit" value="${esc(l.unit||"")}"></td><td><input class="ae-price num" inputmode="decimal" value="${esc(String(l.price).replace(".",","))}"></td>${vp?`<td><select class="ae-vat">${[21,12,0].map(v => `<option ${toN(l.vat)===v?"selected":""}>${v}</option>`).join("")}</select></td>`:""}<td class="num ae-lt">${czk(lineSum(l, vp))}</td><td><button type="button" class="btn sm ghost" data-act="acc-ed-del" data-i="${i}" aria-label="Smazat řádek">✕</button></td></tr>`).join("")}</tbody></table></div>
+  <div class="row" style="justify-content:space-between;align-items:center"><button type="button" class="btn sm" data-act="acc-ed-add">+ Přidat řádek</button><div class="sumbox tot" style="padding:8px 16px"><span class="lbl">K úhradě</span><div style="font-size:22px;font-weight:600" id="ae-total">${czk(invTotal(m.lines, vp))}</div>${vp?"":`<small class="muted">neplátce DPH</small>`}</div></div>
+  <label class="f"><span>Poznámka na fakturu (nepovinné)</span><input id="ae-note" value="${esc(m.note||"")}" maxlength="500"></label>
+  ${m._new?`<label class="c"><input type="checkbox" id="ae-mail" ${m.mail?"checked":""}> Připravit e-mail s fakturou pro klienta do Pošty → Koncepty</label>`:""}</div>
+  <div class="mf"><button type="button" class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn blue up" type="submit" ${m.busy?"disabled":""}>${m.busy?"Ukládám…":m._new?"Vystavit fakturu":"Uložit a přegenerovat PDF"}</button></div></form></div>`;
+}
+function readAccEd(){
+  const m = S.modal?.data; if (!m || S.modal.kind!=="accedit") return m; const v = id => document.getElementById(id);
+  const val = id => v(id) ? v(id).value : undefined;
+  m.clientId = val("ae-client") ?? m.clientId; m.dealId = val("ae-deal") ?? m.dealId;
+  ["name","ico","dic","email","street","city","zip"].forEach(k => { const x = val("ae-b"+k); if (x!==undefined) m.buyer[k] = x.trim(); });
+  m.issued = val("ae-issued") ?? m.issued; m.duzp = val("ae-duzp") ?? m.duzp ?? m.issued; m.due = val("ae-due") ?? m.due; m.payMethod = val("ae-pay") ?? m.payMethod; m.account = val("ae-acct") ?? m.account; m.note = val("ae-note") ?? m.note;
+  if (v("ae-mail")) m.mail = v("ae-mail").checked;
+  document.querySelectorAll("#acceditform tr[data-i]").forEach(tr => { const l = m.lines[Number(tr.dataset.i)], q = s => tr.querySelector(s); if (!l) return;
+    l.name = q(".ae-name").value; l.qty = q(".ae-qty").value; l.unit = q(".ae-unit").value; l.price = q(".ae-price").value; if (q(".ae-vat")) l.vat = toN(q(".ae-vat").value); });
+  return m;
+}
+function accEdRefresh(){ const m = readAccEd(); if (!m) return; const vp = m._new ? accVat() : !!m.vatPayer;
+  document.querySelectorAll("#acceditform tr[data-i]").forEach(tr => { const l = m.lines[Number(tr.dataset.i)]; const c = tr.querySelector(".ae-lt"); if (l && c) c.textContent = czk(lineSum(l, vp)); });
+  const t = $("#ae-total"); if (t) t.textContent = czk(invTotal(m.lines, vp)); }
+async function accEdSubmit(){
+  const m = readAccEd(); if (!m || m.busy) return;
+  const vp = m._new ? accVat() : !!m.vatPayer;
+  const lines = m.lines.filter(l => String(l.name).trim()).map(l => ({name:String(l.name).trim(), qty:toN(l.qty), unit:String(l.unit||"").trim(), price:r2(toN(l.price)), vat:vp ? toN(l.vat) : 0}));
+  if (!m.buyer.name){ toast("Vyplňte odběratele."); return; }
+  if (!lines.length){ toast("Faktura nemá žádnou položku."); return; }
+  const total = invTotal(lines, vp); if (total <= 0){ toast("Částka k úhradě musí být kladná."); return; }
+  if (!m.issued || !m.due){ toast("Vyplňte datum vystavení a splatnost."); return; }
+  const inv = {kind:m.kind, clientId:m.clientId||"", dealId:m.dealId||"", buyer:{...m.buyer}, issued:m.issued, duzp:vp ? (m.duzp||m.issued) : m.issued, due:m.due, account:m.account||"", payMethod:m.payMethod||"bank",
+    lines, vatPayer:vp, total, note:(m.note||"").trim(), label:m.label||"", deducts:m.deducts||[], supplier:accSupplier(m.account)};
+  m.busy = true; S._forceModal = true; renderOverlay();
+  const id = m.id;
+  try {
+    if (m._new) await accIssue(id, inv);
+    else { const old = S.acc_out.find(x => x.id===id); if (!await save("acc_out", {...old, ...inv, events:[...(old.events||[]), {at:Date.now(), by:me(), text:"Upraveno"}]})) throw new Error("Fakturu se nepodařilo uložit."); }
+  } catch(e){ console.error(e); m.busy = false; S._forceModal = true; renderOverlay(); toast(e.message || "Fakturu se nepodařilo vystavit."); return; }
+  closeModal(); await accAfterIssue(id, m._new ? `${OUT_KIND[inv.kind]} ${accOut(id)?.number||""} vystavena.` : "Faktura uložena.", m._new && m.mail);
+}
+// the invoice exists from here on; a failed PDF or e-mail is reported and can be done again from its detail
+async function accAfterIssue(id, head, mail, tplId){
+  toast(head + " Připravuji PDF…", 20000);
+  try { const r = await accFinish(id, mail, tplId); toast(`${head} ${r.mailError ? "E-mail se nepřipravil: "+r.mailError : r.draft ? "E-mail pro klienta čeká v Poště → Koncepty." : "PDF je připravené."}`, 6000); }
+  catch(e){ console.error(e); toast(`${head} PDF se ale nepodařilo vytvořit (${e.message||e}). Otevřete fakturu a klikněte na 📄 PDF.`, 9000); }
+  if (S.view==="accounting") render();
+}
+const accOut = id => S.acc_out.find(x => x.id===id);
+const accSupplier = acctId => { const c = accCfg(), a = accAcct(acctId); return {...(c.company||{}), vatPayer:accVat(), account:a ? {name:a.name, number:a.number, iban:acctIban(a), swift:a.swift||""} : null, footer:c.footer||""}; };
+// number the invoice (server: atomic, the deal is updated too); without the own server just locally
+async function accIssue(id, inv){
+  if (SV){ const r = await SV.api("/api/stinko/acc/issue", {body:{id, inv}}); const rec = {...inv, id, number:r.number, vs:r.vs, status:"issued", at:Date.now(), by:me()};
+    S.acc_out = S.acc_out.some(x => x.id===id) ? S.acc_out.map(x => x.id===id ? {...x, ...rec} : x) : [...S.acc_out, rec]; return rec; }
+  const c = accCfg(), y = (inv.issued||today()).slice(0,4), pre = (inv.kind==="deposit" ? c.prefixDeposit : c.prefixInvoice) + y;
+  const n = Math.max(0, ...S.acc_out.filter(x => String(x.number).startsWith(pre)).map(x => Number(String(x.number).slice(pre.length))||0)) + 1;
+  const number = pre + String(n).padStart(3,"0"), rec = {...inv, id, number, vs:(inv.kind==="deposit"?"1":"")+number.replace(/\D/g,""), status:"issued", at:Date.now(), by:me(), events:[{at:Date.now(), by:me(), text:"Vystaveno"}]};
+  await save("acc_out", rec); return rec;
+}
+// PDF → upload → attach (and the e-mail draft for the client from the template)
+async function accFinish(id, withMail, tplId){
+  const inv = accOut(id); if (!inv) throw new Error("Faktura nenalezena.");
+  const bytes = await accPdf(inv), name = `${(OUT_KIND[inv.kind]||"Faktura").replace(/\s+/g,"-")}-${inv.number}.pdf`;
+  if (!SV){ await save("acc_out", {...inv, pdfLocal:true}); return {}; }
+  const fd = new FormData(); fd.append("file", new File([bytes], name, {type:"application/pdf"}), name);
+  const pdfId = (await SV.api("/api/stinko/upload", {body:fd})).id;
+  let mail = {};
+  if (withMail && inv.buyer?.email){ const t = tplById(tplId || (inv.kind==="deposit" ? "t-zf" : "t-df")), v = tplVars({dealId:inv.dealId, clientId:inv.clientId});
+    mail = {box:accCfg().mailBox||"", to:inv.buyer.email, subject:t ? fillTpl(t.subject, v) : "", body:t ? fillTpl(t.body, v) : "", html:t ? cleanHtml(fillTpl(tplHtml(t), v, true)) : ""}; }
+  const r = await SV.api("/api/stinko/acc/attach", {body:{id, pdfId, pdfName:name, mail}});
+  S.acc_out = S.acc_out.map(x => x.id===id ? {...x, pdfId, pdfName:name} : x); if (r.draft) MAIL.items = null;
+  return r;
+}
+async function accPayOut(id, body){
+  if (SV) return SV.api("/api/stinko/acc/paid", {body:{id, ...body}});
+  const i = accOut(id), pays = body.undo ? [] : [...(i.payments||[]), {date:body.date||today(), amount:body.amount || r2(i.total - paidSum(i)), how:body.how||"bank", bankId:body.bankId||""}];
+  const paid = pays.reduce((s,p) => s + p.amount, 0) >= i.total - .005; await save("acc_out", {...i, payments:pays, status:paid ? "paid" : "issued", paidAt:paid ? (body.date||today()) : ""});
+}
+
+// ---- PDF faktury (pdf-lib, the same fonts as the offer) ----
+const QR_JS = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js";
+const spayd = (inv, iban) => ["SPD*1.0", "ACC:"+iban.replace(/\s/g,""), "AM:"+r2(inv.total - paidSum(inv)).toFixed(2), "CC:CZK", inv.vs ? "X-VS:"+String(inv.vs).slice(0,10) : "", "MSG:"+(OUT_KIND[inv.kind]+" "+inv.number).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\*/g,"").slice(0,60)].filter(Boolean).join("*");
+async function accPdf(inv){
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js");
+  await loadScript("https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js");
+  const get = async u => { const r = await fetch(u); if (!r.ok) throw new Error(u+" "+r.status); return new Uint8Array(await r.arrayBuffer()); };
+  pdfRes = pdfRes || {}; if (!pdfRes.dv) pdfRes.dv = {reg:await get("offer/DejaVuSans.ttf"), bold:await get("offer/DejaVuSans-Bold.ttf")};
+  const {PDFDocument, rgb} = window.PDFLib; const doc = await PDFDocument.create(); doc.registerFontkit(window.fontkit);
+  const R = await doc.embedFont(pdfRes.dv.reg, {subset:true}), B = await doc.embedFont(pdfRes.dv.bold, {subset:true});
+  const W = 595.28, H = 841.89, M = 40, CW = W - 2*M; const ink = rgb(.12,.15,.18), mut = rgb(.42,.46,.5), line = rgb(.84,.86,.88), acc = rgb(.69,.54,.33), soft = rgb(.965,.957,.94);
+  const sup = inv.supplier || accSupplier(inv.account), vp = !!inv.vatPayer, b = inv.buyer||{}, ac = sup.account;
+  doc.setTitle(`${OUT_KIND[inv.kind]} ${inv.number}`); doc.setAuthor(sup.name||""); doc.setCreator("Prima Shade CRM");
+  let page = doc.addPage([W,H]), y = H - M;
+  const T = (t, x, yy, {f=R, sz=9.5, c=ink, right=false}={}) => { t = String(t??""); page.drawText(t, {x:right ? x - f.widthOfTextAtSize(t, sz) : x, y:yy, size:sz, font:f, color:c}); };
+  const wrap = (t, f, sz, mw) => { const out = []; for (const para of String(t||"").split("\n")){ let cur = ""; for (const w of para.split(/\s+/)){ const n = cur ? cur+" "+w : w; if (f.widthOfTextAtSize(n, sz) > mw && cur){ out.push(cur); cur = w; } else cur = n; } out.push(cur); } return out; };
+  // header
+  const title = inv.kind==="deposit" ? "Zálohová faktura" : vp ? "Faktura – daňový doklad" : "Faktura";
+  T(title, M, y-18, {f:B, sz:19}); T(inv.number, W-M, y-18, {f:B, sz:19, right:true});
+  if (inv.kind==="deposit") T("Výzva k platbě, nejedná se o daňový doklad.", M, y-33, {sz:9, c:mut});
+  page.drawRectangle({x:M, y:y-42, width:CW, height:2, color:acc}); y -= 60;
+  // parties
+  const party = (x, head, p, extra) => { let yy = y; T(head, x, yy, {f:B, sz:8.5, c:mut}); yy -= 15; for (const l of wrap(p.name||"", B, 11, CW/2-20)){ T(l, x, yy, {f:B, sz:11}); yy -= 14; }
+    for (const l of [p.street, [p.zip, p.city].filter(Boolean).join(" "), p.country && p.country!=="Česká republika" ? p.country : ""].filter(Boolean)){ T(l, x, yy); yy -= 12.5; }
+    yy -= 3; if (p.ico){ T("IČO: "+p.ico, x, yy); yy -= 12.5; } if (p.dic){ T("DIČ: "+p.dic, x, yy); yy -= 12.5; }
+    for (const l of extra){ for (const w of wrap(l, R, 8, CW/2-20)){ T(w, x, yy, {sz:8, c:mut}); yy -= 10.5; } } return yy; };
+  const y1 = party(M, "DODAVATEL", sup, [sup.register||"", vp ? "" : "Není plátce DPH.", [sup.email, sup.phone].filter(Boolean).join(" · "), sup.web||""].filter(Boolean));
+  page.drawRectangle({x:M+CW/2, y:y-118, width:CW/2, height:132, color:soft});
+  const y2 = party(M+CW/2+12, "ODBĚRATEL", b, []);
+  y = Math.min(y1, y2, y-122) - 14;
+  // payment box
+  const kv = [["Datum vystavení", fmtD(inv.issued)], ...(vp && inv.kind!=="deposit" ? [["Datum zdanitelného plnění", fmtD(inv.duzp)]] : []), ["Datum splatnosti", fmtD(inv.due)], ["Způsob úhrady", PAY_HOW[inv.payMethod]||"Převodem"]];
+  const pk = inv.payMethod==="cash" ? [] : [["Bankovní účet", ac?.number||""], ["IBAN", ibanFmt(ac?.iban||"")], ...(ac?.swift?[["SWIFT", ac.swift]]:[]), ["Variabilní symbol", inv.vs||""]];
+  page.drawLine({start:{x:M,y:y+6}, end:{x:W-M,y:y+6}, thickness:.6, color:line});
+  const rowsH = Math.max(kv.length, pk.length) * 14;
+  kv.forEach(([k,v], i) => { T(k, M, y-8-i*14, {sz:8.5, c:mut}); T(v, M+130, y-8-i*14, {f:B, sz:9.5}); });
+  pk.forEach(([k,v], i) => { T(k, M+CW/2+12, y-8-i*14, {sz:8.5, c:mut}); T(v, W-M, y-8-i*14, {f:k==="Variabilní symbol"||k==="Bankovní účet"?B:R, sz:9.5, right:true}); });
+  y -= rowsH + 14; page.drawLine({start:{x:M,y:y+4}, end:{x:W-M,y:y+4}, thickness:.6, color:line}); y -= 12;
+  // lines
+  const cols = vp ? [["Položka", M, false], ["Množství", M+290, true], ["Cena/j. bez DPH", M+375, true], ["DPH", M+415, true], ["Celkem s DPH", W-M, true]] : [["Položka", M, false], ["Množství", M+330, true], ["Cena za jednotku", M+430, true], ["Celkem", W-M, true]];
+  const head = () => { page.drawRectangle({x:M, y:y-5, width:CW, height:18, color:soft}); cols.forEach(([t, x, r]) => T(t, x - (r?4:-4), y, {f:B, sz:8.5, c:mut, right:r})); y -= 20; };
+  head();
+  const nameW = (vp ? 230 : 270);
+  for (const l of inv.lines||[]){
+    const ls = wrap(l.name, R, 9.5, nameW); if (y - ls.length*12.5 < M + 120){ page = doc.addPage([W,H]); y = H - M; head(); }
+    ls.forEach((t, i) => T(t, M+4, y - i*12.5));
+    const q = `${String(r2(l.qty)).replace(".",",")} ${l.unit||""}`.trim();
+    if (vp){ T(q, M+286, y, {right:true}); T(czk(l.price), M+371, y, {right:true}); T(`${toN(l.vat)} %`, M+411, y, {right:true}); T(czk(lineSum(l, true)), W-M-4, y, {right:true, f:B}); }
+    else { T(q, M+326, y, {right:true}); T(czk(l.price), M+426, y, {right:true}); T(czk(lineSum(l, false)), W-M-4, y, {right:true, f:B}); }
+    y -= ls.length*12.5 + 5; page.drawLine({start:{x:M,y:y+3}, end:{x:W-M,y:y+3}, thickness:.4, color:line}); y -= 4;
+  }
+  // VAT recap
+  if (vp){ const by = {}; for (const l of inv.lines||[]){ const k = toN(l.vat); by[k] = by[k] || {base:0, vat:0}; by[k].base += toN(l.qty)*toN(l.price); by[k].vat += toN(l.qty)*toN(l.price)*k/100; }
+    y -= 6; T("Sazba", M+260, y, {sz:8.5, c:mut}); T("Základ", M+370, y, {sz:8.5, c:mut, right:true}); T("DPH", M+440, y, {sz:8.5, c:mut, right:true}); T("Celkem", W-M-4, y, {sz:8.5, c:mut, right:true}); y -= 13;
+    for (const [k, v] of Object.entries(by)){ T(`${k} %`, M+260, y); T(czk(v.base), M+370, y, {right:true}); T(czk(v.vat), M+440, y, {right:true}); T(czk(v.base+v.vat), W-M-4, y, {right:true}); y -= 13; } }
+  // total + QR
+  if (y < M + 130){ page = doc.addPage([W,H]); y = H - M; }
+  y -= 10; const paid = paidSum(inv), due = r2(inv.total - paid);
+  page.drawRectangle({x:W-M-230, y:y-46, width:230, height:52, color:soft});
+  if (paid > 0){ T("Celkem", W-M-220, y-10, {sz:9, c:mut}); T(czk(inv.total), W-M-10, y-10, {right:true}); T("Uhrazeno", W-M-220, y-22, {sz:9, c:mut}); T("−"+czk(paid), W-M-10, y-22, {right:true}); }
+  T("K úhradě", W-M-220, y-40, {f:B, sz:11}); T(czk(due), W-M-10, y-40, {f:B, sz:15, right:true});
+  if (ac?.iban && inv.payMethod!=="cash" && due > 0){
+    try { await loadScript(QR_JS); const qr = window.qrcode(0, "M"); qr.addData(spayd(inv, ac.iban)); qr.make();
+      const n = qr.getModuleCount(), size = 104, cell = size / n, qx = M, qy = y - 110;
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) page.drawRectangle({x:qx + c*cell, y:qy + size - (r+1)*cell, width:cell+.05, height:cell+.05, color:rgb(0,0,0)});
+      T("QR Platba", qx + size + 10, qy + size - 12, {f:B, sz:9.5}); for (const [i, l] of wrap("Naskenujte v mobilním bankovnictví – částka, účet i variabilní symbol se vyplní samy.", R, 8, 150).entries()) T(l, qx + size + 10, qy + size - 26 - i*10.5, {sz:8, c:mut});
+    } catch(e){ console.warn("QR", e); }
+    y -= 122;
+  } else y -= 62;
+  if (inv.note){ for (const l of wrap(inv.note, R, 9, CW)){ T(l, M, y, {sz:9}); y -= 12; } y -= 4; }
+  if (inv.kind==="invoice" && (inv.deducts||[]).length) { T("Odečtené zálohy jsou uvedeny v položkách faktury.", M, y, {sz:8.5, c:mut}); y -= 12; }
+  const foot = [sup.footer, `Vystavil(a): ${inv.by||me()}`].filter(Boolean).join(" · ");
+  doc.getPages().forEach((p, i, all) => { p.drawLine({start:{x:M,y:M-6}, end:{x:W-M,y:M-6}, thickness:.5, color:line}); for (const [j, l] of wrap(foot, R, 7.5, CW-60).entries()) p.drawText(l, {x:M, y:M-16-j*9, size:7.5, font:R, color:mut}); const s = `${i+1}/${all.length}`; p.drawText(s, {x:W-M-R.widthOfTextAtSize(s,7.5), y:M-16, size:7.5, font:R, color:mut}); });
+  return await doc.save();
+}
+
+// ---- ISDOC (e-faktura, umí ji načíst Pohoda, Money, ABRA, Helios…) ----
+function accIsdoc(inv){
+  const x = s => esc(String(s??"")), sup = inv.supplier || accSupplier(inv.account), b = inv.buyer||{}, vp = !!inv.vatPayer, n = v => r2(v).toFixed(2);
+  const party = p => `<Party><PartyIdentification><ID>${x(p.ico)}</ID></PartyIdentification><PartyName><Name>${x(p.name)}</Name></PartyName><PostalAddress><StreetName>${x(p.street)}</StreetName><BuildingNumber></BuildingNumber><CityName>${x(p.city)}</CityName><PostalZone>${x(String(p.zip||"").replace(/\s/g,""))}</PostalZone><Country><IdentificationCode>CZ</IdentificationCode><Name>Česká republika</Name></Country></PostalAddress>${p.dic?`<PartyTaxScheme><CompanyID>${x(p.dic)}</CompanyID><TaxScheme>VAT</TaxScheme></PartyTaxScheme>`:""}</Party>`;
+  const by = {}; const L = (inv.lines||[]).map((l, i) => { const base = toN(l.qty)*toN(l.price), rate = vp ? toN(l.vat) : 0, vat = base*rate/100; by[rate] = by[rate] || {base:0, vat:0}; by[rate].base += base; by[rate].vat += vat;
+    return `<InvoiceLine><ID>${i+1}</ID><InvoicedQuantity unitCode="${x(l.unit||"ks")}">${toN(l.qty)}</InvoicedQuantity><LineExtensionAmount>${n(base)}</LineExtensionAmount><LineExtensionAmountTaxInclusive>${n(base+vat)}</LineExtensionAmountTaxInclusive><LineExtensionTaxAmount>${n(vat)}</LineExtensionTaxAmount><UnitPrice>${n(l.price)}</UnitPrice><UnitPriceTaxInclusive>${n(toN(l.price)*(1+rate/100))}</UnitPriceTaxInclusive><ClassifiedTaxCategory><Percent>${rate}</Percent><VATCalculationMethod>0</VATCalculationMethod></ClassifiedTaxCategory><Item><Description>${x(l.name)}</Description></Item></InvoiceLine>`; }).join("");
+  const base = Object.values(by).reduce((s,v) => s+v.base, 0), vat = Object.values(by).reduce((s,v) => s+v.vat, 0), paid = paidSum(inv);
+  const uuid = (inv.id.match(/^[0-9a-f-]{36}$/i) ? inv.id : crypto.randomUUID ? crypto.randomUUID() : inv.id).toUpperCase();
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="http://isdoc.cz/namespace/2013" version="6.0.1"><DocumentType>${inv.kind==="deposit"?4:1}</DocumentType><ID>${x(inv.number)}</ID><UUID>${uuid}</UUID><IssuingSystem>Prima Shade CRM</IssuingSystem><IssueDate>${x(inv.issued)}</IssueDate><TaxPointDate>${x(inv.duzp||inv.issued)}</TaxPointDate><VATApplicable>${vp}</VATApplicable><ElectronicPossibilityAgreementReference></ElectronicPossibilityAgreementReference><Note>${x(inv.note)}</Note><LocalCurrencyCode>CZK</LocalCurrencyCode><CurrRate>1</CurrRate><RefCurrRate>1</RefCurrRate>
+<AccountingSupplierParty>${party(sup)}</AccountingSupplierParty><AccountingCustomerParty>${party(b)}</AccountingCustomerParty>
+<InvoiceLines>${L}</InvoiceLines>
+<TaxTotal>${Object.entries(by).map(([r, v]) => `<TaxSubTotal><TaxableAmount>${n(v.base)}</TaxableAmount><TaxAmount>${n(v.vat)}</TaxAmount><TaxInclusiveAmount>${n(v.base+v.vat)}</TaxInclusiveAmount><AlreadyClaimedTaxableAmount>0</AlreadyClaimedTaxableAmount><AlreadyClaimedTaxAmount>0</AlreadyClaimedTaxAmount><AlreadyClaimedTaxInclusiveAmount>0</AlreadyClaimedTaxInclusiveAmount><DifferenceTaxableAmount>${n(v.base)}</DifferenceTaxableAmount><DifferenceTaxAmount>${n(v.vat)}</DifferenceTaxAmount><DifferenceTaxInclusiveAmount>${n(v.base+v.vat)}</DifferenceTaxInclusiveAmount><TaxCategory><Percent>${r}</Percent></TaxCategory></TaxSubTotal>`).join("")}<TaxAmount>${n(vat)}</TaxAmount></TaxTotal>
+<LegalMonetaryTotal><TaxExclusiveAmount>${n(base)}</TaxExclusiveAmount><TaxInclusiveAmount>${n(base+vat)}</TaxInclusiveAmount><AlreadyClaimedTaxExclusiveAmount>0</AlreadyClaimedTaxExclusiveAmount><AlreadyClaimedTaxInclusiveAmount>0</AlreadyClaimedTaxInclusiveAmount><DifferenceTaxExclusiveAmount>${n(base)}</DifferenceTaxExclusiveAmount><DifferenceTaxInclusiveAmount>${n(base+vat)}</DifferenceTaxInclusiveAmount><PayableRoundingAmount>0</PayableRoundingAmount><PaidDepositsAmount>${n(paid)}</PaidDepositsAmount><PayableAmount>${n(base+vat-paid)}</PayableAmount></LegalMonetaryTotal>
+<PaymentMeans><Payment><PaidAmount>${n(base+vat)}</PaidAmount><PaymentMeansCode>${inv.payMethod==="cash"?10:42}</PaymentMeansCode>${inv.payMethod==="cash"?"":`<Details><PaymentDueDate>${x(inv.due)}</PaymentDueDate><ID>${x(String(sup.account?.number||"").split("/")[0])}</ID><BankCode>${x(String(sup.account?.number||"").split("/")[1]||"")}</BankCode><Name></Name><IBAN>${x(sup.account?.iban||"")}</IBAN><BIC>${x(sup.account?.swift||"")}</BIC><VariableSymbol>${x(inv.vs)}</VariableSymbol><ConstantSymbol></ConstantSymbol><SpecificSymbol></SpecificSymbol></Details>`}</Payment></PaymentMeans>
+</Invoice>`;
+}
+// header of a supplier's ISDOC for the received-documents list
+function isdocHead(xml){
+  const doc = new DOMParser().parseFromString(String(xml).replace(/^﻿/, ""), "application/xml"), root = doc.documentElement; if (!root || root.localName!=="Invoice") return null;
+  const kid = (el, n) => el && [...el.children].find(c => c.localName===n), path = (el, ...ns) => ns.reduce((e, n) => kid(e, n), el), txt = el => (el?.textContent||"").trim();
+  const sup = path(root, "AccountingSupplierParty", "Party"), pay = path(root, "PaymentMeans", "Payment", "Details"), tot = kid(root, "LegalMonetaryTotal");
+  const total = toN(txt(kid(tot, "PayableAmount"))) || toN(txt(kid(tot, "TaxInclusiveAmount")));
+  return {supplier:{name:txt(path(sup, "PartyName", "Name")), ico:txt(path(sup, "PartyIdentification", "ID")), dic:txt(path(sup, "PartyTaxScheme", "CompanyID"))}, number:txt(kid(root, "ID")),
+    vs:txt(kid(pay, "VariableSymbol")), issued:txt(kid(root, "IssueDate")), duzp:txt(kid(root, "TaxPointDate")), due:txt(kid(pay, "PaymentDueDate")), total:r2(total),
+    base:r2(toN(txt(kid(tot, "TaxExclusiveAmount")))), vat:r2(toN(txt(path(root, "TaxTotal", "TaxAmount"))))};
+}
+
+// ---- přijaté doklady ----
+async function accInFiles(list, receipt){
+  const files = [...(list||[])].filter(Boolean); if (!files.length) return;
+  if (!canEdit("accounting")){ toast("Na nahrávání dokladů nemáte oprávnění."); return; }
+  toast(`Nahrávám ${files.length} ${files.length===1?"soubor":files.length<5?"soubory":"souborů"}…`, 60000);
+  let ok = 0, parsed = 0, dup = 0, last = null;
+  for (const f of files){
+    if (f.size > 25e6){ toast(`${f.name}: soubor je větší než 25 MB.`); continue; }
+    try {
+      let h = null; if (/\.(pdf|isdoc|isdocx)$/i.test(f.name) || f.type==="application/pdf"){ try { const r = await readInvoiceFile(f); if (r.xml) h = isdocHead(r.xml); } catch(e){ console.warn(e); } }
+      if (h && h.number && S.acc_in.some(b => b.number===h.number && (b.supplier?.ico||"")===(h.supplier.ico||""))){ dup++; continue; }
+      let fid = ""; if (SV){ const fd = new FormData(); fd.append("file", f, f.name); fid = (await SV.api("/api/stinko/upload", {body:fd})).id; }
+      const isImg = /^image\//.test(f.type);
+      const rec = {id:uid(), kind:receipt || isImg ? "receipt" : "invoice", status:h ? "ok" : "todo", supplier:h?.supplier || {name:"", ico:"", dic:""}, number:h?.number||"", vs:h?.vs||"", issued:h?.issued||"", duzp:h?.duzp||"", due:h?.due||"",
+        total:h ? h.total : "", base:h?.base||"", vat:h?.vat||"", category:"", dealId:"", note:"", files:fid ? [{id:fid, name:f.name, type:f.type}] : [], paid:false, paidAt:"", paidHow:receipt || isImg ? "card" : "bank", at:Date.now(), by:me(), source:h ? "isdoc" : "upload"};
+      if (h){ const prev = S.acc_in.filter(b => b.supplier?.ico && b.supplier.ico===h.supplier.ico && b.category).pop(); if (prev) rec.category = prev.category; parsed++; }
+      if (await save("acc_in", rec)){ ok++; last = rec; }
+    } catch(e){ console.error(e); toast(`${f.name}: ${e.message||"nepodařilo se nahrát"}`); }
+  }
+  toast(`Nahráno ${ok}${parsed?`, z toho ${parsed} načteno z ISDOC automaticky`:""}${dup?`, ${dup} už v evidenci (přeskočeno)`:""}.`, 5000);
+  if (S.view==="accounting"){ S.sub = "prijate"; S.accF = {...(S.accF||{}), in:ok===parsed ? "all" : "todo"}; render(); }
+  if (ok===1 && last) openModal("accin", {id:last.id, ...JSON.parse(JSON.stringify(last))});
+}
+function accInModal(){
+  const m = S.modal.data, ed = canEdit("accounting"), vp = accVat(), c = accCfg(), s = m.supplier||{};
+  const deals = [...S.deals].sort((a,b) => String(b.code).localeCompare(String(a.code)));
+  const prevOf = S.acc_in.filter(b => b.id!==m.id && b.supplier?.name).map(b => b.supplier.name); const sups = [...new Set(prevOf)].sort((a,b) => a.localeCompare(b,"cs"));
+  const f0 = (m.files||[])[0], prev = f0 ? (/^image\//.test(f0.type||"") || /\.(jpe?g|png|webp|heic)$/i.test(f0.name) ? `<img src="${blobUrl(f0.id)}" alt="Doklad">` : /pdf/i.test(f0.type||f0.name) ? `<iframe src="${blobUrl(f0.id)}#view=FitH&toolbar=0" title="Náhled dokladu"></iframe>` : `<div class="empty">Náhled není k dispozici</div>`) : `<div class="empty"><strong>Bez souboru</strong>Doklad můžete přiložit níže.</div>`;
+  const fi = (id, label, v, extra="") => `<label class="f"><span>${label}</span><input id="${id}" value="${esc(v??"")}" ${extra}></label>`;
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Přijatý doklad"><form class="box accinbox" id="accinform"><div class="mh"><b style="font-size:17px">${m.kind==="receipt"?"Účtenka":"Přijatá faktura"}${s.name?" · "+esc(s.name):""}</b><button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="mb accin"><div class="accprev">${prev}${(m.files||[]).length?`<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">${m.files.map((f, i) => `<a class="link" href="${blobUrl(f.id)}" data-name="${esc(f.name)}">📎 ${esc(f.name)}</a>${ed?`<button type="button" class="btn sm ghost" data-act="acc-in-unfile" data-i="${i}" aria-label="Odebrat soubor">✕</button>`:""}`).join("")}</div>`:""}${ed?`<label class="btn sm" style="margin-top:6px">📎 Přiložit soubor<input type="file" id="acc-in-addfile" accept=".pdf,image/*,.isdoc,.isdocx" hidden></label>`:""}</div>
+  <div class="accform"><div class="seg" role="group" aria-label="Druh" style="justify-self:start"><button type="button" data-act="acc-in-kind" data-k="invoice" aria-pressed="${m.kind!=="receipt"}">Faktura</button><button type="button" data-act="acc-in-kind" data-k="receipt" aria-pressed="${m.kind==="receipt"}">Účtenka</button></div>
+  <div class="fgrid">${fi("ai-sname","Dodavatel *",s.name,'list="ai-sups" autocomplete="off"')}<datalist id="ai-sups">${sups.map(x => `<option value="${esc(x)}">`).join("")}</datalist><label class="f"><span>IČO</span><span class="row" style="gap:6px;flex-wrap:nowrap"><input id="ai-sico" value="${esc(s.ico||"")}" inputmode="numeric"><button type="button" class="btn sm" data-act="acc-ares" data-p="ai-s">ARES</button></span></label></div>
+  <div class="fgrid">${fi("ai-number", m.kind==="receipt"?"Číslo účtenky":"Číslo faktury", m.number)}${m.kind==="receipt"?"":fi("ai-vs","Variabilní symbol",m.vs,'inputmode="numeric"')}${fi("ai-sdic","DIČ dodavatele",s.dic)}</div>
+  <div class="fgrid"><label class="f"><span>Vystaveno *</span><input type="date" id="ai-issued" value="${esc(m.issued||"")}"></label>${vp?`<label class="f"><span>DUZP</span><input type="date" id="ai-duzp" value="${esc(m.duzp||"")}"></label>`:""}${m.kind==="receipt"?"":`<label class="f"><span>Splatnost</span><input type="date" id="ai-due" value="${esc(m.due||"")}"></label>`}${fi("ai-total","Částka celkem (Kč) *",m.total===""||m.total==null?"":String(m.total).replace(".",","),'inputmode="decimal"')}</div>
+  ${vp?`<div class="fgrid">${fi("ai-base","Základ daně (Kč)",m.base===""||m.base==null?"":String(m.base).replace(".",","),'inputmode="decimal"')}${fi("ai-vat","DPH (Kč)",m.vat===""||m.vat==null?"":String(m.vat).replace(".",","),'inputmode="decimal"')}</div>`:""}
+  <div class="fgrid"><label class="f"><span>Kategorie nákladu</span><select id="ai-cat"><option value="">–</option>${(c.categories||ACC_CATS).map(x => `<option ${x===m.category?"selected":""}>${esc(x)}</option>`).join("")}</select></label><label class="f"><span>Zakázka (obchodní případ)</span><select id="ai-deal"><option value="">–</option>${deals.map(d => `<option value="${d.id}" ${d.id===m.dealId?"selected":""}>${esc(d.code+" "+d.name)}</option>`).join("")}</select></label></div>
+  <div class="fgrid"><label class="c" style="align-self:end"><input type="checkbox" id="ai-paid" ${m.paid?"checked":""}> Zaplaceno</label><label class="f"><span>Datum platby</span><input type="date" id="ai-paidat" value="${esc(m.paidAt||"")}"></label><label class="f"><span>Jak</span><select id="ai-how">${Object.entries(PAY_HOW).map(([k,t]) => `<option value="${k}" ${k===m.paidHow?"selected":""}>${t}</option>`).join("")}</select></label></div>
+  <label class="f"><span>Poznámka</span><input id="ai-note" value="${esc(m.note||"")}"></label></div></div>
+  <div class="mf">${ed && !m._new ? `<button type="button" class="btn ghost bad" data-act="acc-in-del" data-id="${m.id}" style="margin-right:auto">Smazat</button>` : ""}<button type="button" class="btn ghost" data-act="close-modal">Zavřít</button>${ed?`<button class="btn blue up" type="submit">Uložit doklad</button>`:""}</div></form></div>`;
+}
+function readAccIn(){
+  const m = S.modal?.data; if (!m || S.modal.kind!=="accin") return m; const v = id => document.getElementById(id), val = id => v(id) ? v(id).value.trim() : undefined;
+  m.supplier = {name:val("ai-sname") ?? m.supplier?.name ?? "", ico:val("ai-sico") ?? m.supplier?.ico ?? "", dic:val("ai-sdic") ?? m.supplier?.dic ?? ""};
+  for (const [k, id] of [["number","ai-number"],["vs","ai-vs"],["issued","ai-issued"],["duzp","ai-duzp"],["due","ai-due"],["category","ai-cat"],["dealId","ai-deal"],["paidAt","ai-paidat"],["paidHow","ai-how"],["note","ai-note"]]){ const x = val(id); if (x!==undefined) m[k] = x; }
+  for (const [k, id] of [["total","ai-total"],["base","ai-base"],["vat","ai-vat"]]){ const x = val(id); if (x!==undefined) m[k] = x==="" ? "" : r2(toN(x)); }
+  if (v("ai-paid")) m.paid = v("ai-paid").checked; return m;
+}
+async function accInSubmit(){
+  const m = readAccIn(); if (!m) return;
+  if (!m.supplier.name){ toast("Vyplňte dodavatele."); return; } if (!m.issued){ toast("Vyplňte datum vystavení."); return; } if (m.total==="" || m.total==null){ toast("Vyplňte částku."); return; }
+  if (m.paid && !m.paidAt) m.paidAt = m.kind==="receipt" ? m.issued : today(); if (!m.paid) m.paidAt = "";
+  const {_new, _open, ...rec} = m; rec.status = "ok"; rec.duzp = rec.duzp || rec.issued; if (!rec.at){ rec.at = Date.now(); rec.by = me(); }
+  if (await save("acc_in", rec)){ closeModal(); toast("Doklad uložen");
+    if (S.accF?.in==="todo" && !S.acc_in.some(b => b.status==="todo" && b.id!==rec.id)) S.accF = {...S.accF, in:"all"}; render(); }
+}
+
+// ---- banka: výpis GPC (ABO) z Monety i ČSOB ----
+function parseGpc(text){
+  const out = {account:"", items:[]}, dt = s => /^\d{6}$/.test(s) ? `20${s.slice(4,6)}-${s.slice(2,4)}-${s.slice(0,2)}` : "";
+  const acct = s => { s = s.replace(/^0+/, ""); if (s.length > 10){ const p = s.slice(0, s.length-10).replace(/^0+/, ""), n = s.slice(-10).replace(/^0+/, ""); return p ? `${p}-${n}` : n; } return s; };
+  for (const raw of String(text).split(/\r?\n/)){
+    const l = raw.replace(/\s+$/, ""); if (l.length < 60) continue;
+    if (l.startsWith("074")){ out.account = acct(l.slice(3,19)); continue; }
+    if (!l.startsWith("075")) continue;
+    const code = l.slice(60,61), cents = Number(l.slice(48,60)) || 0, sign = code==="1" || code==="5" ? -1 : 1;
+    const cBank = l.slice(73,77).trim();
+    out.items.push({account:acct(l.slice(3,19)), counter:(acct(l.slice(19,35)) || "") + (cBank && cBank!=="0000" ? "/"+cBank : ""), txid:l.slice(35,48).trim(), amount:r2(sign*cents/100),
+      vs:l.slice(61,71).replace(/^0+/, ""), ks:l.slice(77,81).replace(/^0+/, ""), ss:l.slice(81,91).replace(/^0+/, ""), date:dt(l.slice(91,97)) || dt(l.slice(122,128)), name:l.slice(97,117).trim()});
+  }
+  return out;
+}
+async function accBankFile(file){
+  if (!file) return; if (!canEdit("accounting")){ toast("Na nahrání výpisu nemáte oprávnění."); return; }
+  const u8 = new Uint8Array(await file.arrayBuffer()); let text = new TextDecoder("utf-8", {fatal:false}).decode(u8); if (text.includes("�")) text = new TextDecoder("windows-1250").decode(u8);
+  const g = parseGpc(text); if (!g.items.length){ toast("Ve výpisu nejsou žádné pohyby. Stáhněte výpis ve formátu GPC (ABO)."); return; }
+  const our = (accCfg().accounts||[]).find(a => String(a.number).split("/")[0].replace(/^0+/,"")===g.account) || null;
+  let added = 0; const have = new Set(S.acc_bank.map(t => t.id));
+  for (const it of g.items){ const id = ("b_" + [g.account||it.account, it.date, it.txid, it.amount].join("_")).replace(/[^\w.-]/g, "_"); if (have.has(id)) continue;
+    const rec = {id, ...it, acct:our?.id||"", acctNumber:our?.number || g.account, match:null, importedAt:Date.now(), by:me(), file:file.name};
+    if (await save("acc_bank", rec)){ added++; have.add(id); } }
+  const n = await accAutoMatch();
+  toast(`Výpis načten: ${added} nových pohybů${g.items.length-added?`, ${g.items.length-added} už bylo nahráno dříve`:""}. Automaticky spárováno: ${n}.`, 6000);
+  if (S.view==="accounting"){ S.sub = "banka"; render(); }
+}
+const vsEq = (a, b) => a && b && String(a).replace(/^0+/,"")===String(b).replace(/^0+/,"");
+async function accAutoMatch(){
+  let n = 0;
+  for (const t of S.acc_bank.filter(t => !t.match)){
+    if (t.amount > 0){ const inv = S.acc_out.find(i => i.status!=="paid" && i.status!=="cancelled" && vsEq(i.vs, t.vs) && Math.abs(r2(i.total - paidSum(i)) - t.amount) < .01) || S.acc_out.find(i => i.status!=="paid" && i.status!=="cancelled" && vsEq(i.vs, t.vs));
+      if (inv){ await accPair(t, "acc_out", inv.id); n++; } }
+    else { const b = S.acc_in.find(x => !x.paid && x.status!=="todo" && vsEq(x.vs, t.vs) && Math.abs(toN(x.total) + t.amount) < .01); if (b){ await accPair(t, "acc_in", b.id); n++; } }
+  }
+  return n;
+}
+async function accPair(t, col, id){
+  if (col==="acc_out"){ await accPayOut(id, {date:t.date, amount:t.amount, how:"bank", bankId:t.id}); }
+  else if (col==="acc_in"){ const b = S.acc_in.find(x => x.id===id); if (b) await save("acc_in", {...b, paid:true, paidAt:t.date, paidHow:"bank", bankId:t.id}); }
+  await save("acc_bank", {...t, match:{col, id}});
+  S.acc_bank = S.acc_bank.map(x => x.id===t.id ? {...t, match:{col, id}} : x);
+}
+function accBankView(){
+  const f = S.accF?.bank || "open", accts = accCfg().accounts||[], ac = S.accBankAcct || "";
+  const rows = S.acc_bank.filter(t => !ac || t.acct===ac).filter(t => f==="all" ? true : f==="open" ? !t.match : f==="in" ? t.amount>0 : t.amount<0).filter(t => matchQ([t.vs, t.name, t.counter, String(t.amount)])).sort((a,b) => String(b.date).localeCompare(String(a.date)));
+  const chips = [["open","Nespárované"],["in","Příchozí"],["out","Odchozí"],["all","Vše"]].map(([k,t]) => `<button class="chip" data-act="acc-f" data-k="bank" data-f="${k}" aria-pressed="${f===k}">${t}</button>`).join("");
+  const asel = accts.length > 1 ? `<select id="acc-bacct" aria-label="Účet"><option value="">Všechny účty</option>${accts.map(a => `<option value="${a.id}" ${a.id===ac?"selected":""}>${esc(a.name)}</option>`).join("")}</select>` : "";
+  const doc = t => { if (!t.match) return ""; if (t.match.col==="none") return `<span class="muted">${esc(t.match.note||"bez dokladu")}</span>`; const r = t.match.col==="acc_out" ? accOut(t.match.id) : S.acc_in.find(x => x.id===t.match.id);
+    return r ? `<a class="link" data-act="${t.match.col==="acc_out"?"acc-out-open":"acc-in-open"}" data-id="${r.id}">${esc(t.match.col==="acc_out" ? r.number : (r.supplier?.name||"") + " " + (r.number||""))}</a>` : `<span class="muted">smazaný doklad</span>`; };
+  const ed = canEdit("accounting");
+  const imp = ed ? `<label class="btn blue">⤒ Nahrát výpis (GPC)<input type="file" id="acc-bank-file" accept=".gpc,.abo,.txt,.GPC" hidden></label>` : "";
+  const table = rows.length ? `<div class="grid"><table class="g acclist"><thead><tr><th>Datum</th><th class="num">Částka</th><th>VS</th><th>Protiúčet</th><th>Název / zpráva</th><th>Doklad</th><th></th></tr></thead><tbody>${rows.map(t => `<tr><td>${fmtD(t.date)}</td><td class="num"><b style="color:${t.amount<0?"var(--bad)":"var(--good)"}">${t.amount>0?"+":""}${czk(t.amount)}</b></td><td>${esc(t.vs)}</td><td>${esc(t.counter)}</td><td>${esc(t.name)}</td><td>${t.match?doc(t):pill(["Nespárováno","warn"])}</td><td style="text-align:right">${ed?(t.match?`<button class="btn sm ghost" data-act="acc-unpair" data-id="${t.id}" title="Zrušit spárování">✕</button>`:`<button class="btn sm" data-act="acc-pair" data-id="${t.id}">Spárovat</button>`):""}</td></tr>`).join("")}</tbody></table></div>`
+    : `<div class="card"><div class="empty"><strong>${S.acc_bank.length?"Vše spárováno 👍":"Zatím žádný výpis"}</strong>${S.acc_bank.length?"":"V internetovém bankovnictví Monety nebo ČSOB stáhněte výpis ve formátu <b>GPC (ABO)</b> a nahrajte ho sem. Platby se spárují s fakturami podle variabilního symbolu a částky."}</div></div>`;
+  return `<div class="lhead accl"><input id="q" class="lsearch" type="search" placeholder="Hledat VS, název, částku…" value="${esc(S.q)}" aria-label="Hledat">${chips}${asel}<span class="sp"></span>${ed&&S.acc_bank.some(t=>!t.match)?`<button class="btn" data-act="acc-automatch">↻ Spárovat znovu</button>`:""}${imp}</div>${table}`;
+}
+function accPairModal(){
+  const t = S.acc_bank.find(x => x.id===S.modal.data.id); if (!t) return "";
+  const inc = t.amount > 0, amt = Math.abs(t.amount);
+  const L = inc ? S.acc_out.filter(i => i.status!=="paid" && i.status!=="cancelled").map(i => ({col:"acc_out", id:i.id, t:`${i.number} · ${i.buyer?.name||""}`, a:r2(i.total - paidSum(i)), d:i.issued}))
+    : S.acc_in.filter(b => !b.paid).map(b => ({col:"acc_in", id:b.id, t:`${b.supplier?.name||"?"} ${b.number||""}`, a:toN(b.total), d:b.issued}));
+  L.sort((a,b) => Math.abs(a.a-amt) - Math.abs(b.a-amt));
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Spárovat platbu"><div class="box" style="width:min(560px,100%)"><div class="mh"><b style="font-size:17px">Spárovat platbu ${t.amount>0?"+":""}${czk(t.amount)}</b><button class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
+  <div class="mb"><p class="muted" style="margin:0">${fmtD(t.date)} · VS ${esc(t.vs||"–")} · ${esc(t.name||t.counter||"")}</p>
+  ${L.length ? `<div class="pairl">${L.slice(0,30).map(x => `<button class="pairit" data-act="acc-pair-pick" data-col="${x.col}" data-id="${x.id}" data-t="${t.id}"><span>${esc(x.t)}</span><small>${fmtD(x.d)}</small><b style="color:${Math.abs(x.a-amt)<.01?"var(--good)":"inherit"}">${czk(x.a)}</b></button>`).join("")}</div>` : `<p class="muted">Žádný ${inc?"neuhrazený vydaný":"nezaplacený přijatý"} doklad.</p>`}
+  <div class="row" style="gap:6px;flex-wrap:wrap"><span class="lbl" style="width:100%">Nebo bez dokladu</span>${(inc?["Vklad společníka","Převod mezi účty","Vrácení přeplatku"]:["Bankovní poplatek","Převod mezi účty","Mzdy","Daně a odvody","Výběr hotovosti"]).map(x => `<button class="chip" data-act="acc-pair-none" data-t="${t.id}" data-n="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>
+  <div class="mf"><button class="btn ghost" data-act="close-modal">Zavřít</button></div></div></div>`;
+}
+
+// ---- export pro účetní ----
+function accExportView(){
+  const from = S.accExpFrom || shiftMonth(today().slice(0,7), -1), to = S.accExpTo || from;
+  const inR = s => { const m = String(s||"").slice(0,7); return m >= from && m <= to; };
+  const out = S.acc_out.filter(i => inR(i.issued)), inn = S.acc_in.filter(b => b.status!=="todo" && inR(b.issued)), bank = S.acc_bank.filter(t => inR(t.date)), todo = S.acc_in.filter(b => b.status==="todo").length;
+  const files = inn.reduce((s, b) => s + (b.files||[]).length, 0);
+  return `<div class="card"><div class="ch"><span class="lbl">Podklady pro účetní</span></div><div class="cb" style="display:grid;gap:12px">
+  <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap"><label class="f"><span>Od měsíce</span><input type="month" id="acc-exp-from" value="${esc(from)}"></label><label class="f"><span>Do měsíce</span><input type="month" id="acc-exp-to" value="${esc(to)}"></label>
+  <div class="row" style="gap:6px">${[["Minulý měsíc",-1,-1],["Letos",0,"y"],["Loni","ly","ly"]].map(([t,a,b]) => `<button class="chip" data-act="acc-exp-preset" data-a="${a}" data-b="${b}">${t}</button>`).join("")}</div></div>
+  <div class="stiles">${[["vydaných faktur", out.length, out.reduce((s,i)=>s+(i.status==="cancelled"?0:toN(i.total)),0)],["přijatých dokladů", inn.length, inn.reduce((s,b)=>s+toN(b.total),0)],["pohybů na účtech", bank.length, null]].map(([t,n,v]) => `<div class="stile val"><b>${n}</b><span>${t}${v!=null?" · "+czk(v):""}</span></div>`).join("")}</div>
+  ${todo?`<div class="banner" style="margin:0">⚠ ${todo} ${todo===1?"doklad čeká":"doklady čekají"} na doplnění (záložka Přijaté doklady → Ke zpracování). Do exportu se dostanou, až je uložíte.</div>`:""}
+  <p class="muted" style="margin:0;font-size:13px">ZIP obsahuje: složku <b>Vydané faktury</b> (PDF + ISDOC), složku <b>Přijaté doklady</b> (originály souborů, ${files}), soubor <b>Přehled.xlsx</b> se seznamy faktur, dokladů a bankovních pohybů. Formát ISDOC načte Pohoda, Money, ABRA i další účetní programy.</p>
+  <div class="row" style="gap:8px"><button class="btn blue" data-act="acc-zip" ${S.accExpBusy?"disabled":""}>${S.accExpBusy?"Připravuji…":"⤓ Stáhnout ZIP pro účetní"}</button><button class="btn" data-act="acc-xlsx">⤓ Jen přehled v Excelu</button></div>
+  <p class="muted" style="margin:0;font-size:12.5px">Účetní může mít i vlastní přístup do CRM: Nastavení → Uživatelé a oprávnění → role <b>Účetní</b> (vidí jen Účetnictví).</p></div></div>`;
+}
+function accExpRange(){ const from = S.accExpFrom || shiftMonth(today().slice(0,7), -1), to = S.accExpTo || from; const inR = s => { const m = String(s||"").slice(0,7); return m >= from && m <= to; }; return {from, to, inR}; }
+async function accWorkbook(inR){
+  await loadScript(XLSX_JS); const X = window.XLSX, wb = X.utils.book_new();
+  const out = S.acc_out.filter(i => inR(i.issued)).sort((a,b) => String(a.number).localeCompare(String(b.number)));
+  X.utils.book_append_sheet(wb, X.utils.json_to_sheet(out.map(i => ({"Číslo":i.number, "Typ":OUT_KIND[i.kind], "Odběratel":i.buyer?.name||"", "IČO":i.buyer?.ico||"", "DIČ":i.buyer?.dic||"", "Vystaveno":i.issued, "DUZP":i.duzp||i.issued, "Splatnost":i.due, "VS":i.vs,
+    "Základ":r2((i.lines||[]).reduce((s,l)=>s+toN(l.qty)*toN(l.price),0)), "DPH":i.vatPayer ? r2(i.total - (i.lines||[]).reduce((s,l)=>s+toN(l.qty)*toN(l.price),0)) : 0, "Celkem":toN(i.total), "Uhrazeno":paidSum(i), "Datum úhrady":i.paidAt||"", "Stav":outState(i)[0], "Obchod":getDeal(i.dealId)?.code||""}))), "Vydané faktury");
+  const inn = S.acc_in.filter(b => b.status!=="todo" && inR(b.issued)).sort((a,b) => String(a.issued).localeCompare(String(b.issued)));
+  X.utils.book_append_sheet(wb, X.utils.json_to_sheet(inn.map((b, n) => ({"Pořadí":n+1, "Druh":b.kind==="receipt"?"Účtenka":"Faktura", "Dodavatel":b.supplier?.name||"", "IČO":b.supplier?.ico||"", "DIČ":b.supplier?.dic||"", "Číslo dokladu":b.number||"", "VS":b.vs||"", "Vystaveno":b.issued, "DUZP":b.duzp||b.issued, "Splatnost":b.due||"",
+    "Základ":b.base===""?"":toN(b.base), "DPH":b.vat===""?"":toN(b.vat), "Celkem":toN(b.total), "Kategorie":b.category||"", "Zakázka":getDeal(b.dealId)?.code||"", "Zaplaceno":b.paid?"ano":"ne", "Datum platby":b.paidAt||"", "Jak":PAY_HOW[b.paidHow]||"", "Soubor":(b.files||[]).map(f=>f.name).join(", "), "Poznámka":b.note||""}))), "Přijaté doklady");
+  const bank = S.acc_bank.filter(t => inR(t.date)).sort((a,b) => String(a.date).localeCompare(String(b.date)));
+  X.utils.book_append_sheet(wb, X.utils.json_to_sheet(bank.map(t => ({"Datum":t.date, "Účet":t.acctNumber||"", "Částka":t.amount, "VS":t.vs, "KS":t.ks, "SS":t.ss, "Protiúčet":t.counter, "Název":t.name,
+    "Doklad":t.match ? (t.match.col==="acc_out" ? accOut(t.match.id)?.number : t.match.col==="acc_in" ? (S.acc_in.find(x=>x.id===t.match.id)?.number||"přijatý doklad") : t.match.note) : "nespárováno"}))), "Banka");
+  return {X, wb, out, inn};
+}
+const safeName = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w.-]+/g,"_").replace(/_+/g,"_").slice(0,80);
+async function accZip(onlyXlsx){
+  const {from, to, inR} = accExpRange(), label = from===to ? from : `${from}_${to}`;
+  S.accExpBusy = true; render();
+  try {
+    const {X, wb, out, inn} = await accWorkbook(inR), xbytes = X.write(wb, {bookType:"xlsx", type:"array"});
+    if (onlyXlsx){ await saveFile(`Ucetnictvi-${label}.xlsx`, new Blob([xbytes], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})); toast("Přehled se stahuje"); return; }
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"); const zip = new window.JSZip(), fetchB = async id => { const r = await fetch(blobUrl(id)); if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); };
+    zip.file("Prehled.xlsx", xbytes); let miss = 0;
+    for (const i of out){ const base = `Vydane faktury/${safeName(i.number)}${i.status==="cancelled"?"_STORNO":""}`;
+      try { zip.file(base + ".pdf", i.pdfId ? await fetchB(i.pdfId) : await accPdf(i)); } catch(e){ miss++; }
+      if (i.status!=="cancelled") zip.file(`Vydane faktury/ISDOC/${safeName(i.number)}.isdoc`, accIsdoc(i)); }
+    for (const [n, b] of inn.entries()) for (const [k, f] of (b.files||[]).entries()){ const ext = (f.name.match(/\.[a-z0-9]+$/i)||[""])[0];
+      try { zip.file(`Prijate doklady/${String(n+1).padStart(3,"0")}_${b.issued}_${safeName(b.supplier?.name)}_${safeName(b.number)}${k?"_"+(k+1):""}${ext}`, await fetchB(f.id)); } catch(e){ miss++; } }
+    const blob = await zip.generateAsync({type:"blob"}); await saveFile(`Ucetnictvi-Prima-Shade-${label}.zip`, blob);
+    toast(miss ? `ZIP se stahuje, ${miss} souborů se nepodařilo přidat.` : "ZIP pro účetní se stahuje");
+  } catch(e){ console.error(e); toast("Export se nepodařil: " + (e.message||e)); }
+  finally { S.accExpBusy = false; render(); }
+}
+
+// ---- nastavení účetnictví ----
+function accSettingsView(){
+  if (S.accDraft && $("#accsetform")) readAccSet(); // keep what was typed when something else re-renders the page
+  if (SV && !MAIL.boxes && !S.accBoxesAsked){ S.accBoxesAsked = true; after.push(() => mailLoadBoxes().then(() => S.view==="accounting" && S.sub==="nastaveni" && render()).catch(() => {})); }
+  const c = S.accDraft || (S.accDraft = JSON.parse(JSON.stringify(accCfg()))), co = c.company || (c.company = {});
+  const fi = (id, label, v, extra="") => `<label class="f"><span>${label}</span><input id="${id}" value="${esc(v??"")}" ${extra}></label>`;
+  const y = today().slice(0,4), nx = p => { const pre = (p||"") + y, n = Math.max(0, ...S.acc_out.filter(x => String(x.number).startsWith(pre)).map(x => Number(String(x.number).slice(pre.length))||0)) + 1; return pre + String(n).padStart(3,"0"); };
+  return `<form id="accsetform" class="accset">
+  <div class="card"><div class="ch"><span class="lbl">Údaje firmy (dodavatel na fakturách)</span></div><div class="cb" style="display:grid;gap:10px">
+  <div class="fgrid">${fi("as-name","Název firmy *",co.name)}<label class="f"><span>IČO</span><span class="row" style="gap:6px;flex-wrap:nowrap"><input id="as-ico" value="${esc(co.ico||"")}" inputmode="numeric"><button type="button" class="btn sm" data-act="acc-ares" data-p="as-">Načíst z ARES</button></span></label>${fi("as-dic","DIČ",co.dic)}</div>
+  <div class="fgrid">${fi("as-street","Ulice a číslo",co.street)}${fi("as-city","Město",co.city)}${fi("as-zip","PSČ",co.zip)}</div>
+  ${fi("as-register","Zápis v obchodním rejstříku",co.register,'placeholder="Společnost zapsaná v OR vedeném Krajským soudem v …, oddíl C, vložka …"')}
+  <div class="fgrid">${fi("as-email","E-mail",co.email)}${fi("as-phone","Telefon",co.phone)}${fi("as-web","Web",co.web)}</div></div></div>
+  <div class="card"><div class="ch"><span class="lbl">Bankovní účty</span><button type="button" class="btn sm" data-act="acc-acct-add">+ Přidat účet</button></div><div class="cb">
+  ${(c.accounts||[]).length ? `<table class="lines" style="min-width:0"><thead><tr><th>Název</th><th>Číslo účtu</th><th>IBAN (doplní se sám)</th><th>Výchozí</th><th></th></tr></thead><tbody>${c.accounts.map((a, i) => `<tr data-i="${i}"><td><input class="as-aname" value="${esc(a.name)}" placeholder="Moneta"></td><td><input class="as-anum" value="${esc(a.number)}" placeholder="123456789/0600"></td><td class="muted" style="font-size:12.5px">${esc(ibanFmt(acctIban(a))) || "–"}</td><td><input type="radio" name="as-adef" value="${i}" ${a.default?"checked":""} aria-label="Výchozí účet"></td><td><button type="button" class="btn sm ghost" data-act="acc-acct-del" data-i="${i}" aria-label="Odebrat účet">✕</button></td></tr>`).join("")}</tbody></table>` : `<p class="muted" style="margin:0">Přidejte účet u Monety a ČSOB. Na faktuře půjde vybrat, na který má zákazník platit.</p>`}
+  <p class="muted" style="margin:6px 0 0;font-size:12px">Kódy bank: Moneta 0600, ČSOB 0300.</p></div></div>
+  <div class="card"><div class="ch"><span class="lbl">Faktury</span></div><div class="cb" style="display:grid;gap:10px">
+  <div class="fgrid">${fi("as-pinv","Předpona faktur",c.prefixInvoice)}${fi("as-pdep","Předpona zálohových faktur",c.prefixDeposit)}${fi("as-due","Splatnost faktur (dní)",c.dueDays,'inputmode="numeric"')}${fi("as-ddue","Splatnost záloh (dní)",c.dueDepositDays,'inputmode="numeric"')}</div>
+  <p class="muted" style="margin:0;font-size:12.5px">Příští čísla: faktura <b>${esc(nx(c.prefixInvoice))}</b> (VS ${esc(nx(c.prefixInvoice).replace(/\D/g,""))}), záloha <b>${esc(nx(c.prefixDeposit))}</b> (VS 1${esc(nx(c.prefixDeposit).replace(/\D/g,""))}). Variabilní symbol se tvoří z čísla faktury, u záloh s jedničkou na začátku, aby se nikdy neshodoval.</p>
+  ${fi("as-footer","Patička faktury (nepovinné)",c.footer)}
+  <label class="f"><span>Schránka pro e-maily s fakturami</span><select id="as-box"><option value="">Automaticky (společná schránka)</option>${(MAIL.boxes||[]).map(b => `<option value="${esc(b.id)}" ${b.id===c.mailBox?"selected":""}>${esc(b.name||b.email)} · ${esc(b.email)}</option>`).join("")}</select></label></div></div>
+  <div class="card"><div class="ch"><span class="lbl">DPH</span></div><div class="cb" style="display:grid;gap:10px">
+  <label class="c"><input type="checkbox" id="as-vat" ${c.vatPayer?"checked":""}> Firma je plátce DPH</label>
+  ${c.vatPayer?`<div class="fgrid"><label class="f"><span>Plátcem od</span><input type="date" id="as-vatfrom" value="${esc(c.vatFrom||"")}"></label><label class="f"><span>Zdaňovací období</span><select id="as-vatper"><option value="month" ${c.vatPeriod!=="quarter"?"selected":""}>Měsíc</option><option value="quarter" ${c.vatPeriod==="quarter"?"selected":""}>Čtvrtletí</option></select></label></div><p class="muted" style="margin:0;font-size:12.5px">Od tohoto data budou nové faktury s DPH (21 %, 12 %, 0 %), s DUZP a jako daňový doklad.</p>`:`<p class="muted" style="margin:0;font-size:12.5px">Faktury se vystavují bez DPH s textem „Není plátce DPH“. Až se stanete plátcem, zaškrtněte a vyplňte datum.</p>`}</div></div>
+  <div class="card"><div class="ch"><span class="lbl">Kategorie nákladů</span></div><div class="cb"><label class="f"><span>Jedna kategorie na řádek</span><textarea id="as-cats" rows="8">${esc((c.categories||ACC_CATS).join("\n"))}</textarea></label></div></div>
+  <div class="row" style="justify-content:flex-end;gap:8px"><button type="button" class="btn ghost" data-act="acc-cfg-reset">Zahodit změny</button><button class="btn blue up" type="submit">Uložit nastavení</button></div></form>`;
+}
+function readAccSet(){
+  const c = S.accDraft; if (!c || !$("#accsetform")) return c; const v = id => document.getElementById(id), val = id => v(id) ? v(id).value.trim() : undefined;
+  const co = c.company || (c.company = {}); for (const k of ["name","ico","dic","street","city","zip","register","email","phone","web"]){ const x = val("as-"+k); if (x!==undefined) co[k] = x; }
+  c.prefixInvoice = val("as-pinv") ?? c.prefixInvoice; c.prefixDeposit = val("as-pdep") ?? c.prefixDeposit; c.dueDays = Number(val("as-due")) || 14; c.dueDepositDays = Number(val("as-ddue")) || 7; c.footer = val("as-footer") ?? c.footer; c.mailBox = val("as-box") ?? c.mailBox;
+  if (v("as-vat")) c.vatPayer = v("as-vat").checked; c.vatFrom = val("as-vatfrom") ?? c.vatFrom ?? ""; c.vatPeriod = val("as-vatper") ?? c.vatPeriod;
+  if (v("as-cats")) c.categories = v("as-cats").value.split("\n").map(s => s.trim()).filter(Boolean);
+  const def = document.querySelector('input[name="as-adef"]:checked');
+  document.querySelectorAll("#accsetform tr[data-i]").forEach(tr => { const a = c.accounts[Number(tr.dataset.i)]; if (!a) return; a.name = tr.querySelector(".as-aname").value.trim(); a.number = tr.querySelector(".as-anum").value.replace(/\s/g,""); a.iban = czIban(a.number); a.default = def ? def.value===tr.dataset.i : false; });
+  return c;
+}
+async function accSetSubmit(){
+  const c = readAccSet(); if (!c) return; if (!c.company.name){ toast("Vyplňte název firmy."); return; }
+  for (const a of c.accounts||[]) if (a.number && !czIban(a.number)){ toast(`Číslo účtu „${a.number}“ není ve tvaru 123456789/0600.`); return; }
+  if ((c.accounts||[]).length && !c.accounts.some(a => a.default)) c.accounts[0].default = true;
+  if (await save("acc_cfg", {...c, id:"main"})){
+    if (C().invoicing!=="crm") await save("config", {...C(), id:"main", invoicing:"crm"});
+    S.accDraft = null; toast("Nastavení účetnictví uloženo"); render(); }
+}
+async function accAres(p){
+  const ico = ($("#"+p+"ico")?.value || "").replace(/\D/g,""); if (!ico){ toast("Nejdřív vyplňte IČO."); return; }
+  if (!SV){ toast("ARES funguje jen na serveru CRM."); return; }
+  try { const r = await SV.api("/api/stinko/acc/ares?ico=" + ico, {method:"GET"}); const set = (k, v) => { const el = document.getElementById(p+k); if (el && v) el.value = v; };
+    set("name", r.name); set("dic", r.dic); set("street", r.street); set("city", r.city); set("zip", r.zip); set("ico", r.ico);
+    if (S.modal?.kind==="accedit") readAccEd(); else if (S.modal?.kind==="accin") readAccIn(); else readAccSet(); toast("Doplněno z ARES: " + r.name);
+  } catch(e){ toast(e.message || "ARES teď neodpovídá."); }
+}
+
+// ---- akce ----
+async function accAct(act, a){
+  const id = a.dataset.id, ed = canEdit("accounting");
+  const need = () => { if (!ed){ toast("Na tuto akci nemáte oprávnění."); return false; } return true; };
+  switch (act){
+    case "acc-goto": S.sub = a.dataset.t; const f = a.dataset.f; if (f==="month"){ if (a.dataset.t==="vydane") S.accOutM = accMonth(); else S.accInM = accMonth(); S.accF = {...(S.accF||{}), [a.dataset.t==="vydane"?"out":"in"]:"all"}; } else S.accF = {...(S.accF||{}), [a.dataset.t==="vydane"?"out":"in"]:f}; render(); break;
+    case "acc-f": S.accF = {...(S.accF||{}), [a.dataset.k]:a.dataset.f}; render(); break;
+    case "acc-setm": S.accMonth = a.dataset.m; render(); break;
+    case "acc-mshift": { const k = a.dataset.k, cur = k==="acc-month" ? accMonth() : k==="acc-outm" ? (S.accOutM || today().slice(0,7)) : (S.accInM || today().slice(0,7)), nv = shiftMonth(cur, Number(a.dataset.n)); if (k==="acc-month") S.accMonth = nv; else if (k==="acc-outm") S.accOutM = nv; else S.accInM = nv; render(); break; }
+    case "acc-mall": if (a.dataset.k==="acc-outm") S.accOutM = ""; else S.accInM = ""; render(); break;
+    case "acc-out-new": if (!need()) break; openModal("accedit", accNewOut()); break;
+    case "acc-out-open": openModal("accout", {id}); break;
+    case "acc-in-open": { const b = S.acc_in.find(x => x.id===id); if (b) openModal("accin", JSON.parse(JSON.stringify(b))); break; }
+    case "acc-open-deal": closeModal(); go("deal", id); break;
+    case "acc-out-edit": { if (!need()) break; const i = accOut(id); openModal("accedit", {...JSON.parse(JSON.stringify(i)), _new:false, mail:false}); break; }
+    case "acc-out-copy": { if (!need()) break; const i = accOut(id); openModal("accedit", accNewOut({kind:i.kind, clientId:i.clientId, dealId:i.dealId, buyer:{...i.buyer}, lines:JSON.parse(JSON.stringify(i.lines)), note:i.note, account:i.account, payMethod:i.payMethod})); break; }
+    case "acc-out-pdf": { const i = accOut(id); if (!i) break; if (i.pdfId) return pdfPreview(blobUrl(i.pdfId), i.pdfName || "faktura.pdf");
+      try { if (ed && SV){ await accFinish(id, false); const j = accOut(id); return pdfPreview(blobUrl(j.pdfId), j.pdfName); } const bytes = await accPdf(i); await saveFile(`${i.number}.pdf`, new Blob([bytes], {type:"application/pdf"})); } catch(e){ console.error(e); toast("PDF se nepodařilo vytvořit: " + (e.message||e)); } break; }
+    case "acc-out-mail": { if (!need()) break; const i = accOut(id); try { const r = await accFinish(id, true); toast(r.mailError ? "E-mail se nepřipravil: " + r.mailError : "E-mail s fakturou čeká v Poště → Koncepty."); } catch(e){ toast(e.message); } break; }
+    case "acc-out-pay": { if (!need()) break; const amt = r2(toN($("#ao-pamt")?.value)); if (amt <= 0){ toast("Zadejte částku."); break; }
+      try { await accPayOut(id, {date:$("#ao-pdate")?.value || today(), amount:amt, how:$("#ao-phow")?.value || "bank"}); toast("Úhrada zapsána"); S.modal.data.pamt = undefined; } catch(e){ toast(e.message); } break; }
+    case "acc-out-unpay": if (!need()) break; if (!confirm("Zrušit zapsané úhrady této faktury?")) break; try { await accPayOut(id, {undo:true}); for (const t of S.acc_bank.filter(t => t.match?.id===id)) await save("acc_bank", {...t, match:null}); toast("Úhrada zrušena"); } catch(e){ toast(e.message); } break;
+    case "acc-out-storno": if (!need()) break; if (!confirm("Stornovat fakturu? Číslo zůstane v řadě, faktura se označí jako stornovaná.")) break;
+      try { if (SV) await SV.api("/api/stinko/acc/storno", {body:{id}}); else await save("acc_out", {...accOut(id), status:"cancelled"}); toast("Faktura stornována"); } catch(e){ toast(e.message); } break;
+    case "acc-ed-kind": { const m = readAccEd(); m.kind = a.dataset.k; m.due = addDays(m.issued||today(), m.kind==="deposit" ? accCfg().dueDepositDays : accCfg().dueDays); S._forceModal = true; renderOverlay(); break; }
+    case "acc-ed-add": { const m = readAccEd(); m.lines.push({name:"", qty:1, unit:"ks", price:"", vat:21}); S._forceModal = true; renderOverlay(); document.querySelector("#acceditform tr[data-i]:last-child .ae-name")?.focus(); break; }
+    case "acc-ed-del": { const m = readAccEd(); m.lines.splice(Number(a.dataset.i), 1); if (!m.lines.length) m.lines.push({name:"", qty:1, unit:"ks", price:"", vat:21}); S._forceModal = true; renderOverlay(); break; }
+    case "acc-ares": await accAres(a.dataset.p); break;
+    case "acc-in-kind": { const m = readAccIn(); m.kind = a.dataset.k; if (m.kind==="receipt" && !m.paid){ m.paid = true; m.paidHow = "card"; } S._forceModal = true; renderOverlay(); break; }
+    case "acc-in-unfile": { const m = readAccIn(); m.files.splice(Number(a.dataset.i), 1); S._forceModal = true; renderOverlay(); break; }
+    case "acc-in-del": if (!need()) break; if (!confirm("Smazat tento doklad z evidence?")) break; await store.del("acc_in", id).catch(e => toast(e.message)); S.acc_in = S.acc_in.filter(x => x.id!==id); closeModal(); render(); break;
+    case "acc-pair": if (!need()) break; openModal("accpair", {id}); break;
+    case "acc-pair-pick": { if (!need()) break; const t = S.acc_bank.find(x => x.id===a.dataset.t); try { await accPair(t, a.dataset.col, id); closeModal(); toast("Spárováno"); render(); } catch(e){ toast(e.message); } break; }
+    case "acc-pair-none": { if (!need()) break; const t = S.acc_bank.find(x => x.id===a.dataset.t); await save("acc_bank", {...t, match:{col:"none", note:a.dataset.n}}); closeModal(); render(); break; }
+    case "acc-unpair": { if (!need()) break; const t = S.acc_bank.find(x => x.id===id); if (!t?.match) break; if (!confirm("Zrušit spárování? U faktury se smaže i zapsaná úhrada z této platby.")) break;
+      if (t.match.col==="acc_in"){ const b = S.acc_in.find(x => x.id===t.match.id); if (b && b.bankId===t.id) await save("acc_in", {...b, paid:false, paidAt:"", bankId:""}); }
+      if (t.match.col==="acc_out"){ const i = accOut(t.match.id); if (i){ const rest = (i.payments||[]).filter(p => p.bankId!==t.id); await accPayOut(i.id, {undo:true}); for (const p of rest) await accPayOut(i.id, p); } }
+      await save("acc_bank", {...t, match:null}); render(); break; }
+    case "acc-automatch": { const n = await accAutoMatch(); toast(n ? `Spárováno ${n} plateb` : "Nic dalšího se nepodařilo spárovat automaticky."); render(); break; }
+    case "acc-exp-preset": { const y = today().slice(0,4), m = today().slice(0,7);
+      if (a.dataset.a==="-1"){ S.accExpFrom = S.accExpTo = shiftMonth(m, -1); } else if (a.dataset.a==="0"){ S.accExpFrom = y+"-01"; S.accExpTo = m; } else { S.accExpFrom = (Number(y)-1)+"-01"; S.accExpTo = (Number(y)-1)+"-12"; } render(); break; }
+    case "acc-zip": await accZip(false); break;
+    case "acc-xlsx": await accZip(true); break;
+    case "acc-acct-add": { const c = readAccSet(); c.accounts = [...(c.accounts||[]), {id:uid(), name:"", number:"", default:!(c.accounts||[]).length}]; render(); break; }
+    case "acc-acct-del": { const c = readAccSet(); c.accounts.splice(Number(a.dataset.i), 1); render(); break; }
+    case "acc-cfg-reset": S.accDraft = null; render(); break;
+  }
+}
+// from a deal (the "🧾 Vystavit fakturu" dialog), when invoicing runs in CRM
+async function accFromDeal(m){
+  const d = getDeal(m.dealId), c = invCalc(m), cl = getClient(d.clientId), cf = accCfg();
+  if (!cf.company?.name){ toast("Nejdřív vyplňte údaje firmy v Účetnictví → Nastavení."); return; }
+  const vp = accVat(), lines = c.lines.map(l => ({name:l.name, qty:l.qty, unit:l.unit||"ks", price:r2(l.price), vat:vp ? toN(l.vat) : 0}));
+  const kind = m.kind==="deposit" ? "deposit" : "invoice", id = uid();
+  const inv = {kind, clientId:d.clientId, dealId:d.id, buyer:buyerOf(cl), issued:today(), duzp:today(), due:addDays(today(), Number(m.due) || (kind==="deposit" ? cf.dueDepositDays : cf.dueDays)), account:accAcct("")?.id||"", payMethod:"bank",
+    lines, vatPayer:vp, total:invTotal(lines, vp), note:(m.note||"").trim(), label:c.label, deducts:m.kind==="final" ? m.deduct : [], supplier:accSupplier("")};
+  m.busy = true; S._forceModal = true; renderOverlay();
+  try { await accIssue(id, inv); } catch(e){ console.error(e); m.busy = false; S._forceModal = true; renderOverlay(); toast(e.message || "Fakturu se nepodařilo vystavit."); return; }
+  closeModal(); await accAfterIssue(id, `${OUT_KIND[kind]} ${accOut(id)?.number||""} vystavena.`, true, m.tplId);
+}
+
 // Sklad → "📄 Naskladnit z faktury": reads the supplier's e-invoice (ISDOC – the Czech standard most accounting programs export:
 // a .isdoc file, a zipped .isdocx, or one embedded in the invoice PDF) right here in the browser, or the lines are typed in by hand.
 // The lines are then paired with products, checked, and stocked with the invoice file linked from each stock movement.
@@ -2403,7 +3040,7 @@ function vDeal(){
     <div class="dtop"><div style="min-width:0"><span class="lbl">Obchodní případ</span> <span class="mono muted">${esc(d.code)}</span><div class="dtitle">${esc(d.name)}</div></div>
       <div class="row" style="gap:18px;align-items:center"><div class="price"><span class="lbl">Konečná cena</span><div class="v">${money(d.value)}</div></div>
         <div class="row" style="gap:8px"><div class="price"><span class="lbl">Pravděpodobnost výhry</span><div class="v" style="font-size:20px">${pr} %</div></div><svg class="prob" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="19" fill="none" stroke="var(--line)" stroke-width="5"/><circle cx="23" cy="23" r="19" fill="none" stroke="var(--good)" stroke-width="5" stroke-dasharray="${circ*pr/100} ${circ}" transform="rotate(-90 23 23)"/></svg></div>
-        ${fakOn() && canEdit("deals") ? `<button class="btn blue" data-act="inv-new" data-id="${d.id}">🧾 Vystavit fakturu</button>` : ""}
+        ${(crmInv() ? canEdit("accounting") : fakOn() && canEdit("deals")) ? `<button class="btn blue" data-act="inv-new" data-id="${d.id}">🧾 Vystavit fakturu</button>` : ""}
         <span class="pluswrap"><button class="plus" data-act="deal-plus" aria-label="Přidat aktivitu" title="Přidat aktivitu">+</button>${S.dealplus?dealPlusMenu(d):""}</span>
         <span class="row">${cf==="del"?`<span class="confirm">Smazat obchod?<button class="btn sm badfill" data-act="del-deal" data-id="${d.id}">Ano</button><button class="btn sm" data-act="no">Ne</button></span>`:`<button class="btn sm ghost" data-act="ask" data-what="del" aria-label="Smazat">🗑</button>`}</span></div></div>
     <div class="phasebar"><b class="stavlbl">Stav:</b><button class="btn sm ghost" data-act="phase-hist" data-id="${d.id}" title="Průběh obchodního případu – kolik dní v kterém stavu" aria-label="Průběh obchodního případu">⏱</button><button class="btn sm ghost" data-act="edit-states" data-kind="deal" title="Upravit, přidat a seřadit stavy" aria-label="Upravit stavy">✎</button><div class="phasebtn"><select id="phase-select" style="background:${gColor(p.group)}" aria-label="Fáze obchodu">${phaseOpts(d.phaseId)}<option disabled>──────────</option><option value="__edit">✎ Upravit stavy…</option></select></div>
@@ -2829,6 +3466,10 @@ function modalHtml(){
   if (md.kind === "newse") return newsEditModal();
   if (md.kind === "newsall") return newsAllModal();
   if (md.kind === "inv") return invModal();
+  if (md.kind === "accout") return accOutModal();
+  if (md.kind === "accedit") return accEditModal();
+  if (md.kind === "accin") return accInModal();
+  if (md.kind === "accpair") return accPairModal();
   if (md.kind === "stockinv") return stockInvModal();
   if (md.kind === "mail") return mailModal();
   if (md.kind === "mailc") return mailComposeModal();
@@ -2913,13 +3554,13 @@ function modalHtml(){
   return `<div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title||"Obchodní případ")}"><form class="box" id="modalform"><div class="mh">${big || `<b style="font-size:17px">${esc(title)}</b>`}<button type="button" class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div><div class="mb">${body}</div>
   <div class="mf">${md.kind==="act" && r._cal ? `<button type="button" class="btn" data-act="cal-full" data-v="activity" data-id="${r.id}" style="margin-right:auto">Otevřít celý detail</button>${r.status==="planned"?`<button type="button" class="btn good" data-act="cal-done" data-id="${r.id}">✓ Realizováno</button>`:""}` : ""}<button type="button" class="btn ghost" data-act="close-modal">Zrušit</button>${md.kind==="deal"||md.kind==="client"||md.kind==="lead"||md.kind==="offer"?`<button class="btn good up" type="submit" data-open="1">Uložit & otevřít</button>`:""}<button class="btn blue up" type="submit">Uložit</button></div></form></div>`;
 }
-function newMenuHtml(){ const b = (act, sec, t) => canEdit(sec) ? `<button data-act="${act}" role="menuitem">${t}</button>` : ""; const acts = canEdit("activities") ? `<hr>${Object.entries(ACT).map(([k,[t]])=>`<button data-act="newact-${k}" role="menuitem">${t}</button>`).join("")}` : ""; return `<div class="newmenu" role="menu">${b("new-client","clients","Klient")}${b("new-lead","leads","Lead")}${b("new-deal","deals","Obchodní případ")}${b("new-offer","offers","Nabídka")}${b("new-product","pricelist","Produkt do ceníku")}${acts}</div>`; }
+function newMenuHtml(){ const b = (act, sec, t) => canEdit(sec) ? `<button data-act="${act}" role="menuitem">${t}</button>` : ""; const acts = canEdit("activities") ? `<hr>${Object.entries(ACT).map(([k,[t]])=>`<button data-act="newact-${k}" role="menuitem">${t}</button>`).join("")}` : ""; return `<div class="newmenu" role="menu">${b("new-client","clients","Klient")}${b("new-lead","leads","Lead")}${b("new-deal","deals","Obchodní případ")}${b("new-offer","offers","Nabídka")}${b("new-product","pricelist","Produkt do ceníku")}${b("acc-out-new","accounting","Faktura")}${acts}</div>`; }
 function renderOverlay(){
   let h = ""; if (S.newmenu) h += newMenuHtml(); h += modalHtml();
   if (S.light) h += `<div class="lightbox" data-act="close-light"><img src="${blobUrl(S.light)}" alt="Náhled fotky"><button class="btn" data-act="close-light">Zavřít ✕</button></div>`;
   const o = $("#overlay"); const keep = o.querySelector(".modal") && S.modal && S.modal._open; if (keep && !S._forceModal) { if (!S.newmenu && o.querySelector(".newmenu")) o.querySelector(".newmenu").remove(); return; }
   o.innerHTML = h; S._forceModal = false; if (S.modal){ const first = !S.modal._open; S.modal._open = true; if (S.modal.kind==="sign" || S.modal.kind==="isign") initSigPad(); if (first && S.modal.kind==="mailc"){ const t = o.querySelector(S.modal.data.to ? "#mc-text" : "#mc-to"); { const d = readCompose(); if (d) d._init = composeSig(d); } if (t){ t.focus(); if (t.id==="mc-text"){ const r = document.createRange(); r.setStart(t, 0); r.collapse(true); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } } }
-  if (first && !["cols","filter","states","acc","isign","auto","notifs","mail","phist","mailc","mbox","sigs"].includes(S.modal.kind)){ const f = o.querySelector("input:not([type=hidden]),select,textarea"); f && f.focus(); } }
+  if (first && !["cols","filter","states","acc","isign","auto","notifs","mail","phist","mailc","mbox","sigs","accout","accpair","accin"].includes(S.modal.kind)){ const f = o.querySelector("input:not([type=hidden]),select,textarea"); f && f.focus(); } }
 }
 const openModal = (kind, data) => { S.modal = {kind, data}; S.newmenu = false; S._forceModal = true; renderOverlay(); };
 const closeModal = () => { if (S.modal?.kind==="order") S.orderPdf = null;
@@ -2990,6 +3631,9 @@ async function pdfPreview(href, name){
     }
   } catch(err){ console.error(err); if (alive) box.innerHTML = `<div class="empty"><strong>Náhled se nepodařilo zobrazit</strong>${blob ? "PDF si můžete stáhnout tlačítkem nahoře." : "Soubor se nenačetl."}</div>`; }
 }
+["dragenter","dragover"].forEach(ev => document.addEventListener(ev, e => { const z = e.target.closest?.("#accdrop"); if (!z) return; e.preventDefault(); z.classList.add("over"); }));
+document.addEventListener("dragleave", e => { const z = e.target.closest?.("#accdrop"); if (z && !z.contains(e.relatedTarget)) z.classList.remove("over"); });
+document.addEventListener("drop", e => { const z = e.target.closest?.("#accdrop"); if (!z) return; e.preventDefault(); z.classList.remove("over"); accInFiles(e.dataTransfer?.files); });
 document.addEventListener("click", async e => {
   const a = e.target.closest && e.target.closest('a[href^="/_blob/"]'); if (!a) return;
   e.preventDefault(); e.stopPropagation();
@@ -3015,6 +3659,7 @@ document.addEventListener("click", async e => {
   e.stopPropagation();
   if ((ADMIN_DEL.includes(act) || (act==="ask" && a.dataset.what==="del")) && !isAdmin()){ toast("Mazat záznamy může jen admin."); return; }
   { const need = actSection(act, a); if (need && !canEdit(need)){ toast("Na tuto akci nemáte oprávnění."); return; } }
+  if (act.startsWith("acc-")){ await accAct(act, a); return; }
   const D = () => getDeal(S.param);
   switch (act){
     case "noop": break;
@@ -3277,10 +3922,32 @@ document.addEventListener("input", e => {
   if (t.id==="mailq"){ MAIL.q = t.value; clearTimeout(MAIL.qT); MAIL.qT = setTimeout(async () => { await mailLoadList(); if (S.view==="mail"){ const pos = $("#mailq")?.selectionStart; render(); const q = $("#mailq"); if (q && document.activeElement!==q){ q.focus(); if (pos!=null) q.setSelectionRange(pos,pos); } } }, 300); }
   if (t.id==="d-prob"){ $("#probv").textContent = t.value + " %"; }
   if (t.id==="quicknote"){ ls.set("stinko-note", t.value); }
+  if (t.closest?.("#acceditform") && t.matches(".ae-qty,.ae-price,.ae-name")) accEdRefresh();
+  if (t.classList?.contains("as-anum")){ const c = t.closest("tr")?.children[2]; if (c) c.textContent = ibanFmt(czIban(t.value)) || "–"; }
 });
 document.addEventListener("change", async e => {
   const t = e.target;
   if (t.id==="stock-cat"){ S.filter = t.value; S.page = 0; render(); return; }
+  if (t.id==="acc-in-file" || t.id==="acc-in-file2" || t.id==="acc-in-cam"){ const fs = [...t.files]; t.value = ""; accInFiles(fs, t.id==="acc-in-cam"); return; }
+  if (t.id==="acc-bank-file"){ const f0 = t.files?.[0]; t.value = ""; accBankFile(f0); return; }
+  if (t.id==="acc-in-addfile"){ const f0 = t.files?.[0]; t.value = ""; const m = readAccIn(); if (!m || !f0 || !SV) return;
+    try { const fd = new FormData(); fd.append("file", f0, f0.name); const fid = (await SV.api("/api/stinko/upload", {body:fd})).id; m.files = [...(m.files||[]), {id:fid, name:f0.name, type:f0.type}];
+      try { const r = await readInvoiceFile(f0), h = r.xml && isdocHead(r.xml); if (h){ Object.assign(m, {number:m.number||h.number, vs:m.vs||h.vs, issued:m.issued||h.issued, due:m.due||h.due, total:m.total===""?h.total:m.total}); if (!m.supplier?.name) m.supplier = h.supplier; } } catch(e){}
+    } catch(e){ toast("Soubor se nepodařilo nahrát."); } S._forceModal = true; renderOverlay(); return; }
+  if (t.id==="acc-month"){ if (t.value) S.accMonth = t.value; render(); return; }
+  if (t.id==="acc-outm"){ S.accOutM = t.value; render(); return; }
+  if (t.id==="acc-inm"){ S.accInM = t.value; render(); return; }
+  if (t.id==="acc-exp-from"){ S.accExpFrom = t.value; if (S.accExpTo && S.accExpTo < t.value) S.accExpTo = t.value; render(); return; }
+  if (t.id==="acc-exp-to"){ S.accExpTo = t.value; if (!S.accExpFrom) S.accExpFrom = t.value; render(); return; }
+  if (t.id==="acc-bacct"){ S.accBankAcct = t.value; render(); return; }
+  if (t.id==="as-vat"){ readAccSet(); render(); return; }
+  if (t.closest?.("#accsetform") && t.classList?.contains("as-anum")){ const c = t.closest("tr")?.children[2]; if (c) c.textContent = ibanFmt(czIban(t.value)) || "–"; return; }
+  if (t.id==="ae-client"){ const m = readAccEd(), cl = getClient(t.value); if (cl){ m.buyer = buyerOf(cl); if (m.dealId && getDeal(m.dealId)?.clientId!==cl.id) m.dealId = ""; } S._forceModal = true; renderOverlay(); return; }
+  if (t.id==="ae-deal"){ const m = readAccEd(), d = getDeal(t.value); if (d){ if (!m.clientId && d.clientId){ m.clientId = d.clientId; m.buyer = buyerOf(getClient(d.clientId)) || m.buyer; }
+      if (!m.lines.some(l => String(l.name).trim())){ const vp = m._new ? accVat() : !!m.vatPayer; const b = invBase(d); m.lines = b.lines.length ? b.lines.map(l => ({...l, vat:vp ? l.vat : 0})) : m.lines; } }
+    S._forceModal = true; renderOverlay(); return; }
+  if (t.closest?.("#acceditform")){ accEdRefresh(); if (t.id==="ae-issued"){ const m = S.modal.data; if (!m.vatPayer && !accVat()) m.duzp = t.value; } return; }
+  if (t.id==="ai-paid"){ const m = readAccIn(); if (m.paid && !m.paidAt) m.paidAt = m.kind==="receipt" ? (m.issued||today()) : today(); S._forceModal = true; renderOverlay(); return; }
   if (t.id==="si-file"){ stockInvFile(t.files?.[0]); return; }
   if (t.id==="si-attach"){ const m = readStockInv(); if (!m || !t.files?.[0]) return; m.attaching = true; S._forceModal = true; renderOverlay(); m.fileId = await stockInvUpload(t.files[0]); m.attaching = false; S._forceModal = true; renderOverlay(); return; }
   if (t.closest?.("#stinvform") && S.modal?.data?.step==="review"){ readStockInv(); if (t.matches("select,[type=checkbox]")){ S._forceModal = true; renderOverlay(); } else stockInvRefresh(); return; }
@@ -3364,6 +4031,9 @@ document.addEventListener("submit", async e => {
   e.preventDefault(); const f = e.target; const v = id => (document.getElementById(id)?.value ?? "").trim();
   if (f.id==="mailform"){ mailSend(); return; }
   if (f.id==="invform"){ invSubmit(); return; }
+  if (f.id==="acceditform"){ accEdSubmit(); return; }
+  if (f.id==="accinform"){ accInSubmit(); return; }
+  if (f.id==="accsetform"){ accSetSubmit(); return; }
   if (f.id==="stinvform"){ if (S.modal?.data?.step==="review") stockInvSubmit(); return; }
   if (f.id==="newsform"){ if (!isAdmin()) return; const d = S.modal.data, title = v("nw-title"); if (!title){ toast("Vyplňte nadpis."); return; }
     const n = {id:d.id, title, text:$("#nw-text").value.replace(/\s+$/,""), tag:v("nw-tag")||"info", pinned:!!$("#nw-pin")?.checked, at:d.at||Date.now(), by:d.by||me(), byId:d.byId||acc()?.id||""};
@@ -4077,7 +4747,8 @@ async function boot(){
     if (SCOPED.includes(col) || col==="accounts") applyScope();
     const firstLoad = !S.loaded[col]; S.loaded[col] = true;
     if (col==="leads" || col==="accounts") setTimeout(processWebLeads, 500);
-    const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest("#instform,#loginform,#setupform,#customform,#prodform,#commentform,#pdfform,.inl-note,.inl-state");
+    const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest("#instform,#loginform,#setupform,#customform,#prodform,#commentform,#pdfform,#accsetform,.inl-note,.inl-state");
+    if (col.startsWith("acc_") && ["accout","accpair"].includes(S.modal?.kind)){ S._forceModal = true; renderOverlay(); }
     if (col==="presence" && !firstLoad) paintOnline(); else if (!EDITING.includes(S.view) && !typing) render();
     if (col==="accounts" || col==="config") heartbeat();
     if (Object.values(S.loaded).every(Boolean) && !staleTimer){ staleTimer = setInterval(checkStale, 15*60*1000); setTimeout(checkStale, 4000); }

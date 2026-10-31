@@ -14,7 +14,8 @@ screenshot ke schválení, nasazovat až po souhlasu.
 Vlastní CRM pro firmu Prima Shade (prodej a montáž pergol): leady, klienti,
 obchodní případy, nabídky (PDF + online nabídka s odkazem), kalendář, montáže,
 ceník, sklad (včetně naskladnění z faktury ISDOC), pošta (IMAP/SMTP schránky),
-e-mailové šablony, automatizace, novinky na nástěnce, napojení na Fakturoid.
+e-mailové šablony, automatizace, novinky na nástěnce, **Účetnictví** (vlastní fakturace místo Fakturoidu,
+přijaté doklady, banka, export pro účetní).
 
 ## Kde co je
 
@@ -36,7 +37,8 @@ e-mailové šablony, automatizace, novinky na nástěnce, napojení na Fakturoid
   - `main.go` – start, přihlášení, ukládání záznamů, pravidla zápisu (`canWrite`), soubory.
   - `mail.go`, `mail2.go`, `mail3.go` – schránky, odesílání (`composeMail`), koncepty, koš.
   - `offerlink.go` – online nabídka, e-mail s nabídkou, sledování návštěv.
-  - `fakturoid.go` – vystavení záloh/faktur ve Fakturoidu a kontrola úhrad.
+  - `accounting.go` – Účetnictví: číslování faktur, PDF a e-mail k faktuře, úhrady, storno, ARES; zámek účetních dat.
+  - `fakturoid.go` – vystavení záloh/faktur ve Fakturoidu a kontrola úhrad (po zapnutí Účetnictví se už nepoužívá).
   - `auto.go` – automatizace; `richtext.go` – formátování e-mailů; `weblead.go` – poptávky z webu.
   - `install.sh` – instalace i aktualizace serveru (vytváří i příkaz `stinko-update`).
 
@@ -66,6 +68,27 @@ Prohlížečové testy: spustit server s `STINKO_PUBLIC=<kopie crm>` a `--dir <p
 v Playwrightu založit admina (`#su-name`, `#su-user`, `#su-pw`, `#su-pw2`), data vkládat přes
 háček `window.__t = s => eval(s)` vložený před `boot();` v kopii `index.html` (`save("products", {...})`, `go("stock")`).
 Bez serveru jde `index.html` otevřít i samostatně (režim bez ukládání, data v paměti).
+
+## Účetnictví (sekce v menu)
+
+- Vidí ji jen admin a ten, komu admin dá v Nastavení → Uživatelé právo „Účetnictví“ (Vidí / Upravuje).
+  Role **Účetní** = jen Účetnictví. Zamčené i na serveru: `OnRecordEnrich` v `main.go` vrací záznamy `acc_*`
+  ostatním jako `{"_hidden": true}`, zápis hlídá `writeSections` (sekce `accounting`).
+- Data (kolekce v `docs`): `acc_out` vydané faktury, `acc_in` přijaté doklady, `acc_bank` pohyby z výpisů,
+  `acc_cfg/main` údaje firmy, účty, číslování, DPH. Po uložení Nastavení se do `config/main` zapíše
+  `invoicing:"crm"` a tlačítko 🧾 v obchodním případu pak vystavuje přes Účetnictví (ne Fakturoid).
+- Číslování: `2026001` (faktury), `Z2026001` (zálohy). VS = číslice čísla, záloha s „1“ na začátku (`12026001`),
+  aby se nikdy neshodoval. Číslo přiděluje server (`/api/stinko/acc/issue`, zámek `accMu`).
+- PDF faktury s QR Platbou (SPAYD) se tvoří v prohlížeči (pdf-lib, `accPdf`), nahraje se a připojí přes
+  `/api/stinko/acc/attach` (ten zároveň připraví e-mail do Konceptů ze šablony „Zálohová faktura“ / „Faktura“).
+- Úhrada (`/acc/paid`) a storno (`/acc/storno`) upraví i fakturu v obchodu; uhrazená záloha posune obchod na „ZF uhrazena“.
+- Přijaté doklady: nahrání PDF/fotek/ISDOC (přetažením, víc najednou, fotka z mobilu). ISDOC se vyplní sám
+  (`isdocHead`), ostatní čekají „Ke zpracování“ na ruční doplnění. Zatím bez čtení textu z PDF.
+- Banka: výpis **GPC (ABO)** z Monety/ČSOB (`parseGpc`), automatické párování podle VS a částky, ruční párování.
+- Export: ZIP za období = PDF + ISDOC vydaných faktur, originály přijatých dokladů, `Prehled.xlsx`.
+- Neplátce DPH: hlídání obratu (limit 2 000 000 Kč/rok). Přepnutí na plátce v Nastavení (datum „od“)
+  zapne DPH na nových fakturách. **Zbývá:** daňový doklad k přijaté záloze, podklady k přiznání DPH
+  a kontrolnímu hlášení, faktury z e-mailu jedním klikem v Poště, ISDOC ověřit u účetní (Pohoda/Money).
 
 ## Tajné údaje
 

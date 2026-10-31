@@ -51,6 +51,10 @@ var writeSections = map[string][]string{
 	"offers":     {"offers", "deals"},
 	"installs":   {"installs", "deals", "calendar"},
 	"comms":      {"deals", "clients", "leads", "activities", "offers"},
+	"acc_out":    {"accounting"},
+	"acc_in":     {"accounting"},
+	"acc_bank":   {"accounting"},
+	"acc_cfg":    {"accounting"},
 }
 
 func main() {
@@ -75,6 +79,17 @@ func main() {
 	// Other accounts' password hashes are hidden from non-admins everywhere
 	// (list responses and realtime messages both pass through enrich).
 	app.OnRecordEnrich("docs").BindFunc(func(e *core.RecordEnrichEvent) error {
+		if col := e.Record.GetString("col"); isAccCol(col) {
+			// Účetnictví: only admins and accounts with the accounting right
+			var a map[string]any
+			if e.RequestInfo != nil && e.RequestInfo.Auth != nil {
+				a, _ = loadAccount(e.App, e.RequestInfo.Auth.GetString("acc"))
+			}
+			if a == nil || a["active"] == false || accPerm(a) == "none" {
+				e.Record.Set("data", map[string]any{"_hidden": true})
+			}
+			return e.Next()
+		}
 		if e.RequestInfo != nil && e.RequestInfo.Auth != nil {
 			col := e.Record.GetString("col")
 			if sc := scopeFor(e.App, e.RequestInfo.Auth.GetString("acc")); sc.own && !sc.visible(col, e.Record.GetString("key"), docData(e.Record)) {
@@ -146,6 +161,7 @@ func main() {
 		bindMailRoutes(se)
 		bindOfferRoutes(se)
 		bindFakRoutes(se)
+		bindAccRoutes(se)
 		startFakLoop(se.App)
 		startMailLoop(se.App)
 		r.GET("/{path...}", apis.Static(os.DirFS(publicDir()), true)).Bind(noCacheHTML())
@@ -579,7 +595,7 @@ func keepOneAdmin(app core.App, id string, data map[string]any) error {
 	return errors.New("Musí zůstat aspoň jeden aktivní admin.")
 }
 
-var adminDeleteOnly = map[string]bool{"deals": true, "leads": true, "clients": true, "offers": true, "activities": true, "products": true, "installs": true, "comms": true}
+var adminDeleteOnly = map[string]bool{"deals": true, "leads": true, "clients": true, "offers": true, "activities": true, "products": true, "installs": true, "comms": true, "acc_out": true}
 
 func handleDel(e *core.RequestEvent) error {
 	a, err := authAccount(e)
