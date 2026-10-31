@@ -105,6 +105,9 @@ Bez serveru jde `index.html` otevřít i samostatně (režim bez ukládání, da
   (`bankAutoMatch` → `accMarkPaid`), lidem s Účetnictvím přijde upozornění. Ověřeno na skutečném vzorku ČSOB;
   **Moneta: vzorek oznámení zatím chybí**, parser je obecný (štítky „Částka:“, „Variabilní symbol:“), ověřit.
   Kontrolně jde nahrát výpis **GPC (ABO)** (`parseGpc`); platby, které už přišly e-mailem, se nezdvojí.
+- Hromadné mazání (jen admin): zaškrtávání ve Vydaných, Přijatých a Bance (`accSel`) a ve Skladu (`BULK.stock`),
+  panel „Vybráno N → Smazat“. Před smazáním `accBeforeDelete` odpáruje platby v Bance, zruší úhrady zapsané
+  smazanou platbou (`accUnpair`) a odebere fakturu z `deal.invoices`. Určeno hlavně pro testovací data.
 - Export: ZIP za období = PDF + ISDOC vydaných faktur, originály přijatých dokladů, `Prehled.xlsx`.
 - Neplátce DPH: hlídání obratu (limit 2 000 000 Kč/rok). Přepnutí na plátce v Nastavení (datum „od“)
   zapne DPH na nových fakturách. **Zbývá:** daňový doklad k přijaté záloze, podklady k přiznání DPH

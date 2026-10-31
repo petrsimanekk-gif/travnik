@@ -993,7 +993,7 @@ function grid(kind, rows, opts={}){
   const slice = sorted.slice(S.page*ps, S.page*ps+ps);
   const cell = (c, r) => { if (c.html) return c.html(r); const v = c.val(r); if (v == null || v === "") return ""; return c.type==="money" ? money(Math.round(v*100)) : esc(v); };
   const summary = typeof opts.summary === "function" ? opts.summary(rows) : (opts.summary||[]);
-  const B = BULK[kind] && canEdit(BULK[kind].sec) ? BULK[kind] : null, sel = S.sel?.kind===kind ? S.sel.ids : new Set();
+  const B = BULK[kind] && canEdit(BULK[kind].sec) && (BULK[kind].fields().length || isAdmin()) ? BULK[kind] : null, sel = S.sel?.kind===kind ? S.sel.ids : new Set();
   if (B) S.gridIds = {kind, ids:sorted.map(r=>r.id)};
   const chkTh = B ? `<th class="chk"><input type="checkbox" class="selall" aria-label="Vybrat vše na stránce" ${slice.length && slice.every(r=>sel.has(r.id))?"checked":""}></th>` : "";
   const chkTd = r => B ? `<td class="chk" data-act="noop"><label><input type="checkbox" class="rowsel" value="${r.id}" ${sel.has(r.id)?"checked":""} aria-label="Vybrat záznam"></label></td>` : "";
@@ -1012,8 +1012,20 @@ const BULK = {
   deals:{sec:"deals", col:"deals", fields:()=>[["phaseId","Stav",null],["owner","Vlastník",C().users],["category","Kategorie",C().categories],["type","Typ obchodu",C().types],["source","Zdroj",C().sources]]},
   clients:{sec:"clients", col:"clients", fields:()=>[["state","Stav",CLIENT_STATES],["owner","Vlastník",C().users],["rating","Rating",["A","B","C"]],["role","Vztah",["Odběratel","Partner","Dodavatel","Konkurent"]]]},
   offers:{sec:"offers", col:"offers", fields:()=>[["status","Stav",OFFER_STATES],["owner","Vlastník",C().users]]},
-  acts:{sec:"activities", col:"activities", fields:()=>[["status","Stav",[["planned","Naplánováno"],["done","Realizováno"],["cancelled","Zrušeno"]]],["owner","Vlastník",C().users],["priority","Priorita",["Normální","Vysoká","Nízká"]],["category","Kategorie",C().activityCategories]]}
+  acts:{sec:"activities", col:"activities", fields:()=>[["status","Stav",[["planned","Naplánováno"],["done","Realizováno"],["cancelled","Zrušeno"]]],["owner","Vlastník",C().users],["priority","Priorita",["Normální","Vysoká","Nízká"]],["category","Kategorie",C().activityCategories]]},
+  // delete only (admin): stock items and the accounting lists
+  stock:{sec:"stock", col:"products", fields:()=>[]},
+  acc_out:{sec:"accounting", col:"acc_out", fields:()=>[], noXlsx:true},
+  acc_in:{sec:"accounting", col:"acc_in", fields:()=>[], noXlsx:true},
+  acc_bank:{sec:"accounting", col:"acc_bank", fields:()=>[], noXlsx:true}
 };
+// tick boxes for the accounting lists (they are not grid() tables); admin only, as deleting is
+function accSel(kind, rows){
+  if (!isAdmin()) return {attr:"", th:"", td:() => ""};
+  S.gridIds = {kind, ids:rows.map(r => r.id)}; const sel = S.sel?.kind===kind ? S.sel.ids : new Set();
+  return {attr:` data-gkind="${kind}"`, th:`<th class="chk"><input type="checkbox" class="selall" aria-label="Vybrat vše" ${rows.length && rows.every(r => sel.has(r.id))?"checked":""}></th>`,
+    td:id => `<td class="chk" data-act="noop"><label><input type="checkbox" class="rowsel" value="${esc(id)}" ${sel.has(id)?"checked":""} aria-label="Vybrat"></label></td>`};
+}
 const bulkIds = kind => { const all = S.gridIds?.kind===kind ? S.gridIds.ids : []; const sel = S.sel?.kind===kind ? S.sel.ids : new Set(); return all.filter(id => sel.has(id)); };
 function paintBulk(){
   const t = document.querySelector("table.g[data-gkind]"); const old = document.getElementById("bulkbar");
@@ -1021,7 +1033,8 @@ function paintBulk(){
   if (t){ t.querySelectorAll(".rowsel").forEach(x => { x.checked = !!S.sel?.ids.has(x.value) && S.sel.kind===kind; x.closest("tr").classList.toggle("sel", x.checked); }); const all = [...t.querySelectorAll(".rowsel")]; const sa = t.querySelector(".selall"); if (sa) sa.checked = all.length>0 && all.every(x=>x.checked); }
   if (!n){ old?.remove(); return; }
   const total = S.gridIds.ids.length;
-  const html = `<b>Vybráno ${n}</b>${n<total?`<button class="btn sm ghost" data-act="bulk-all">Vybrat všech ${total}</button>`:""}<button class="btn sm blue" data-act="bulk-edit">✎ <span class="bl">Hromadná úprava</span><span class="bs">Upravit</span></button>${isAdmin()?`<button class="btn sm" data-act="bulk-xlsx">⤓ <span class="bl">Export do Excelu</span><span class="bs">Excel</span></button><button class="btn sm bad" data-act="bulk-del">🗑 Smazat</button>`:""}<button class="btn sm ghost" data-act="bulk-clear" aria-label="Zrušit výběr">✕</button>`;
+  const B = BULK[kind];
+  const html = `<b>Vybráno ${n}</b>${n<total?`<button class="btn sm ghost" data-act="bulk-all">Vybrat všech ${total}</button>`:""}${B.fields().length?`<button class="btn sm blue" data-act="bulk-edit">✎ <span class="bl">Hromadná úprava</span><span class="bs">Upravit</span></button>`:""}${isAdmin()?`${B.noXlsx?"":`<button class="btn sm" data-act="bulk-xlsx">⤓ <span class="bl">Export do Excelu</span><span class="bs">Excel</span></button>`}<button class="btn sm bad" data-act="bulk-del">🗑 Smazat</button>`:""}<button class="btn sm ghost" data-act="bulk-clear" aria-label="Zrušit výběr">✕</button>`;
   let bar = old; if (!bar){ bar = document.createElement("div"); bar.id = "bulkbar"; bar.className = "bulkbar"; bar.setAttribute("role","toolbar"); bar.setAttribute("aria-label","Hromadné akce"); document.body.appendChild(bar); }
   bar.innerHTML = html; bar.dataset.kind = kind;
 }
@@ -1036,7 +1049,7 @@ function bulkModal(){
 function bulkDelModal(){
   const kind = S.modal.data.kind, ids = bulkIds(kind), keep = kind==="clients" ? ids.filter(id => S.deals.some(d=>d.clientId===id)).length : 0;
   return `<div class="modal" role="dialog" aria-modal="true" aria-label="Hromadné smazání"><div class="box" style="width:min(460px,100%)"><div class="mh"><b style="font-size:17px">Smazat ${ids.length} ${ids.length===1?"záznam":ids.length<5?"záznamy":"záznamů"}?</b><button class="btn sm ghost" data-act="close-modal" aria-label="Zavřít">✕</button></div>
-  <div class="mb"><p style="margin:0">Smazání nejde vrátit zpět.</p>${keep?`<p class="muted" style="margin:0">${keep} ${keep===1?"klient má":"klientů má"} obchodní případy, ti se nesmažou.</p>`:""}</div>
+  <div class="mb"><p style="margin:0">Smazání nejde vrátit zpět.</p>${BULK_DEL_NOTE[kind]?`<p class="muted" style="margin:0">${BULK_DEL_NOTE[kind]}</p>`:""}${keep?`<p class="muted" style="margin:0">${keep} ${keep===1?"klient má":"klientů má"} obchodní případy, ti se nesmažou.</p>`:""}</div>
   <div class="mf"><button class="btn ghost" data-act="close-modal">Zrušit</button><button class="btn badfill up" data-act="bulk-del-yes">Smazat</button></div></div></div>`;
 }
 async function bulkApply(){
@@ -1089,11 +1102,18 @@ async function bulkExport(kind){
     await saveFile(name, blob); toast(`Exportováno ${rows.length} ${rows.length===1?"řádek":rows.length<5?"řádky":"řádků"}`);
   } catch(e){ console.error(e); toast(e?.code==="declined" ? "Stahování zrušeno." : "Export se nepovedl."); }
 }
+const BULK_DEL_NOTE = {
+  stock:"Produkty zmizí i z ceníku a z historie pohybů na skladě.",
+  acc_out:"Mažte jen testovací faktury – skutečně vystavenou fakturu je potřeba stornovat. Faktury zmizí i z obchodních případů a jejich platby v Bance se odpárují; číslování pak pokračuje od nejvyššího zbylého čísla.",
+  acc_in:"Platby v Bance spárované s těmito doklady se odpárují.",
+  acc_bank:"Úhrady, které tyto platby zapsaly k fakturám a dokladům, se zruší."
+};
 async function bulkDelete(){
   const kind = S.modal.data.kind, B = BULK[kind]; if (!isAdmin()){ toast("Mazat může jen admin."); return; }
-  const ids = bulkIds(kind); let ok = 0, kept = 0; closeModal();
-  for (const id of ids){ if (kind==="clients" && S.deals.some(d=>d.clientId===id)){ kept++; continue; } try { await store.del(B.col, id); ok++; } catch(e){ console.error(e); } }
-  S.sel = null; render(); toast(`Smazáno ${ok}${kept?`, ${kept} klientů s obchody ponecháno`:""}`);
+  const ids = bulkIds(kind); let ok = 0, kept = 0; closeModal(); if (ids.length > 5) toast(`Mažu ${ids.length}…`, 60000);
+  for (const id of ids){ if (kind==="clients" && S.deals.some(d=>d.clientId===id)){ kept++; continue; }
+    try { if (kind.startsWith("acc_")) await accBeforeDelete(kind, id); await store.del(B.col, id); if (Array.isArray(S[B.col])) S[B.col] = S[B.col].filter(x => x.id!==id); ok++; } catch(e){ console.error(e); } }
+  S.sel = null; render(); paintBulk(); toast(`Smazáno ${ok}${kept?`, ${kept} klientů s obchody ponecháno`:""}${ok<ids.length-kept?`, ${ids.length-kept-ok} se nepovedlo`:""}`);
 }
 function filterBar(kind){
   const saved = prefs.filters[kind] || []; const act = prefs.active[kind];
@@ -2093,8 +2113,9 @@ function accOutList(){
   const chips = [["all","Vše"],["unpaid","Neuhrazené"],["overdue","Po splatnosti"],["paid","Uhrazené"],["deposit","Zálohové"],["cancelled","Stornované"]].map(([k,t]) => `<button class="chip" data-act="acc-f" data-k="out" data-f="${k}" aria-pressed="${f===k}">${t}</button>`).join("");
   const live = rows.filter(i => i.status!=="cancelled");
   const sumRow = `<div class="accsum"><span>Faktur: <b>${rows.length}</b></span><span>Celkem: <b>${czk(live.reduce((s,i) => s + toN(i.total), 0))}</b></span><span>Neuhrazeno: <b>${czk(live.filter(i => i.status!=="paid").reduce((s,i) => s + toN(i.total) - paidSum(i), 0))}</b></span></div>`;
-  const table = rows.length ? `<div class="grid"><table class="g acclist"><thead><tr><th>Číslo</th><th>Typ</th><th>Odběratel</th><th>Vystaveno</th><th>Splatnost</th><th class="num">Částka</th><th>Stav</th><th>Obchod</th><th></th></tr></thead><tbody>${rows.map(i => { const d = getDeal(i.dealId);
-    return `<tr data-act="acc-out-open" data-id="${i.id}"><td><b>${esc(i.number)}</b></td><td>${i.kind==="deposit"?"záloha":"faktura"}</td><td>${esc(i.buyer?.name||"")}</td><td>${fmtD(i.issued)}</td><td>${fmtD(i.due)}</td><td class="num"><b>${czk(i.total)}</b></td><td>${pill(outState(i))}</td><td>${d?esc(d.code):""}</td><td>${i.pdfId?`<a class="link" href="${blobUrl(i.pdfId)}" data-name="${esc(i.pdfName||"faktura.pdf")}" title="PDF">📄</a>`:""}</td></tr>`; }).join("")}</tbody></table></div>`
+  const ks = accSel("acc_out", rows);
+  const table = rows.length ? `<div class="grid"><table class="g acclist"${ks.attr}><thead><tr>${ks.th}<th>Číslo</th><th>Typ</th><th>Odběratel</th><th>Vystaveno</th><th>Splatnost</th><th class="num">Částka</th><th>Stav</th><th>Obchod</th><th></th></tr></thead><tbody>${rows.map(i => { const d = getDeal(i.dealId);
+    return `<tr data-act="acc-out-open" data-id="${i.id}">${ks.td(i.id)}<td><b>${esc(i.number)}</b></td><td>${i.kind==="deposit"?"záloha":"faktura"}</td><td>${esc(i.buyer?.name||"")}</td><td>${fmtD(i.issued)}</td><td>${fmtD(i.due)}</td><td class="num"><b>${czk(i.total)}</b></td><td>${pill(outState(i))}</td><td>${d?esc(d.code):""}</td><td>${i.pdfId?`<a class="link" href="${blobUrl(i.pdfId)}" data-name="${esc(i.pdfName||"faktura.pdf")}" title="PDF">📄</a>`:""}</td></tr>`; }).join("")}</tbody></table></div>`
     : `<div class="card"><div class="empty"><strong>Žádná faktura</strong>${canEdit("accounting")?"Novou vystavíte tlačítkem + Nová faktura nebo přímo v obchodním případu.":""}</div></div>`;
   return `<div class="lhead accl"><input id="q" class="lsearch" type="search" placeholder="Hledat číslo, odběratele…" value="${esc(S.q)}" aria-label="Hledat">${chips}<span class="sp"></span>${monthNav("acc-outm", m, true)}</div>${sumRow}${table}`;
 }
@@ -2105,8 +2126,9 @@ function accInList(){
     .filter(b => matchQ([b.supplier?.name, b.supplier?.ico, b.number, b.vs, b.category, b.note, getDeal(b.dealId)?.code])).sort((a,b) => (a.status==="todo"?0:1) - (b.status==="todo"?0:1) || String(b.issued||"9").localeCompare(String(a.issued||"9")));
   const chips = [["todo","Ke zpracování"],["unpaid","Nezaplacené"],["paid","Zaplacené"],["receipt","Účtenky"],["all","Vše"]].map(([k,t]) => `<button class="chip" data-act="acc-f" data-k="in" data-f="${k}" aria-pressed="${f===k}">${t}</button>`).join("");
   const drop = canEdit("accounting") ? `<label class="accdrop" id="accdrop"><input type="file" id="acc-in-file2" multiple accept=".pdf,.isdoc,.isdocx,image/*" hidden><b>Přetáhněte sem faktury a účtenky</b><span>PDF, fotky nebo ISDOC, klidně víc najednou. Nebo klikněte a vyberte soubory.</span></label>` : "";
-  const table = rows.length ? `<div class="grid"><table class="g acclist"><thead><tr><th>Dodavatel</th><th>Číslo dokladu</th><th>Vystaveno</th><th>Splatnost</th><th class="num">Částka</th><th>Kategorie</th><th>Zakázka</th><th>Stav</th><th></th></tr></thead><tbody>${rows.map(b => { const d = getDeal(b.dealId);
-    return `<tr data-act="acc-in-open" data-id="${b.id}"><td><b>${esc(b.supplier?.name || (b.files?.[0]?.name) || "–")}</b>${b.kind==="receipt"?` <span class="muted">· účtenka</span>`:""}</td><td>${esc(b.number||"")}</td><td>${fmtD(b.issued)}</td><td>${fmtD(b.due)}</td><td class="num"><b>${b.total!=null&&b.total!==""?czk(b.total):"–"}</b></td><td>${esc(b.category||"")}</td><td>${d?esc(d.code):""}</td><td>${pill(inState(b))}</td><td>${(b.files||[]).length?"📎":""}</td></tr>`; }).join("")}</tbody></table></div>`
+  const ks = accSel("acc_in", rows);
+  const table = rows.length ? `<div class="grid"><table class="g acclist"${ks.attr}><thead><tr>${ks.th}<th>Dodavatel</th><th>Číslo dokladu</th><th>Vystaveno</th><th>Splatnost</th><th class="num">Částka</th><th>Kategorie</th><th>Zakázka</th><th>Stav</th><th></th></tr></thead><tbody>${rows.map(b => { const d = getDeal(b.dealId);
+    return `<tr data-act="acc-in-open" data-id="${b.id}">${ks.td(b.id)}<td><b>${esc(b.supplier?.name || (b.files?.[0]?.name) || "–")}</b>${b.kind==="receipt"?` <span class="muted">· účtenka</span>`:""}</td><td>${esc(b.number||"")}</td><td>${fmtD(b.issued)}</td><td>${fmtD(b.due)}</td><td class="num"><b>${b.total!=null&&b.total!==""?czk(b.total):"–"}</b></td><td>${esc(b.category||"")}</td><td>${d?esc(d.code):""}</td><td>${pill(inState(b))}</td><td>${(b.files||[]).length?"📎":""}</td></tr>`; }).join("")}</tbody></table></div>`
     : `<div class="card"><div class="empty"><strong>${f==="todo"?"Nic ke zpracování":"Žádné doklady"}</strong>Faktury od dodavatelů a účtenky sem nahrajete tlačítkem nahoře, přetažením nebo fotkou z mobilu.</div></div>`;
   const all = rows.filter(b => b.status!=="todo");
   return `${drop}<div class="lhead accl"><input id="q" class="lsearch" type="search" placeholder="Hledat dodavatele, číslo…" value="${esc(S.q)}" aria-label="Hledat">${chips}<span class="sp"></span>${monthNav("acc-inm", m, true)}</div><div class="accsum"><span>Dokladů: <b>${rows.length}</b></span><span>Celkem: <b>${czk(all.reduce((s,b) => s + toN(b.total), 0))}</b></span><span>Nezaplaceno: <b>${czk(all.filter(b => !b.paid).reduce((s,b) => s + toN(b.total), 0))}</b></span></div>${table}`;
@@ -2466,6 +2488,18 @@ async function accAutoMatch(){
   }
   return n;
 }
+// undo what a bank movement paid (keep=false: the movement itself is about to be deleted)
+async function accUnpair(t, keep){
+  if (t.match?.col==="acc_in"){ const b = S.acc_in.find(x => x.id===t.match.id); if (b && b.bankId===t.id) await save("acc_in", {...b, paid:false, paidAt:"", bankId:""}); }
+  if (t.match?.col==="acc_out"){ const i = accOut(t.match.id); if (i && (i.payments||[]).some(p => p.bankId===t.id)){ const rest = (i.payments||[]).filter(p => p.bankId!==t.id); await accPayOut(i.id, {undo:true}); for (const p of rest) await accPayOut(i.id, p); } }
+  if (keep) await save("acc_bank", {...t, match:null});
+}
+// before an accounting record is deleted: nothing may point at it any more
+async function accBeforeDelete(kind, id){
+  if (kind==="acc_bank"){ const t = S.acc_bank.find(x => x.id===id); if (t?.match) await accUnpair(t, false); return; }
+  for (const t of S.acc_bank.filter(t => t.match?.col===kind && t.match.id===id)) await save("acc_bank", {...t, match:null});
+  if (kind==="acc_out") for (const d of S.deals.filter(d => (d.invoices||[]).some(e => e.accId===id))) await save("deals", {...d, invoices:d.invoices.filter(e => e.accId!==id)});
+}
 async function accPair(t, col, id){
   if (col==="acc_out"){ await accPayOut(id, {date:t.date, amount:t.amount, how:"bank", bankId:t.id}); }
   else if (col==="acc_in"){ const b = S.acc_in.find(x => x.id===id); if (b) await save("acc_in", {...b, paid:true, paidAt:t.date, paidHow:"bank", bankId:t.id}); }
@@ -2481,7 +2515,8 @@ function accBankView(){
     return r ? `<a class="link" data-act="${t.match.col==="acc_out"?"acc-out-open":"acc-in-open"}" data-id="${r.id}">${esc(t.match.col==="acc_out" ? r.number : (r.supplier?.name||"") + " " + (r.number||""))}</a>` : `<span class="muted">smazaný doklad</span>`; };
   const ed = canEdit("accounting");
   const imp = ed ? `<label class="btn blue">⤒ Nahrát výpis (GPC)<input type="file" id="acc-bank-file" accept=".gpc,.abo,.txt,.GPC" hidden></label>` : "";
-  const table = rows.length ? `<div class="grid"><table class="g acclist"><thead><tr><th>Datum</th><th class="num">Částka</th><th>VS</th><th>Protiúčet</th><th>Název / zpráva</th><th>Doklad</th><th></th></tr></thead><tbody>${rows.map(t => `<tr><td>${fmtD(t.date)}</td><td class="num"><b style="color:${t.amount<0?"var(--bad)":"var(--good)"}">${t.amount>0?"+":""}${czk(t.amount)}</b></td><td>${esc(t.vs)}</td><td>${esc(t.counter)}</td><td>${esc(t.name)}${t.source==="mail"?` <span class="muted" title="Z e-mailového oznámení banky">✉</span>`:""}</td><td>${t.match?doc(t):pill(["Nespárováno","warn"])}</td><td style="text-align:right">${ed?(t.match?`<button class="btn sm ghost" data-act="acc-unpair" data-id="${t.id}" title="Zrušit spárování">✕</button>`:`<button class="btn sm" data-act="acc-pair" data-id="${t.id}">Spárovat</button>`):""}</td></tr>`).join("")}</tbody></table></div>`
+  const ks = accSel("acc_bank", rows);
+  const table = rows.length ? `<div class="grid"><table class="g acclist"${ks.attr}><thead><tr>${ks.th}<th>Datum</th><th class="num">Částka</th><th>VS</th><th>Protiúčet</th><th>Název / zpráva</th><th>Doklad</th><th></th></tr></thead><tbody>${rows.map(t => `<tr>${ks.td(t.id)}<td>${fmtD(t.date)}</td><td class="num"><b style="color:${t.amount<0?"var(--bad)":"var(--good)"}">${t.amount>0?"+":""}${czk(t.amount)}</b></td><td>${esc(t.vs)}</td><td>${esc(t.counter)}</td><td>${esc(t.name)}${t.source==="mail"?` <span class="muted" title="Z e-mailového oznámení banky">✉</span>`:""}</td><td>${t.match?doc(t):pill(["Nespárováno","warn"])}</td><td style="text-align:right">${ed?(t.match?`<button class="btn sm ghost" data-act="acc-unpair" data-id="${t.id}" title="Zrušit spárování">✕</button>`:`<button class="btn sm" data-act="acc-pair" data-id="${t.id}">Spárovat</button>`):""}</td></tr>`).join("")}</tbody></table></div>`
     : `<div class="card"><div class="empty"><strong>${S.acc_bank.length?"Vše spárováno 👍":"Zatím žádný výpis"}</strong>${S.acc_bank.length?"":"Platby se sem zapisují samy z e-mailových oznámení banky (ČSOB, Moneta), která chodí do schránky připojené v CRM. Pro kontrolu můžete nahrát i výpis ve formátu <b>GPC (ABO)</b>. Platby se spárují s fakturami podle variabilního symbolu."}</div></div>`;
   return `<div class="lhead accl"><input id="q" class="lsearch" type="search" placeholder="Hledat VS, název, částku…" value="${esc(S.q)}" aria-label="Hledat">${chips}${asel}<span class="sp"></span>${ed&&S.acc_bank.some(t=>!t.match)?`<button class="btn" data-act="acc-automatch">↻ Spárovat znovu</button>`:""}${imp}</div>${table}`;
 }
@@ -2666,9 +2701,7 @@ async function accAct(act, a){
     case "acc-pair-pick": { if (!need()) break; const t = S.acc_bank.find(x => x.id===a.dataset.t); try { await accPair(t, a.dataset.col, id); closeModal(); toast("Spárováno"); render(); } catch(e){ toast(e.message); } break; }
     case "acc-pair-none": { if (!need()) break; const t = S.acc_bank.find(x => x.id===a.dataset.t); await save("acc_bank", {...t, match:{col:"none", note:a.dataset.n}}); closeModal(); render(); break; }
     case "acc-unpair": { if (!need()) break; const t = S.acc_bank.find(x => x.id===id); if (!t?.match) break; if (!confirm("Zrušit spárování? U faktury se smaže i zapsaná úhrada z této platby.")) break;
-      if (t.match.col==="acc_in"){ const b = S.acc_in.find(x => x.id===t.match.id); if (b && b.bankId===t.id) await save("acc_in", {...b, paid:false, paidAt:"", bankId:""}); }
-      if (t.match.col==="acc_out"){ const i = accOut(t.match.id); if (i){ const rest = (i.payments||[]).filter(p => p.bankId!==t.id); await accPayOut(i.id, {undo:true}); for (const p of rest) await accPayOut(i.id, p); } }
-      await save("acc_bank", {...t, match:null}); render(); break; }
+      await accUnpair(t, true); render(); break; }
     case "acc-automatch": { const n = await accAutoMatch(); toast(n ? `Spárováno ${n} plateb` : "Nic dalšího se nepodařilo spárovat automaticky."); render(); break; }
     case "acc-exp-preset": { const y = today().slice(0,4), m = today().slice(0,7);
       if (a.dataset.a==="-1"){ S.accExpFrom = S.accExpTo = shiftMonth(m, -1); } else if (a.dataset.a==="0"){ S.accExpFrom = y+"-01"; S.accExpTo = m; } else { S.accExpFrom = (Number(y)-1)+"-01"; S.accExpTo = (Number(y)-1)+"-12"; } render(); break; }
