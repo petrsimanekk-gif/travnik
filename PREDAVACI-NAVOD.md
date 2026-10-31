@@ -38,6 +38,7 @@ přijaté doklady, banka, export pro účetní).
   - `mail.go`, `mail2.go`, `mail3.go` – schránky, odesílání (`composeMail`), koncepty, koš.
   - `offerlink.go` – online nabídka, e-mail s nabídkou, sledování návštěv.
   - `accounting.go` – Účetnictví: číslování faktur, PDF a e-mail k faktuře, úhrady, storno, ARES; zámek účetních dat.
+  - `airead.go` – čtení přijatých dokladů (fotka/PDF) přes OpenAI nebo Anthropic, klíče v `secrets/ai`.
   - `fakturoid.go` – vystavení záloh/faktur ve Fakturoidu a kontrola úhrad (po zapnutí Účetnictví se už nepoužívá).
   - `auto.go` – automatizace; `richtext.go` – formátování e-mailů; `weblead.go` – poptávky z webu.
   - `install.sh` – instalace i aktualizace serveru (vytváří i příkaz `stinko-update`).
@@ -83,7 +84,14 @@ Bez serveru jde `index.html` otevřít i samostatně (režim bez ukládání, da
   `/api/stinko/acc/attach` (ten zároveň připraví e-mail do Konceptů ze šablony „Zálohová faktura“ / „Faktura“).
 - Úhrada (`/acc/paid`) a storno (`/acc/storno`) upraví i fakturu v obchodu; uhrazená záloha posune obchod na „ZF uhrazena“.
 - Přijaté doklady: nahrání PDF/fotek/ISDOC (přetažením, víc najednou, fotka z mobilu). ISDOC se vyplní sám
-  (`isdocHead`), ostatní čekají „Ke zpracování“ na ruční doplnění. Zatím bez čtení textu z PDF.
+  (`isdocHead`). Fotky a PDF bez ISDOC **přečte umělá inteligence** (`server/airead.go`, `/api/stinko/acc/read`):
+  údaje dokladu i položky (`acc_in.items`) se předvyplní, doklad zůstane „Ke zpracování“, dokud ho člověk
+  nezkontroluje a neuloží. V detailu dokladu tlačítka „Přečíst údaje z dokladu“ a „Přečíst pečlivěji“ (dražší model).
+  Nastavení (jen admin): Účetnictví → Nastavení → „Čtení dokladů z fotky a PDF“ – služba OpenAI / Anthropic,
+  API klíče (uložené jen na serveru, `secrets` klíč `ai`), modely. Výchozí: OpenAI `gpt-5-mini` / pečlivěji
+  `gpt-5.4-mini`; Anthropic `claude-haiku-5-5` / `claude-sonnet-5-5`. Cena se počítá podle tabulky `aiPrices`
+  (kurz 23 Kč/USD) a sčítá po měsících. Petr má kredit u OpenAI, po jeho vyčerpání přepne na Anthropic.
+  Testy: `airead_test.go` (simulované API přes `STINKO_OPENAI_URL` / `STINKO_ANTHROPIC_URL`).
 - Banka: **platby se zapisují samy z e-mailových oznámení banky** (`server/bankmail.go`): ČSOB CEB posílá
   „Zaúčtování platby“ (Kredit i Debet, 1–99 999 999 Kč) na faktury@primashade.cz, schránka je připojená v Poště;
   při synchronizaci schránky `bankFromMail` oznámení rozpozná, uloží do `acc_bank` (source "mail") a spáruje podle VS

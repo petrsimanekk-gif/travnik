@@ -162,6 +162,7 @@ func main() {
 		bindOfferRoutes(se)
 		bindFakRoutes(se)
 		bindAccRoutes(se)
+		bindAiRoutes(se)
 		startFakLoop(se.App)
 		startMailLoop(se.App)
 		r.GET("/{path...}", apis.Static(os.DirFS(publicDir()), true)).Bind(noCacheHTML())
