@@ -93,7 +93,7 @@ Bez serveru jde `index.html` otevřít i samostatně (režim bez ukládání, da
   (kurz 23 Kč/USD) a sčítá po měsících. Petr má kredit u OpenAI, po jeho vyčerpání přepne na Anthropic.
   Testy: `airead_test.go` (simulované API přes `STINKO_OPENAI_URL` / `STINKO_ANTHROPIC_URL`).
   **Sklad → „📄 Naskladnit z dokladu“** používá stejné čtení: fotka účtenky / PDF bez ISDOC → položky
-  (`stockInvFromAi`, ceny přepočtené bez DPH podle sazby) → spárování s produkty → naskladnění; zaškrtnutím se doklad
+  (`stockInvFromAi`; nákupní ceny s DPH, dokud firma není plátce – `stockVat`, pak bez DPH) → spárování s produkty → naskladnění; zaškrtnutím se doklad
   zapíše i do Přijatých dokladů. Z detailu přijatého dokladu s položkami tlačítko „📦 Naskladnit položky“.
   Naskladněný doklad má `acc_in.stocked = {at, by, n}`. Čtení smí spustit i kdo má jen právo upravovat Sklad (`aiStockEditor`).
 - Banka: **platby se zapisují samy z e-mailových oznámení banky** (`server/bankmail.go`): ČSOB CEB posílá

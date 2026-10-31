@@ -152,7 +152,10 @@ func handleAiCfg(e *core.RequestEvent) error {
 		return e.ForbiddenError("permission_denied", nil)
 	}
 	c, _ := loadAiCfg(e.App)
-	out := map[string]any{"ready": c.ready(), "provider": c.Provider}
+	ac := accCfg(e.App)
+	from, _ := ac["vatFrom"].(string)
+	vatPayer := ac["vatPayer"] == true && (from == "" || from <= time.Now().Format("2006-01-02"))
+	out := map[string]any{"ready": c.ready(), "provider": c.Provider, "vatPayer": vatPayer}
 	if a["role"] == "admin" {
 		m := c.month()
 		out["hasOpenai"], out["hasAnthropic"] = c.OpenaiKey != "", c.AnthropicKey != ""
