@@ -282,31 +282,39 @@ func handleAccPaid(e *core.RequestEvent) error {
 	if err := e.BindBody(&b); err != nil || b.ID == "" {
 		return e.BadRequestError("", err)
 	}
+	status, paid, err := accMarkPaid(e.App, b.ID, b.Date, b.Amount, b.How, b.BankID, str(a, "name"), b.Undo)
+	if err != nil {
+		return e.BadRequestError(err.Error(), nil)
+	}
+	return e.JSON(http.StatusOK, map[string]any{"status": status, "paid": paid})
+}
+
+// accMarkPaid records a payment of an issued invoice (or removes all of them with undo)
+// and mirrors the paid state into the deal: history, "ZF uhrazena", a note for the owner.
+func accMarkPaid(app core.App, id, date string, amount float64, how, bankID, by string, undo bool) (string, float64, error) {
 	accMu.Lock()
 	defer accMu.Unlock()
-	rec, err := findDoc(e.App, "acc_out", b.ID)
+	rec, err := findDoc(app, "acc_out", id)
 	if err != nil {
-		return e.NotFoundError("Faktura nenalezena.", nil)
+		return "", 0, userErr{"Faktura nenalezena."}
 	}
 	inv := docData(rec)
 	if str(inv, "status") == "cancelled" {
-		return e.BadRequestError("Faktura je stornovaná.", nil)
+		return "", 0, userErr{"Faktura je stornovaná."}
 	}
 	now := time.Now().UnixMilli()
-	by := str(a, "name")
 	total := toF(inv["total"])
 	pays, _ := inv["payments"].([]any)
-	if b.Undo {
+	if date == "" {
+		date = time.Now().Format("2006-01-02")
+	}
+	if undo {
 		pays = nil
 	} else {
-		amt := b.Amount
-		if amt == 0 {
-			amt = total - accPaidSum(pays)
+		if amount == 0 {
+			amount = total - accPaidSum(pays)
 		}
-		if b.Date == "" {
-			b.Date = time.Now().Format("2006-01-02")
-		}
-		pays = append(pays, map[string]any{"date": b.Date, "amount": amt, "how": b.How, "bankId": b.BankID, "at": now, "by": by})
+		pays = append(pays, map[string]any{"date": date, "amount": amount, "how": how, "bankId": bankID, "at": now, "by": by})
 	}
 	inv["payments"] = pays
 	paid := accPaidSum(pays)
@@ -314,22 +322,22 @@ func handleAccPaid(e *core.RequestEvent) error {
 	status := "issued"
 	if total > 0 && paid >= total-0.005 {
 		status = "paid"
-		inv["paidAt"] = b.Date
+		inv["paidAt"] = date
 	} else {
 		delete(inv, "paidAt")
 	}
 	inv["status"] = status
 	evs, _ := inv["events"].([]any)
 	text := "Úhrada zrušena"
-	if !b.Undo {
-		text = "Uhrazeno " + czk(toF(pays[len(pays)-1].(map[string]any)["amount"])) + " (" + czDate(b.Date) + ")"
+	if !undo {
+		text = "Uhrazeno " + czk(amount) + " (" + czDate(date) + ")"
 	}
 	inv["events"] = append(evs, map[string]any{"at": now, "by": by, "text": text})
-	if err := putDoc(e.App, "acc_out", b.ID, inv); err != nil {
-		return err
+	if err := putDoc(app, "acc_out", id, inv); err != nil {
+		return "", 0, err
 	}
 	if dealID := str(inv, "dealId"); dealID != "" && (status == "paid") != wasPaid {
-		if deal := updateDealInv(e.App, dealID, b.ID, func(m map[string]any) {
+		if deal := updateDealInv(app, dealID, id, func(m map[string]any) {
 			if status == "paid" {
 				m["status"], m["paidAt"] = "paid", now
 			} else {
@@ -342,20 +350,20 @@ func handleAccPaid(e *core.RequestEvent) error {
 				t := fmt.Sprintf("✓ %s %s uhrazena (%s)", kind, str(inv, "number"), czk(total))
 				evs := []any{map[string]any{"at": now, "by": by, "kind": "edit", "text": t}}
 				if str(inv, "kind") == "deposit" {
-					if ev := movePhase(e.App, deal, "ZF uhrazena", "Účetnictví"); ev != nil {
+					if ev := movePhase(app, deal, "ZF uhrazena", "Účetnictví"); ev != nil {
 						evs = append(evs, ev)
 					}
 				}
 				old, _ := deal["events"].([]any)
 				deal["events"] = trimEvents(append(old, evs...))
 				if owner := str(deal, "owner"); owner != "" && owner != by {
-					_ = putDoc(e.App, "notifs", randUUID(), map[string]any{"to": owner, "text": "💰 " + t + " – " + str(deal, "code") + " " + str(deal, "name"), "at": now, "read": false, "dealId": dealID, "leadId": "", "by": by})
+					_ = putDoc(app, "notifs", randUUID(), map[string]any{"to": owner, "text": "💰 " + t + " – " + str(deal, "code") + " " + str(deal, "name"), "at": now, "read": false, "dealId": dealID, "leadId": "", "by": by})
 				}
 			}
-			_ = putDoc(e.App, "deals", dealID, deal)
+			_ = putDoc(app, "deals", dealID, deal)
 		}
 	}
-	return e.JSON(http.StatusOK, map[string]any{"status": status, "paid": paid})
+	return status, paid, nil
 }
 
 func accPaidSum(pays []any) float64 {

@@ -84,7 +84,12 @@ Bez serveru jde `index.html` otevřít i samostatně (režim bez ukládání, da
 - Úhrada (`/acc/paid`) a storno (`/acc/storno`) upraví i fakturu v obchodu; uhrazená záloha posune obchod na „ZF uhrazena“.
 - Přijaté doklady: nahrání PDF/fotek/ISDOC (přetažením, víc najednou, fotka z mobilu). ISDOC se vyplní sám
   (`isdocHead`), ostatní čekají „Ke zpracování“ na ruční doplnění. Zatím bez čtení textu z PDF.
-- Banka: výpis **GPC (ABO)** z Monety/ČSOB (`parseGpc`), automatické párování podle VS a částky, ruční párování.
+- Banka: **platby se zapisují samy z e-mailových oznámení banky** (`server/bankmail.go`): ČSOB CEB posílá
+  „Zaúčtování platby“ (Kredit i Debet, 1–99 999 999 Kč) na faktury@primashade.cz, schránka je připojená v Poště;
+  při synchronizaci schránky `bankFromMail` oznámení rozpozná, uloží do `acc_bank` (source "mail") a spáruje podle VS
+  (`bankAutoMatch` → `accMarkPaid`), lidem s Účetnictvím přijde upozornění. Ověřeno na skutečném vzorku ČSOB;
+  **Moneta: vzorek oznámení zatím chybí**, parser je obecný (štítky „Částka:“, „Variabilní symbol:“), ověřit.
+  Kontrolně jde nahrát výpis **GPC (ABO)** (`parseGpc`); platby, které už přišly e-mailem, se nezdvojí.
 - Export: ZIP za období = PDF + ISDOC vydaných faktur, originály přijatých dokladů, `Prehled.xlsx`.
 - Neplátce DPH: hlídání obratu (limit 2 000 000 Kč/rok). Přepnutí na plátce v Nastavení (datum „od“)
   zapne DPH na nových fakturách. **Zbývá:** daňový doklad k přijaté záloze, podklady k přiznání DPH
