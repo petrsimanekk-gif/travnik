@@ -2011,6 +2011,7 @@ async function invSubmit(){
 // ---------- Účetnictví ----------
 // acc_out = vydané faktury, acc_in = přijaté doklady, acc_bank = pohyby z bankovních výpisů, acc_cfg/main = údaje firmy.
 // Server shows these records only to admins and to accounts with the "accounting" right (see server/accounting.go).
+const USER_ACC_ACTS = ["acc-new","acc-edit","acc-genpw"];
 const ACC_CATS = ["Materiál a zboží","Subdodávky a montáže","Doprava a PHM","Nájem","Energie","Telefon a internet","Software a služby","Marketing a reklama","Kancelář","Nářadí a vybavení","Pojištění","Bankovní poplatky","Daně a poplatky","Ostatní"];
 const ACC_DEF = {company:{}, accounts:[], vatPayer:false, vatFrom:"", vatPeriod:"month", dueDays:14, dueDepositDays:7, prefixInvoice:"", prefixDeposit:"Z", mailBox:"", footer:"", categories:ACC_CATS};
 const accCfg = () => ({...ACC_DEF, ...(S.acc_cfg.find(x => x.id==="main") || {})});
@@ -3663,7 +3664,7 @@ document.addEventListener("click", async e => {
   e.stopPropagation();
   if ((ADMIN_DEL.includes(act) || (act==="ask" && a.dataset.what==="del")) && !isAdmin()){ toast("Mazat záznamy může jen admin."); return; }
   { const need = actSection(act, a); if (need && !canEdit(need)){ toast("Na tuto akci nemáte oprávnění."); return; } }
-  if (act.startsWith("acc-")){ await accAct(act, a); return; }
+  if (act.startsWith("acc-") && !USER_ACC_ACTS.includes(act)){ await accAct(act, a); return; } // Účetnictví (acc-new/edit/genpw are the user accounts)
   const D = () => getDeal(S.param);
   switch (act){
     case "noop": break;
