@@ -690,7 +690,9 @@ func syncFolder(app core.App, c *imapclient.Client, box, folder, name string, st
 			if err := app.Save(rec); err != nil {
 				app.Logger().Warn("mail save", "box", box, "uid", m.UID, "err", err)
 			}
-			if folder == "inbox" && !seen && fs.Last > 0 {
+			// a bank's payment notification becomes a movement in Účetnictví → Banka (bankmail.go)
+			isBank := folder == "inbox" && bankFromMail(app, p)
+			if folder == "inbox" && !seen && fs.Last > 0 && !isBank {
 				notifyNewMail(app, box, p)
 			}
 			changed = true
